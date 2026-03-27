@@ -73,17 +73,57 @@ function formatRuntime(minutes) {
 }
 
 function getEmbedUrl({ activePlayer, type, id, season, episode, videoKey }) {
+  if (!id || !type) return '';
+
+  const isMovie = type === 'movie';
+  const isTv = type === 'tv';
+
   if (activePlayer === 'player1') {
-    if (!videoKey) return '';
-    return `https://www.youtube.com/embed/${videoKey}?autoplay=1&rel=0&modestbranding=1&enablejsapi=1`;
+    if (isMovie) {
+      return `https://vidlink.pro/movie/${id}`;
+    }
+
+    if (isTv) {
+      if (season && episode) {
+        return `https://vidlink.pro/tv/${id}/${season}/${episode}`;
+      }
+
+      return `https://vidlink.pro/tv/${id}`;
+    }
+
+    return '';
   }
 
   if (activePlayer === 'player2') {
-    return `https://player.twitch.tv/?channel=yourchannel&parent=localhost`;
+    if (isMovie) {
+      return `https://vidsrc-embed.ru/embed/movie/${id}`;
+    }
+
+    if (isTv) {
+      if (season && episode) {
+        return `https://vidsrc-embed.ru/embed/tv/${id}/${season}/${episode}`;
+      }
+
+      return `https://vidsrc-embed.ru/embed/tv/${id}`;
+    }
+
+    return '';
   }
 
   if (activePlayer === 'player3') {
-    return `https://player.kick.com/yourchannel`;
+    if (isMovie) {
+      return `https://www.vidking.net/embed/movie/${id}`;
+    }
+
+    if (isTv) {
+      if (season && episode) {
+        return `https://www.vidking.net/embed/tv/${id}/${season}/${episode}`;
+      }
+
+      return `https://www.vidking.net/embed/tv/${id}`;
+    }
+
+    return '';
   }
 
   return '';
