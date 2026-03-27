@@ -2,12 +2,12 @@
 
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 
-const TMDB_API_KEY = 'bb55db1bab2f577940a88a75fa45692a';
+const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
 const BACKDROP_BASE = 'https://image.tmdb.org/t/p/original';
 const POSTER_BASE = 'https://image.tmdb.org/t/p/w500';
 
@@ -89,7 +89,7 @@ function getEmbedUrl({ activePlayer, type, id, season, episode, videoKey }) {
   return '';
 }
 
-export default function WatchPage() {
+function WatchPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -326,7 +326,9 @@ export default function WatchPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-black text-white">
-        <Navbar />
+        <Suspense fallback={<div className="h-20" />}>
+  <Navbar />
+</Suspense>
         <main className="px-8 pb-10 pt-24">
           <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-10 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
             <p className="text-lg text-gray-300">Loading watch page...</p>
@@ -339,7 +341,9 @@ export default function WatchPage() {
   if (error || !heroData) {
     return (
       <div className="min-h-screen bg-black text-white">
-        <Navbar />
+        <Suspense fallback={<div className="h-20" />}>
+  <Navbar />
+</Suspense>
         <main className="px-8 pb-10 pt-24">
           <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-10 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
             <p className="text-lg text-red-300">{error || 'Unable to load this page.'}</p>
@@ -359,7 +363,9 @@ export default function WatchPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <Navbar />
+      <Suspense fallback={<div className="h-20" />}>
+  <Navbar />
+</Suspense>
 
       <main className="px-8 pb-10 pt-24">
         <section className="relative overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
@@ -640,5 +646,13 @@ export default function WatchPage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function WatchPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black text-white" />}>
+      <WatchPageContent />
+    </Suspense>
   );
 }
