@@ -1,8 +1,4 @@
-'use client';
-import { useParams } from 'next/navigation';
-
-export default function WatchMovie() {
-  const params = useParams();
+export default function WatchMovie({ params }) {
   const { id } = params;
 
   return (
