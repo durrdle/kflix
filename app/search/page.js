@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import Navbar from '@/components/Navbar';
 
-const TMDB_API_KEY = 'bb55db1bab2f577940a88a75fa45692a';
+const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
 const IMAGE_POSTER = 'https://image.tmdb.org/t/p/w500';
 
 function normalizeType(type) {
@@ -212,7 +212,7 @@ function CardBadges({ item, isBookmarked, onToggleBookmark }) {
   );
 }
 
-export default function SearchPage() {
+function SearchPageContent() {
   const searchParams = useSearchParams();
 
   const currentQuery = searchParams.get('q') || '';
@@ -470,7 +470,9 @@ export default function SearchPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <Navbar />
+      <Suspense fallback={<div className="h-20" />}>
+  <Navbar />
+</Suspense>
 
       <main className="px-8 pb-10 pt-24">
         <section>
@@ -611,5 +613,13 @@ export default function SearchPage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black text-white" />}>
+      <SearchPageContent />
+    </Suspense>
   );
 }
