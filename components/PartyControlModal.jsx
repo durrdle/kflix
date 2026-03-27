@@ -32,6 +32,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
   const dragOffsetRef = useRef({ x: 0, y: 0 });
   const chatRef = useRef(null);
   const lastHandledResyncRef = useRef(0);
+  const lastHandledPlaybackTargetRef = useRef('');
 
   const chatUiKey = useMemo(
     () => (code ? `kflix_party_chat_ui_${code}` : ''),
@@ -52,12 +53,14 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
 
   const readChatUi = () => {
     if (!chatUiKey) return;
+
     try {
       const raw = localStorage.getItem(chatUiKey);
       const parsed = raw ? JSON.parse(raw) : null;
 
       if (parsed) {
         setChatOpen(Boolean(parsed.open));
+
         if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
           setChatPosition({ x: parsed.x, y: parsed.y });
         }
@@ -121,8 +124,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
       })
     );
 
-    const currentUrl =
-      `${window.location.pathname}${window.location.search}`;
+    const currentUrl = `${window.location.pathname}${window.location.search}`;
 
     if (currentUrl !== targetUrl) {
       router.push(targetUrl);
@@ -130,14 +132,14 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
   };
 
   useEffect(() => {
-  const auth = getAuth();
+    const auth = getAuth();
 
-  const unsubscribe = onAuthStateChanged(auth, (user) => {
-    setUserId(user?.uid || '');
-  });
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUserId(user?.uid || '');
+    });
 
-  return () => unsubscribe();
-}, []);
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (!code) return;
@@ -176,7 +178,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
     });
 
     const unsubPlayback = subscribeToPlayback(code, (nextPlayback) => {
-      setPlaybackState(nextPlayback);
+      setPlaybackState(nextPlayback || null);
     });
 
     return () => {
@@ -201,6 +203,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
 
   useEffect(() => {
     if (!code) return;
+
     saveChatUi({
       open: chatOpen,
       x: chatPosition.x,
@@ -237,6 +240,58 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
     };
   }, [dragging]);
 
+  // Auto-follow host when host starts or switches media
+  useEffect(() => {
+    if (!code) return;
+    if (!userId) return;
+    if (isHost) return;
+    if (!playbackState?.mediaType || !playbackState?.mediaId) return;
+
+    const mediaKey = [
+      String(playbackState.mediaType),
+      String(playbackState.mediaId),
+      String(playbackState.season ?? ''),
+      String(playbackState.episode ?? ''),
+    ].join(':');
+
+    if (lastHandledPlaybackTargetRef.current === mediaKey) return;
+    lastHandledPlaybackTargetRef.current = mediaKey;
+
+    const currentPath = window.location.pathname;
+    const currentParams = new URLSearchParams(window.location.search);
+
+    const currentType = currentParams.get('type') || '';
+    const currentId = currentParams.get('id') || '';
+    const currentSeason = currentParams.get('season') || '';
+    const currentEpisode = currentParams.get('episode') || '';
+
+    const targetType = String(playbackState.mediaType);
+    const targetId = String(playbackState.mediaId);
+    const targetSeason = String(playbackState.season ?? '');
+    const targetEpisode = String(playbackState.episode ?? '');
+
+    const alreadyOnSameMedia =
+      currentPath === '/watch' &&
+      currentType === targetType &&
+      currentId === targetId &&
+      currentSeason === targetSeason &&
+      currentEpisode === targetEpisode;
+
+    if (!alreadyOnSameMedia) {
+      applyHostPlaybackNow();
+      setSyncStatus('Recently Resynced');
+    }
+  }, [
+    code,
+    userId,
+    isHost,
+    playbackState?.mediaType,
+    playbackState?.mediaId,
+    playbackState?.season,
+    playbackState?.episode,
+  ]);
+
+  // Manual resync / jump-to-host for non-hosts
   useEffect(() => {
     const syncRequestedAt = partyState?.syncRequestedAt || 0;
 
@@ -301,11 +356,14 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
 
   const handleStartDrag = (e) => {
     if (!chatRef.current) return;
+
     const rect = chatRef.current.getBoundingClientRect();
+
     dragOffsetRef.current = {
       x: e.clientX - rect.left,
       y: e.clientY - rect.top,
     };
+
     setDragging(true);
   };
 

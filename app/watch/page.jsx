@@ -5,7 +5,9 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import Navbar from '@/components/Navbar';
+import { setPartyMedia, subscribeToMembers } from '@/lib/firebaseParty';
 
 const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
 const BACKDROP_BASE = 'https://image.tmdb.org/t/p/original';
@@ -149,7 +151,52 @@ function WatchPageContent() {
   const [syncNotice, setSyncNotice] = useState('');
   const [pendingSync, setPendingSync] = useState(null);
 
+  const [userId, setUserId] = useState('');
+  const [partyCode, setPartyCode] = useState('');
+  const [members, setMembers] = useState([]);
+
   const playerFrameRef = useRef(null);
+
+  const currentMember = useMemo(
+    () => members.find((member) => String(member.id) === String(userId)) || null,
+    [members, userId]
+  );
+
+  const isHost = Boolean(currentMember?.isHost);
+
+  useEffect(() => {
+    const auth = getAuth();
+
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUserId(user?.uid || '');
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    try {
+      const storedCode = localStorage.getItem('kflix_current_party_code') || '';
+      const isActive = localStorage.getItem('kflix_in_party') === 'true';
+
+      setPartyCode(isActive ? storedCode : '');
+    } catch {
+      setPartyCode('');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!partyCode) {
+      setMembers([]);
+      return;
+    }
+
+    const unsubscribe = subscribeToMembers(partyCode, (nextMembers) => {
+      setMembers(nextMembers || []);
+    });
+
+    return () => unsubscribe?.();
+  }, [partyCode]);
 
   useEffect(() => {
     let active = true;
@@ -208,6 +255,36 @@ function WatchPageContent() {
       active = false;
     };
   }, [type, id, season, episode]);
+
+  // Host publishes current media to party playback
+  useEffect(() => {
+    if (!partyCode) return;
+    if (!userId) return;
+    if (!isHost) return;
+    if (!type || !id) return;
+
+    setPartyMedia(partyCode, {
+      mediaType: type,
+      mediaId: id,
+      season: type === 'tv' ? season || null : null,
+      episode: type === 'tv' ? episode || null : null,
+      currentTime: Number(initialTimeParam || 0) || 0,
+      isPlaying: initialAutoplayParam === '1',
+      updatedBy: userId,
+    }).catch((error) => {
+      console.error('Failed to publish host media to party:', error);
+    });
+  }, [
+    partyCode,
+    userId,
+    isHost,
+    type,
+    id,
+    season,
+    episode,
+    initialTimeParam,
+    initialAutoplayParam,
+  ]);
 
   useEffect(() => {
     const startTime = Number(initialTimeParam || 0);
@@ -367,8 +444,8 @@ function WatchPageContent() {
     return (
       <div className="min-h-screen bg-black text-white">
         <Suspense fallback={<div className="h-20" />}>
-  <Navbar />
-</Suspense>
+          <Navbar />
+        </Suspense>
         <main className="px-8 pb-10 pt-24">
           <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-10 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
             <p className="text-lg text-gray-300">Loading watch page...</p>
@@ -382,8 +459,8 @@ function WatchPageContent() {
     return (
       <div className="min-h-screen bg-black text-white">
         <Suspense fallback={<div className="h-20" />}>
-  <Navbar />
-</Suspense>
+          <Navbar />
+        </Suspense>
         <main className="px-8 pb-10 pt-24">
           <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-10 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
             <p className="text-lg text-red-300">{error || 'Unable to load this page.'}</p>
@@ -404,8 +481,8 @@ function WatchPageContent() {
   return (
     <div className="min-h-screen bg-black text-white">
       <Suspense fallback={<div className="h-20" />}>
-  <Navbar />
-</Suspense>
+        <Navbar />
+      </Suspense>
 
       <main className="px-8 pb-10 pt-24">
         <section className="relative overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
