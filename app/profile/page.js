@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   EmailAuthProvider,
@@ -331,7 +331,7 @@ function BookmarkedSection({ items, onRemoveBookmark }) {
   );
 }
 
-export default function ProfilePage() {
+function ProfilePageContent() {
   const router = useRouter();
 
   const [user, setUser] = useState(null);
@@ -420,25 +420,25 @@ export default function ProfilePage() {
       setUser(currentUser);
 
       const savedName =
-  localStorage.getItem(`kflix_profile_name_${currentUser.uid}`) ||
-  currentUser.displayName ||
-  (currentUser.email ? currentUser.email.split('@')[0] : 'User');
+        localStorage.getItem(`kflix_profile_name_${currentUser.uid}`) ||
+        currentUser.displayName ||
+        (currentUser.email ? currentUser.email.split('@')[0] : 'User');
 
-const savedAvatar =
-  localStorage.getItem(`kflix_profile_avatar_${currentUser.uid}`) || 'ember';
+      const savedAvatar =
+        localStorage.getItem(`kflix_profile_avatar_${currentUser.uid}`) || 'ember';
 
-const savedTheme =
-  localStorage.getItem(`kflix_profile_theme_${currentUser.uid}`) || 'lava';
+      const savedTheme =
+        localStorage.getItem(`kflix_profile_theme_${currentUser.uid}`) || 'lava';
 
-setProfileName(savedName);
-setDraftName(savedName);
-setSelectedAvatar(savedAvatar);
-setSelectedTheme(savedTheme);
+      setProfileName(savedName);
+      setDraftName(savedName);
+      setSelectedAvatar(savedAvatar);
+      setSelectedTheme(savedTheme);
 
-readPartyState();
-readBookmarkedItems(currentUser.uid);
+      readPartyState();
+      readBookmarkedItems(currentUser.uid);
 
-setLoading(false);
+      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -530,18 +530,18 @@ setLoading(false);
   }, [selectedTheme]);
 
   const handleSaveName = () => {
-  const cleaned = draftName.trim().slice(0, 24);
+    const cleaned = draftName.trim().slice(0, 24);
 
-  if (!cleaned) return;
+    if (!cleaned) return;
 
-  const auth = getAuth();
-  const currentUser = auth.currentUser;
-  if (!currentUser?.uid) return;
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+    if (!currentUser?.uid) return;
 
-  setProfileName(cleaned);
-  localStorage.setItem(`kflix_profile_name_${currentUser.uid}`, cleaned);
-  setEditingName(false);
-};
+    setProfileName(cleaned);
+    localStorage.setItem(`kflix_profile_name_${currentUser.uid}`, cleaned);
+    setEditingName(false);
+  };
 
   const handleCancelNameEdit = () => {
     setDraftName(profileName);
@@ -559,15 +559,23 @@ setLoading(false);
   };
 
   const chooseAvatar = (avatarId) => {
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+    if (!currentUser?.uid) return;
+
     setSelectedAvatar(avatarId);
-    localStorage.setItem('kflix_profile_avatar_${currentUser.uid}', avatarId);
+    localStorage.setItem(`kflix_profile_avatar_${currentUser.uid}`, avatarId);
     setAvatarModalOpen(false);
   };
 
   const handleThemeChange = (e) => {
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+    if (!currentUser?.uid) return;
+
     const nextTheme = e.target.value;
     setSelectedTheme(nextTheme);
-    localStorage.setItem('kflix_profile_theme_${currentUser.uid}', nextTheme);
+    localStorage.setItem(`kflix_profile_theme_${currentUser.uid}`, nextTheme);
   };
 
   const handleChangePassword = async (e) => {
@@ -648,7 +656,9 @@ setLoading(false);
   if (loading) {
     return (
       <div className="min-h-screen bg-black text-white">
-        <Navbar />
+        <Suspense fallback={<div className="h-20" />}>
+          <Navbar />
+        </Suspense>
         <div className="px-8 pb-10 pt-28">
           <div className="mx-auto w-full rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-10 text-center shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
             <p className="text-lg text-gray-300">Loading profile...</p>
@@ -660,7 +670,9 @@ setLoading(false);
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <Navbar />
+      <Suspense fallback={<div className="h-20" />}>
+        <Navbar />
+      </Suspense>
 
       <main className="px-8 pb-10 pt-24">
         <div className="space-y-8">
@@ -1065,5 +1077,13 @@ setLoading(false);
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black text-white" />}>
+      <ProfilePageContent />
+    </Suspense>
   );
 }
