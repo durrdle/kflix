@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 
@@ -165,7 +165,7 @@ function normalizeSportItem(item, index) {
   };
 }
 
-export default function LiveSportsPage() {
+function LiveSportsPageContent() {
   const [loading, setLoading] = useState(true);
   const [sportsLoading, setSportsLoading] = useState(true);
   const [matches, setMatches] = useState([]);
@@ -289,7 +289,7 @@ export default function LiveSportsPage() {
             </h1>
 
             <p className="mt-4 max-w-3xl text-sm leading-7 text-gray-200 md:text-base">
-              Browse events from Football, to Motor Sports, to Fights and jump straight into the action.
+              Anything from Football to Motor Sports & Fights.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -550,5 +550,13 @@ export default function LiveSportsPage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function LiveSportsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black text-white" />}>
+      <LiveSportsPageContent />
+    </Suspense>
   );
 }
