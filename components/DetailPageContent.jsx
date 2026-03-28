@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { db } from '@/lib/firebaseParty';
+import { ref, get, update, onValue } from 'firebase/database';
 
 const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
 const BACKDROP_BASE = 'https://image.tmdb.org/t/p/original';
@@ -39,6 +41,44 @@ function formatRuntime(minutes) {
   const hrs = Math.floor(minutes / 60);
   const mins = minutes % 60;
   return `${hrs}h ${mins}m`;
+}
+
+function buildEpisodeKey(showId, seasonNumber, episodeNumber) {
+  return `${showId}-S${seasonNumber}-E${episodeNumber}`;
+}
+
+function getWatchedEpisodesDbRef(userId) {
+  return ref(db, `users/${userId}/watchedEpisodes`);
+}
+
+function normalizeWatchedMap(value) {
+  if (!value || typeof value !== 'object') return {};
+  return value;
+}
+
+function getContinueWatchingItem(userId, showId) {
+  if (!userId || !showId) return null;
+
+  try {
+    const raw = localStorage.getItem(`kflix_continue_watching_${userId}`);
+    const parsed = raw ? JSON.parse(raw) : [];
+    const list = Array.isArray(parsed) ? parsed : [];
+
+    const matchingEpisodes = list
+      .filter(
+        (item) =>
+          item &&
+          item.media_type === 'tv' &&
+          String(item.id) === String(showId) &&
+          Number(item.season) > 0 &&
+          Number(item.episode) > 0
+      )
+      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+    return matchingEpisodes[0] || null;
+  } catch {
+    return null;
+  }
 }
 
 function TrailerModal({ open, onClose, videoKey, title }) {
@@ -151,12 +191,37 @@ function TrailerModal({ open, onClose, videoKey, title }) {
             </div>
           </div>
 
-          {!playerReady && (
-            <p className="mt-4 text-sm text-gray-400">Loading trailer...</p>
-          )}
+          {!playerReady && <p className="mt-4 text-sm text-gray-400">Loading trailer...</p>}
         </div>
       </div>
     </div>
+  );
+}
+
+function WatchBadge({ checked, onClick, title }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex min-h-[28px] min-w-[28px] cursor-pointer items-center justify-center rounded-md border px-2 py-1 text-[10px] font-bold tracking-[0.08em] backdrop-blur-md transition active:scale-95 ${
+        checked
+          ? 'border-green-400/70 bg-green-600/90 text-white shadow-[0_0_14px_rgba(34,197,94,0.35)] hover:bg-green-700'
+          : 'border-white/15 bg-black/65 text-white shadow-[0_0_14px_rgba(0,0,0,0.2)] hover:border-green-400/60 hover:text-green-300'
+      }`}
+      title={title}
+      aria-label={title}
+    >
+      <svg
+        className="h-3 w-3 flex-shrink-0"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path d="M5 13l4 4L19 7" />
+      </svg>
+    </button>
   );
 }
 
@@ -166,6 +231,10 @@ function WatchOptionsModal({
   title,
   showId,
   seasons,
+  userId,
+  watchedMap,
+  onToggleEpisode,
+  onToggleSeason,
 }) {
   const [selectedSeason, setSelectedSeason] = useState(null);
   const [seasonData, setSeasonData] = useState(null);
@@ -198,7 +267,7 @@ function WatchOptionsModal({
         if (active) {
           setSeasonData(result);
         }
-      } catch (error) {
+      } catch {
         if (active) {
           setSeasonError('Failed to load episodes for this season.');
           setSeasonData(null);
@@ -252,11 +321,7 @@ function WatchOptionsModal({
     };
   }, [open, seasons]);
 
-  if (!open) return null;
-
-  const filteredSeasons = (seasons || []).filter(
-    (season) => season.season_number > 0
-  );
+  const filteredSeasons = (seasons || []).filter((season) => season.season_number > 0);
 
   const scrollSeasons = (direction) => {
     const el = seasonScrollRef.current;
@@ -267,6 +332,36 @@ function WatchOptionsModal({
       behavior: 'smooth',
     });
   };
+
+  const getEpisodeChecked = (seasonNumber, episodeNumber) =>
+    Boolean(watchedMap[buildEpisodeKey(showId, seasonNumber, episodeNumber)]);
+
+  const isSeasonComplete = (seasonNumber, episodes) => {
+    if (!episodes?.length) return false;
+
+    return episodes.every((episode) => getEpisodeChecked(seasonNumber, episode.episode_number));
+  };
+
+  const getSeasonChecked = (seasonNumber) => {
+    if (selectedSeason === seasonNumber && seasonData?.episodes?.length) {
+      return isSeasonComplete(seasonNumber, seasonData.episodes);
+    }
+
+    const seasonMeta = filteredSeasons.find((entry) => entry.season_number === seasonNumber);
+    if (!seasonMeta?.episode_count) return false;
+
+    let checkedCount = 0;
+
+    for (let i = 1; i <= seasonMeta.episode_count; i += 1) {
+      if (getEpisodeChecked(seasonNumber, i)) {
+        checkedCount += 1;
+      }
+    }
+
+    return checkedCount > 0 && checkedCount === seasonMeta.episode_count;
+  };
+
+  if (!open) return null;
 
   return (
     <div
@@ -346,29 +441,55 @@ function WatchOptionsModal({
                 {filteredSeasons.length > 0 ? (
                   filteredSeasons.map((season) => {
                     const active = selectedSeason === season.season_number;
+                    const seasonChecked = getSeasonChecked(season.season_number);
 
                     return (
-                      <button
+                      <div
                         key={season.id || season.season_number}
-                        type="button"
-                        onClick={() => {
-                          setSelectedSeason(season.season_number);
-                          setSeasonData(null);
-                          setSeasonError('');
-                        }}
-                        className={`w-full cursor-pointer rounded-xl border px-4 py-3 text-left transition ${
+                        className={`w-full rounded-xl border px-4 py-3 transition ${
                           active
                             ? 'border-red-400 bg-red-600/15 text-red-300 shadow-[0_0_18px_rgba(239,68,68,0.18)]'
                             : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
                         }`}
                       >
-                        <div className="text-sm font-medium">
-                          {season.name || `Season ${season.season_number}`}
+                        <div className="flex items-start justify-between gap-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedSeason(season.season_number);
+                              setSeasonData(null);
+                              setSeasonError('');
+                            }}
+                            className="min-w-0 flex-1 cursor-pointer text-left"
+                          >
+                            <div className="flex items-center gap-2 text-sm font-medium">
+                              <span>{season.name || `Season ${season.season_number}`}</span>
+                              {seasonChecked ? <span className="text-green-400">✔</span> : null}
+                            </div>
+                            <div className="mt-1 text-xs text-gray-400">
+                              {season.episode_count || 0} episodes
+                            </div>
+                          </button>
+
+                          <WatchBadge
+                            checked={seasonChecked}
+                            title={seasonChecked ? 'Unmark season as watched' : 'Mark season as watched'}
+                            onClick={() => {
+                              const episodesToToggle =
+                                active && seasonData?.episodes?.length
+                                  ? seasonData.episodes
+                                  : Array.from(
+                                      { length: season.episode_count || 0 },
+                                      (_, index) => ({
+                                        episode_number: index + 1,
+                                      })
+                                    );
+
+                              onToggleSeason(season.season_number, episodesToToggle);
+                            }}
+                          />
                         </div>
-                        <div className="mt-1 text-xs text-gray-400">
-                          {season.episode_count || 0} episodes
-                        </div>
-                      </button>
+                      </div>
                     );
                   })
                 ) : (
@@ -385,9 +506,7 @@ function WatchOptionsModal({
 
             {!selectedSeason && (
               <div className="flex min-h-[320px] items-center justify-center">
-                <p className="text-sm text-gray-400">
-                  Pick a season to see the episodes.
-                </p>
+                <p className="text-sm text-gray-400">Pick a season to see the episodes.</p>
               </div>
             )}
 
@@ -406,21 +525,36 @@ function WatchOptionsModal({
             {selectedSeason && !loadingSeason && !seasonError && seasonData && (
               <div className="mt-4 max-h-[420px] space-y-3 overflow-y-auto pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                 {seasonData.episodes?.length > 0 ? (
-                  seasonData.episodes.map((episode) => (
-                    <Link
-                      key={episode.id || episode.episode_number}
-                      href={`/watch?type=tv&id=${showId}&season=${selectedSeason}&episode=${episode.episode_number}`}
-                      className="block cursor-pointer"
-                    >
-                      <div className="group rounded-xl border border-white/10 bg-black/20 p-4 transition hover:border-red-400/70 hover:shadow-[0_0_20px_rgba(239,68,68,0.16)]">
+                  seasonData.episodes.map((episode) => {
+                    const watched = getEpisodeChecked(selectedSeason, episode.episode_number);
+
+                    return (
+                      <div
+                        key={episode.id || episode.episode_number}
+                        className="group rounded-xl border border-white/10 bg-black/20 p-4 transition hover:border-red-400/70 hover:shadow-[0_0_20px_rgba(239,68,68,0.16)]"
+                      >
                         <div className="flex items-start justify-between gap-4">
-                          <div className="min-w-0">
-                            <div className="text-sm font-semibold text-white transition group-hover:text-red-300">
-                              Episode {episode.episode_number}: {episode.name}
-                            </div>
-                            <div className="mt-2 line-clamp-2 text-xs leading-6 text-gray-400">
-                              {episode.overview || 'No description available.'}
-                            </div>
+                          <div className="flex min-w-0 items-start gap-2">
+                            <WatchBadge
+                              checked={watched}
+                              title={watched ? 'Unmark episode as watched' : 'Mark episode as watched'}
+                              onClick={() => {
+                                onToggleEpisode(selectedSeason, episode.episode_number);
+                              }}
+                            />
+
+                            <Link
+                              href={`/watch?type=tv&id=${showId}&season=${selectedSeason}&episode=${episode.episode_number}`}
+                              className="min-w-0 block cursor-pointer"
+                            >
+                              <div className="text-sm font-semibold text-white transition group-hover:text-red-300">
+                                Episode {episode.episode_number}: {episode.name}
+                              </div>
+
+                              <div className="mt-2 line-clamp-2 text-xs leading-6 text-gray-400">
+                                {episode.overview || 'No description available.'}
+                              </div>
+                            </Link>
                           </div>
 
                           <div className="flex-shrink-0 text-xs text-gray-400">
@@ -428,12 +562,18 @@ function WatchOptionsModal({
                           </div>
                         </div>
                       </div>
-                    </Link>
-                  ))
+                    );
+                  })
                 ) : (
                   <p className="text-sm text-gray-400">No episodes found for this season.</p>
                 )}
               </div>
+            )}
+
+            {userId ? null : (
+              <p className="mt-4 text-xs text-gray-500">
+                Sign in to sync watched episodes across devices.
+              </p>
             )}
           </div>
         </div>
@@ -549,10 +689,7 @@ function CastCarousel({ cast }) {
       >
         <div className="flex w-full">
           {Array.from({ length: totalPages }).map((_, pageIndex) => {
-            const pageItems = cast.slice(
-              pageIndex * cardsPerPage,
-              pageIndex * cardsPerPage + cardsPerPage
-            );
+            const pageItems = cast.slice(pageIndex * cardsPerPage, pageIndex * cardsPerPage + cardsPerPage);
 
             return (
               <div key={pageIndex} className="grid min-w-full grid-cols-6 gap-4 px-6 py-5">
@@ -705,10 +842,7 @@ function SimilarCarousel({ items, type }) {
       >
         <div className="flex w-full">
           {Array.from({ length: totalPages }).map((_, pageIndex) => {
-            const pageItems = items.slice(
-              pageIndex * cardsPerPage,
-              pageIndex * cardsPerPage + cardsPerPage
-            );
+            const pageItems = items.slice(pageIndex * cardsPerPage, pageIndex * cardsPerPage + cardsPerPage);
 
             return (
               <div key={pageIndex} className="grid min-w-full grid-cols-6 gap-4 px-6 py-5">
@@ -762,6 +896,8 @@ export default function DetailPageContent({ id, type }) {
   const [watchOptionsOpen, setWatchOptionsOpen] = useState(false);
   const [userId, setUserId] = useState('');
   const [isInWatchlist, setIsInWatchlist] = useState(false);
+  const [watchedEpisodes, setWatchedEpisodes] = useState({});
+  const [continueEpisode, setContinueEpisode] = useState(null);
 
   useEffect(() => {
     const auth = getAuth();
@@ -784,7 +920,7 @@ export default function DetailPageContent({ id, type }) {
         if (active) {
           setData(result);
         }
-      } catch (err) {
+      } catch {
         if (active) {
           setError('Failed to load this title.');
         }
@@ -818,6 +954,74 @@ export default function DetailPageContent({ id, type }) {
     }
   }, [userId, id, type, data]);
 
+  useEffect(() => {
+    if (!userId || type !== 'tv' || !id) {
+      setWatchedEpisodes({});
+      setContinueEpisode(null);
+      return;
+    }
+
+    const watchedRef = getWatchedEpisodesDbRef(userId);
+
+    const unsubscribe = onValue(watchedRef, (snapshot) => {
+      const nextMap = normalizeWatchedMap(snapshot.exists() ? snapshot.val() : {});
+      setWatchedEpisodes(nextMap);
+    });
+
+    setContinueEpisode(getContinueWatchingItem(userId, id));
+
+    const handleStorage = () => {
+      setContinueEpisode(getContinueWatchingItem(userId, id));
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('kflix-continue-watching-updated', handleStorage);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('kflix-continue-watching-updated', handleStorage);
+    };
+  }, [userId, type, id]);
+
+  useEffect(() => {
+    if (!userId || type !== 'tv' || !id || !watchOptionsOpen) return;
+
+    const syncCompletedEpisodeFromContinueWatching = async () => {
+      try {
+        const current = getContinueWatchingItem(userId, id);
+        if (!current) return;
+
+        const remainingTime = Number(current.remainingTime || 0);
+        const seasonNumber = Number(current.season || 0);
+        const episodeNumber = Number(current.episode || 0);
+
+        if (remainingTime > 240 || seasonNumber <= 0 || episodeNumber <= 0) {
+          return;
+        }
+
+        const key = buildEpisodeKey(id, seasonNumber, episodeNumber);
+
+        if (watchedEpisodes[key]) return;
+
+        const snapshot = await get(getWatchedEpisodesDbRef(userId));
+        const existing = normalizeWatchedMap(snapshot.exists() ? snapshot.val() : {});
+        const updated = {
+          ...existing,
+          [key]: true,
+        };
+
+        await update(ref(db, `users/${userId}`), {
+          watchedEpisodes: updated,
+        });
+      } catch (syncError) {
+        console.error('Failed to sync watched episode:', syncError);
+      }
+    };
+
+    syncCompletedEpisodeFromContinueWatching();
+  }, [userId, type, id, watchOptionsOpen, watchedEpisodes]);
+
   const title = useMemo(() => {
     if (!data) return '';
     return type === 'movie' ? data.title : data.name;
@@ -849,9 +1053,7 @@ export default function DetailPageContent({ id, type }) {
       data.videos.results.find(
         (video) => video.site === 'YouTube' && video.type === 'Trailer'
       ) ||
-      data.videos.results.find(
-        (video) => video.site === 'YouTube'
-      ) ||
+      data.videos.results.find((video) => video.site === 'YouTube') ||
       null
     );
   }, [data]);
@@ -870,6 +1072,14 @@ export default function DetailPageContent({ id, type }) {
     if (type !== 'tv' || !data?.seasons) return [];
     return data.seasons.filter((season) => season.season_number > 0);
   }, [data, type]);
+
+  const continueSeasonHref = useMemo(() => {
+    if (type !== 'tv' || !continueEpisode) return '';
+
+    return `/watch?type=tv&id=${id}&season=${continueEpisode.season}&episode=${continueEpisode.episode}${
+      continueEpisode.currentTime ? `&t=${Math.floor(Number(continueEpisode.currentTime) || 0)}` : ''
+    }&autoplay=1`;
+  }, [type, continueEpisode, id]);
 
   const handleWatchlistToggle = () => {
     if (!userId || !data) return;
@@ -909,6 +1119,57 @@ export default function DetailPageContent({ id, type }) {
       window.dispatchEvent(new Event('storage'));
     } catch (error) {
       console.error('Watchlist update failed:', error);
+    }
+  };
+
+  const handleToggleEpisode = async (seasonNumber, episodeNumber) => {
+    if (!userId || type !== 'tv') return;
+
+    try {
+      const currentMap = normalizeWatchedMap(watchedEpisodes);
+      const key = buildEpisodeKey(id, seasonNumber, episodeNumber);
+      const updated = { ...currentMap };
+
+      if (updated[key]) {
+        delete updated[key];
+      } else {
+        updated[key] = true;
+      }
+
+      await update(ref(db, `users/${userId}`), {
+        watchedEpisodes: updated,
+      });
+    } catch (toggleError) {
+      console.error('Failed to toggle episode:', toggleError);
+    }
+  };
+
+  const handleToggleSeason = async (seasonNumber, episodes) => {
+    if (!userId || type !== 'tv' || !Array.isArray(episodes) || !episodes.length) return;
+
+    try {
+      const currentMap = normalizeWatchedMap(watchedEpisodes);
+      const updated = { ...currentMap };
+
+      const allWatched = episodes.every((episode) =>
+        updated[buildEpisodeKey(id, seasonNumber, episode.episode_number)]
+      );
+
+      episodes.forEach((episode) => {
+        const key = buildEpisodeKey(id, seasonNumber, episode.episode_number);
+
+        if (allWatched) {
+          delete updated[key];
+        } else {
+          updated[key] = true;
+        }
+      });
+
+      await update(ref(db, `users/${userId}`), {
+        watchedEpisodes: updated,
+      });
+    } catch (toggleError) {
+      console.error('Failed to toggle season:', toggleError);
     }
   };
 
@@ -978,9 +1239,7 @@ export default function DetailPageContent({ id, type }) {
                 {type === 'movie' ? 'Movie' : 'TV Show'}
               </div>
 
-              <h1 className="mt-4 text-4xl font-bold md:text-6xl">
-                {title}
-              </h1>
+              <h1 className="mt-4 text-4xl font-bold md:text-6xl">{title}</h1>
 
               <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-gray-300">
                 <span>{releaseYear}</span>
@@ -1019,21 +1278,39 @@ export default function DetailPageContent({ id, type }) {
                     </span>
                   </Link>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => setWatchOptionsOpen(true)}
-                    className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-md bg-red-600 px-5 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60"
-                  >
-                    <svg
-                      className="h-4 w-4 flex-shrink-0"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
+                  <>
+                    {continueSeasonHref ? (
+                      <Link href={continueSeasonHref} className="cursor-pointer">
+                        <span className="flex h-11 items-center justify-center gap-2 rounded-md bg-red-600 px-5 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60">
+                          <svg
+                            className="h-4 w-4 flex-shrink-0"
+                            fill="currentColor"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                          >
+                            <path d="M8 5.5v13l10-6.5-10-6.5z" />
+                          </svg>
+                          Continue Season
+                        </span>
+                      </Link>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      onClick={() => setWatchOptionsOpen(true)}
+                      className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-md bg-red-600 px-5 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60"
                     >
-                      <path d="M8 5.5v13l10-6.5-10-6.5z" />
-                    </svg>
-                    Watch
-                  </button>
+                      <svg
+                        className="h-4 w-4 flex-shrink-0"
+                        fill="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <path d="M8 5.5v13l10-6.5-10-6.5z" />
+                      </svg>
+                      {continueSeasonHref ? 'Browse Episodes' : 'Watch'}
+                    </button>
+                  </>
                 )}
 
                 {trailer && (
@@ -1167,6 +1444,10 @@ export default function DetailPageContent({ id, type }) {
         title={title}
         showId={id}
         seasons={selectableSeasons}
+        userId={userId}
+        watchedMap={watchedEpisodes}
+        onToggleEpisode={handleToggleEpisode}
+        onToggleSeason={handleToggleSeason}
       />
 
       <footer className="px-8 pb-8 pt-2 text-center text-sm text-gray-400">
