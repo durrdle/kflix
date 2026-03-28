@@ -39,15 +39,31 @@ function buildContinueWatchingHref(item) {
   params.set('id', String(item.id));
 
   if (mediaType === 'tv') {
-    if (item.season !== undefined && item.season !== null && item.season !== '') {
-      params.set('season', String(item.season));
+    const targetSeason =
+      item.nextSeason !== undefined && item.nextSeason !== null && item.nextSeason !== ''
+        ? item.nextSeason
+        : item.season;
+
+    const targetEpisode =
+      item.nextEpisode !== undefined && item.nextEpisode !== null && item.nextEpisode !== ''
+        ? item.nextEpisode
+        : item.episode;
+
+    if (targetSeason !== undefined && targetSeason !== null && targetSeason !== '') {
+      params.set('season', String(targetSeason));
     }
-    if (item.episode !== undefined && item.episode !== null && item.episode !== '') {
-      params.set('episode', String(item.episode));
+
+    if (targetEpisode !== undefined && targetEpisode !== null && targetEpisode !== '') {
+      params.set('episode', String(targetEpisode));
     }
   }
 
-  if (item.currentTime && Number(item.currentTime) > 0) {
+  const shouldUseCurrentTime = !(
+    item.nextSeason !== undefined ||
+    item.nextEpisode !== undefined
+  );
+
+  if (shouldUseCurrentTime && item.currentTime && Number(item.currentTime) > 0) {
     params.set('t', String(Math.floor(Number(item.currentTime))));
   }
 
@@ -318,7 +334,7 @@ function CarouselSection({
                           <>
                             <div className={`mt-1 text-gray-400 ${compact ? 'text-[11px]' : 'text-xs'}`}>
                               {(item.media_type || item.type) === 'tv'
-                                ? `S${item.season || '?'} • E${item.episode || '?'}${item.episode_name ? ` • ${item.episode_name}` : ''}`
+                                ? `S${item.nextSeason || item.season || '?'} • E${item.nextEpisode || item.episode || '?'}${item.episode_name ? ` • ${item.episode_name}` : ''}`
                                 : formatRemainingTime(item.remainingTime)}
                             </div>
 
@@ -395,7 +411,22 @@ export default function HomeContent() {
     try {
       const parsed = JSON.parse(raw);
       const normalized = Array.isArray(parsed) ? parsed : [];
-      const sorted = [...normalized].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+      const latestByTitle = normalized.reduce((map, item) => {
+        if (!item || !item.id) return map;
+
+        const mediaType = item.media_type || item.type || 'movie';
+        const key = `${mediaType}-${item.id}`;
+        const existing = map.get(key);
+
+        if (!existing || (item.updatedAt || 0) > (existing.updatedAt || 0)) {
+          map.set(key, item);
+        }
+
+        return map;
+      }, new Map());
+
+      const sorted = [...latestByTitle.values()].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
       setContinueWatching(sorted.slice(0, 18));
     } catch {
       setContinueWatching([]);

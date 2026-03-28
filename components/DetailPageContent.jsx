@@ -81,6 +81,70 @@ function getContinueWatchingItem(userId, showId) {
   }
 }
 
+function resolveContinueEpisodeTarget(item, seasons) {
+  if (!item) return null;
+
+  const seasonNumber = Number(item.season || 0);
+  const episodeNumber = Number(item.episode || 0);
+
+  if (seasonNumber <= 0 || episodeNumber <= 0) {
+    return item;
+  }
+
+  const remainingTimeValue = item.remainingTime;
+  const remainingTime =
+    remainingTimeValue === undefined || remainingTimeValue === null
+      ? null
+      : Number(remainingTimeValue);
+
+  if (remainingTime === null || Number.isNaN(remainingTime) || remainingTime > 240) {
+    return item;
+  }
+
+  const normalizedSeasons = Array.isArray(seasons)
+    ? [...seasons]
+        .filter((season) => Number(season?.season_number) > 0)
+        .sort((a, b) => Number(a.season_number) - Number(b.season_number))
+    : [];
+
+  const currentSeason = normalizedSeasons.find(
+    (season) => Number(season.season_number) === seasonNumber
+  );
+
+  const episodeCount = Number(currentSeason?.episode_count || 0);
+
+  if (episodeCount > 0 && episodeNumber < episodeCount) {
+    return {
+      ...item,
+      season: seasonNumber,
+      episode: episodeNumber + 1,
+      currentTime: 0,
+      remainingTime: null,
+    };
+  }
+
+  const currentSeasonIndex = normalizedSeasons.findIndex(
+    (season) => Number(season.season_number) === seasonNumber
+  );
+
+  if (currentSeasonIndex >= 0 && currentSeasonIndex < normalizedSeasons.length - 1) {
+    const nextSeason = normalizedSeasons[currentSeasonIndex + 1];
+
+    return {
+      ...item,
+      season: Number(nextSeason.season_number),
+      episode: 1,
+      currentTime: 0,
+      remainingTime: null,
+    };
+  }
+
+  return {
+    ...item,
+    currentTime: 0,
+  };
+}
+
 function TrailerModal({ open, onClose, videoKey, title }) {
   const [playerReady, setPlayerReady] = useState(false);
 
@@ -212,14 +276,15 @@ function WatchBadge({ checked, onClick, title }) {
       aria-label={title}
     >
       <svg
-        className="h-3 w-3 flex-shrink-0"
+        className="h-3.5 w-3.5 flex-shrink-0"
         fill="none"
         stroke="currentColor"
-        strokeWidth="2.5"
+        strokeWidth="2"
         viewBox="0 0 24 24"
         aria-hidden="true"
       >
-        <path d="M5 13l4 4L19 7" />
+        <rect x="5" y="5" width="14" height="14" rx="2" />
+        {checked ? <path d="M8 12.5l2.5 2.5L16 9.5" /> : null}
       </svg>
     </button>
   );
@@ -464,7 +529,6 @@ function WatchOptionsModal({
                           >
                             <div className="flex items-center gap-2 text-sm font-medium">
                               <span>{season.name || `Season ${season.season_number}`}</span>
-                              {seasonChecked ? <span className="text-green-400">✔</span> : null}
                             </div>
                             <div className="mt-1 text-xs text-gray-400">
                               {season.episode_count || 0} episodes
@@ -968,35 +1032,56 @@ export default function DetailPageContent({ id, type }) {
       setWatchedEpisodes(nextMap);
     });
 
-    setContinueEpisode(getContinueWatchingItem(userId, id));
-
-    const handleStorage = () => {
+    const syncContinueEpisode = () => {
       setContinueEpisode(getContinueWatchingItem(userId, id));
     };
 
-    window.addEventListener('storage', handleStorage);
-    window.addEventListener('kflix-continue-watching-updated', handleStorage);
+    syncContinueEpisode();
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        syncContinueEpisode();
+      }
+    };
+
+    window.addEventListener('storage', syncContinueEpisode);
+    window.addEventListener('focus', syncContinueEpisode);
+    window.addEventListener('kflix-continue-watching-updated', syncContinueEpisode);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    const interval = setInterval(syncContinueEpisode, 1500);
 
     return () => {
       unsubscribe();
-      window.removeEventListener('storage', handleStorage);
-      window.removeEventListener('kflix-continue-watching-updated', handleStorage);
+      window.removeEventListener('storage', syncContinueEpisode);
+      window.removeEventListener('focus', syncContinueEpisode);
+      window.removeEventListener('kflix-continue-watching-updated', syncContinueEpisode);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(interval);
     };
   }, [userId, type, id]);
 
   useEffect(() => {
-    if (!userId || type !== 'tv' || !id || !watchOptionsOpen) return;
+    if (!userId || type !== 'tv' || !id || !continueEpisode) return;
 
     const syncCompletedEpisodeFromContinueWatching = async () => {
       try {
-        const current = getContinueWatchingItem(userId, id);
-        if (!current) return;
+        const remainingTimeValue = continueEpisode.remainingTime;
+        const remainingTime =
+          remainingTimeValue === undefined || remainingTimeValue === null
+            ? null
+            : Number(remainingTimeValue);
 
-        const remainingTime = Number(current.remainingTime || 0);
-        const seasonNumber = Number(current.season || 0);
-        const episodeNumber = Number(current.episode || 0);
+        const seasonNumber = Number(continueEpisode.season || 0);
+        const episodeNumber = Number(continueEpisode.episode || 0);
 
-        if (remainingTime > 240 || seasonNumber <= 0 || episodeNumber <= 0) {
+        if (
+          remainingTime === null ||
+          Number.isNaN(remainingTime) ||
+          remainingTime > 240 ||
+          seasonNumber <= 0 ||
+          episodeNumber <= 0
+        ) {
           return;
         }
 
@@ -1020,7 +1105,7 @@ export default function DetailPageContent({ id, type }) {
     };
 
     syncCompletedEpisodeFromContinueWatching();
-  }, [userId, type, id, watchOptionsOpen, watchedEpisodes]);
+  }, [userId, type, id, continueEpisode, watchedEpisodes]);
 
   const title = useMemo(() => {
     if (!data) return '';
@@ -1073,13 +1158,20 @@ export default function DetailPageContent({ id, type }) {
     return data.seasons.filter((season) => season.season_number > 0);
   }, [data, type]);
 
-  const continueSeasonHref = useMemo(() => {
-    if (type !== 'tv' || !continueEpisode) return '';
+  const resolvedContinueEpisode = useMemo(() => {
+    if (type !== 'tv' || !continueEpisode) return null;
+    return resolveContinueEpisodeTarget(continueEpisode, selectableSeasons);
+  }, [type, continueEpisode, selectableSeasons]);
 
-    return `/watch?type=tv&id=${id}&season=${continueEpisode.season}&episode=${continueEpisode.episode}${
-      continueEpisode.currentTime ? `&t=${Math.floor(Number(continueEpisode.currentTime) || 0)}` : ''
+  const continueSeasonHref = useMemo(() => {
+    if (type !== 'tv' || !resolvedContinueEpisode) return '';
+
+    return `/watch?type=tv&id=${id}&season=${resolvedContinueEpisode.season}&episode=${resolvedContinueEpisode.episode}${
+      resolvedContinueEpisode.currentTime
+        ? `&t=${Math.floor(Number(resolvedContinueEpisode.currentTime) || 0)}`
+        : ''
     }&autoplay=1`;
-  }, [type, continueEpisode, id]);
+  }, [type, resolvedContinueEpisode, id]);
 
   const handleWatchlistToggle = () => {
     if (!userId || !data) return;

@@ -101,6 +101,98 @@ function safeNumber(value, fallback = 0) {
   return Number.isFinite(num) ? num : fallback;
 }
 
+function extractPayloadSeason(payload, fallback = '') {
+  const candidates = [
+    payload?.season,
+    payload?.seasonNumber,
+    payload?.season_number,
+  ];
+
+  for (const candidate of candidates) {
+    const value = safeNumber(candidate, NaN);
+    if (Number.isFinite(value) && value > 0) {
+      return value;
+    }
+  }
+
+  return fallback;
+}
+
+function extractPayloadEpisode(payload, fallback = '') {
+  const candidates = [
+    payload?.episode,
+    payload?.episodeNumber,
+    payload?.episode_number,
+  ];
+
+  for (const candidate of candidates) {
+    const value = safeNumber(candidate, NaN);
+    if (Number.isFinite(value) && value > 0) {
+      return value;
+    }
+  }
+
+  return fallback;
+}
+
+function extractPayloadEpisodeName(payload, fallback = '') {
+  const candidates = [
+    payload?.episodeName,
+    payload?.episode_name,
+    payload?.episodeTitle,
+    payload?.episode_title,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return fallback;
+}
+
+function resolveNextTvEpisode(heroData, season, episode) {
+  const currentSeason = safeNumber(season, NaN);
+  const currentEpisode = safeNumber(episode, NaN);
+
+  if (!Number.isFinite(currentSeason) || !Number.isFinite(currentEpisode)) {
+    return null;
+  }
+
+  const seasons = Array.isArray(heroData?.seasons)
+    ? [...heroData.seasons]
+        .filter((item) => safeNumber(item?.season_number, 0) > 0)
+        .sort((a, b) => safeNumber(a?.season_number, 0) - safeNumber(b?.season_number, 0))
+    : [];
+
+  const seasonMeta = seasons.find(
+    (item) => safeNumber(item?.season_number, 0) === currentSeason
+  );
+
+  const episodeCount = safeNumber(seasonMeta?.episode_count, 0);
+
+  if (episodeCount > 0 && currentEpisode < episodeCount) {
+    return {
+      season: currentSeason,
+      episode: currentEpisode + 1,
+    };
+  }
+
+  const currentSeasonIndex = seasons.findIndex(
+    (item) => safeNumber(item?.season_number, 0) === currentSeason
+  );
+
+  if (currentSeasonIndex >= 0 && currentSeasonIndex < seasons.length - 1) {
+    return {
+      season: safeNumber(seasons[currentSeasonIndex + 1]?.season_number, ''),
+      episode: 1,
+    };
+  }
+
+  return null;
+}
+
 function saveContinueWatchingItem({
   uid,
   type,
@@ -109,6 +201,7 @@ function saveContinueWatchingItem({
   episodeData,
   season,
   episode,
+  episodeName,
   currentTime,
   isPlaying,
 }) {
@@ -136,6 +229,7 @@ function saveContinueWatchingItem({
 
   const shouldHideBecauseTooEarly = watchedSeconds < MIN_WATCHED_SECONDS;
   const shouldHideBecauseAlmostDone =
+    type === 'movie' &&
     totalRuntimeSeconds > 0 &&
     remainingSeconds !== null &&
     remainingSeconds <= HIDE_WHEN_REMAINING_SECONDS;
@@ -147,20 +241,13 @@ function saveContinueWatchingItem({
     const parsed = raw ? JSON.parse(raw) : [];
     const list = Array.isArray(parsed) ? parsed : [];
 
-    const isSameItem = (entry) => {
+    const filtered = list.filter((entry) => {
       if (type === 'movie') {
-        return entry.media_type === 'movie' && String(entry.id) === String(id);
+        return !(entry.media_type === 'movie' && String(entry.id) === String(id));
       }
 
-      return (
-        entry.media_type === 'tv' &&
-        String(entry.id) === String(id) &&
-        String(entry.season || '') === String(season || '') &&
-        String(entry.episode || '') === String(episode || '')
-      );
-    };
-
-    const filtered = list.filter((entry) => !isSameItem(entry));
+      return !(entry.media_type === 'tv' && String(entry.id) === String(id));
+    });
 
     if (shouldHideBecauseTooEarly || shouldHideBecauseAlmostDone) {
       localStorage.setItem(storageKey, JSON.stringify(filtered));
@@ -168,6 +255,17 @@ function saveContinueWatchingItem({
       window.dispatchEvent(new Event('kflix-continue-watching-updated'));
       return;
     }
+
+    const activeSeason = type === 'tv' ? safeNumber(season, '') : null;
+    const activeEpisode = type === 'tv' ? safeNumber(episode, '') : null;
+
+    const nextEpisodeTarget =
+      type === 'tv' &&
+      totalRuntimeSeconds > 0 &&
+      remainingSeconds !== null &&
+      remainingSeconds <= HIDE_WHEN_REMAINING_SECONDS
+        ? resolveNextTvEpisode(heroData, activeSeason, activeEpisode)
+        : null;
 
     const item = {
       id: heroData.id,
@@ -181,9 +279,12 @@ function saveContinueWatchingItem({
       first_air_date: heroData.first_air_date || null,
       vote_average: heroData.vote_average ?? null,
 
-      season: type === 'tv' ? safeNumber(season, '') : null,
-      episode: type === 'tv' ? safeNumber(episode, '') : null,
-      episode_name: type === 'tv' ? episodeData?.name || '' : '',
+      season: type === 'tv' ? activeSeason : null,
+      episode: type === 'tv' ? activeEpisode : null,
+      nextSeason: nextEpisodeTarget?.season ?? null,
+      nextEpisode: nextEpisodeTarget?.episode ?? null,
+      episode_name:
+        type === 'tv' ? episodeName || episodeData?.name || '' : '',
       episode_runtime: type === 'tv' ? safeNumber(episodeData?.runtime, 0) : null,
 
       currentTime: watchedSeconds,
@@ -216,6 +317,11 @@ function WatchPageContent() {
   const pendingInitialSyncRef = useRef(null);
   const saveContinueWatchingTimeoutRef = useRef(null);
   const lastRemoteMediaSignatureRef = useRef('');
+  const liveTvProgressRef = useRef({
+    season: '',
+    episode: '',
+    episodeName: '',
+  });
 
   const type = searchParams.get('type') || '';
   const id = searchParams.get('id') || '';
@@ -293,7 +399,7 @@ function WatchPageContent() {
     });
   };
 
-  const publishPlaybackState = (currentTimeArg, isPlayingArg) => {
+  const publishPlaybackState = (currentTimeArg, isPlayingArg, overrides = {}) => {
     if (!partyCode || !userId || !isHost || !type || !id) return;
 
     const safeTime =
@@ -308,11 +414,16 @@ function WatchPageContent() {
       isPlaying: safePlaying,
     };
 
+    const liveSeason =
+      overrides.season ?? liveTvProgressRef.current.season ?? season ?? null;
+    const liveEpisode =
+      overrides.episode ?? liveTvProgressRef.current.episode ?? episode ?? null;
+
     setPartyMedia(partyCode, {
       mediaType: type,
       mediaId: id,
-      season: type === 'tv' ? season || null : null,
-      episode: type === 'tv' ? episode || null : null,
+      season: type === 'tv' ? liveSeason || null : null,
+      episode: type === 'tv' ? liveEpisode || null : null,
       currentTime: safeTime,
       isPlaying: safePlaying,
       updatedBy: userId,
@@ -335,8 +446,12 @@ function WatchPageContent() {
         id,
         heroData,
         episodeData,
-        season,
-        episode,
+        season: type === 'tv' ? liveTvProgressRef.current.season || season : season,
+        episode: type === 'tv' ? liveTvProgressRef.current.episode || episode : episode,
+        episodeName:
+          type === 'tv'
+            ? liveTvProgressRef.current.episodeName || episodeData?.name || ''
+            : '',
         currentTime: timeArg,
         isPlaying: playingArg,
       });
@@ -491,6 +606,14 @@ function WatchPageContent() {
   }, [type, id, season, episode]);
 
   useEffect(() => {
+    liveTvProgressRef.current = {
+      season: type === 'tv' ? safeNumber(season, '') : '',
+      episode: type === 'tv' ? safeNumber(episode, '') : '',
+      episodeName: type === 'tv' ? episodeData?.name || '' : '',
+    };
+  }, [type, season, episode, episodeData]);
+
+  useEffect(() => {
     const nextStartTime = Number(initialTimeParam || 0);
     const nextAutoplay = initialAutoplayParam === '1';
 
@@ -558,6 +681,32 @@ function WatchPageContent() {
           ? Math.max(0, payload.currentTime)
           : 0;
 
+      const liveSeason =
+        type === 'tv'
+          ? extractPayloadSeason(payload, liveTvProgressRef.current.season || safeNumber(season, ''))
+          : '';
+
+      const liveEpisode =
+        type === 'tv'
+          ? extractPayloadEpisode(payload, liveTvProgressRef.current.episode || safeNumber(episode, ''))
+          : '';
+
+      const liveEpisodeName =
+        type === 'tv'
+          ? extractPayloadEpisodeName(
+              payload,
+              liveTvProgressRef.current.episodeName || episodeData?.name || ''
+            )
+          : '';
+
+      if (type === 'tv') {
+        liveTvProgressRef.current = {
+          season: liveSeason,
+          episode: liveEpisode,
+          episodeName: liveEpisodeName,
+        };
+      }
+
       if (playerEvent === 'play') {
         setPlayerCurrentTime(currentTime);
         setPlayerIsPlaying(true);
@@ -567,7 +716,10 @@ function WatchPageContent() {
         };
 
         if (isHost) {
-          publishPlaybackState(currentTime, true);
+          publishPlaybackState(currentTime, true, {
+            season: liveSeason,
+            episode: liveEpisode,
+          });
         }
 
         queueSaveContinueWatching(currentTime, true);
@@ -583,7 +735,10 @@ function WatchPageContent() {
         };
 
         if (isHost) {
-          publishPlaybackState(currentTime, false);
+          publishPlaybackState(currentTime, false, {
+            season: liveSeason,
+            episode: liveEpisode,
+          });
         }
 
         queueSaveContinueWatching(currentTime, false);
@@ -598,7 +753,10 @@ function WatchPageContent() {
         };
 
         if (isHost) {
-          publishPlaybackState(currentTime, latestPlaybackRef.current.isPlaying);
+          publishPlaybackState(currentTime, latestPlaybackRef.current.isPlaying, {
+            season: liveSeason,
+            episode: liveEpisode,
+          });
         }
 
         queueSaveContinueWatching(currentTime, latestPlaybackRef.current.isPlaying);
@@ -621,7 +779,10 @@ function WatchPageContent() {
         };
 
         if (isHost) {
-          publishPlaybackState(currentTime, playing);
+          publishPlaybackState(currentTime, playing, {
+            season: liveSeason,
+            episode: liveEpisode,
+          });
         }
 
         queueSaveContinueWatching(currentTime, playing);
@@ -635,7 +796,10 @@ function WatchPageContent() {
   useEffect(() => {
     if (!partyCode || !userId || !isHost || !type || !id) return;
 
-    publishPlaybackState(latestPlaybackRef.current.currentTime, latestPlaybackRef.current.isPlaying);
+    publishPlaybackState(latestPlaybackRef.current.currentTime, latestPlaybackRef.current.isPlaying, {
+      season: liveTvProgressRef.current.season || season,
+      episode: liveTvProgressRef.current.episode || episode,
+    });
   }, [partyCode, userId, isHost, type, id, season, episode]);
 
   useEffect(() => {
@@ -650,7 +814,11 @@ function WatchPageContent() {
       requestPlayerStatus();
       publishPlaybackState(
         latestPlaybackRef.current.currentTime,
-        latestPlaybackRef.current.isPlaying
+        latestPlaybackRef.current.isPlaying,
+        {
+          season: liveTvProgressRef.current.season || season,
+          episode: liveTvProgressRef.current.episode || episode,
+        }
       );
     }, 2000);
 
