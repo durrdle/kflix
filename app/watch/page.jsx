@@ -1,5 +1,3 @@
-// app/watch/page.jsx
-
 'use client';
 
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
@@ -10,8 +8,16 @@ import Navbar from '@/components/Navbar';
 import { setPartyMedia, subscribeToMembers } from '@/lib/firebaseParty';
 
 const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
-const BACKDROP_BASE = 'https://image.tmdb.org/t/p/original';
-const POSTER_BASE = 'https://image.tmdb.org/t/p/w500';
+
+const VIDFAST_ORIGINS = [
+  'https://vidfast.pro',
+  'https://vidfast.in',
+  'https://vidfast.io',
+  'https://vidfast.me',
+  'https://vidfast.net',
+  'https://vidfast.pm',
+  'https://vidfast.xyz',
+];
 
 async function fetchMovieDetail(id) {
   const res = await fetch(
@@ -49,91 +55,165 @@ async function fetchEpisodeDetail(id, season, episode) {
   return res.json();
 }
 
-function getBestYoutubeVideo(videos = []) {
-  if (!Array.isArray(videos) || videos.length === 0) return null;
-
-  return (
-    videos.find(
-      (video) =>
-        video.site === 'YouTube' &&
-        video.type === 'Trailer' &&
-        video.official !== false
-    ) ||
-    videos.find((video) => video.site === 'YouTube' && video.type === 'Trailer') ||
-    videos.find((video) => video.site === 'YouTube' && video.type === 'Teaser') ||
-    videos.find((video) => video.site === 'YouTube' && video.type === 'Clip') ||
-    videos.find((video) => video.site === 'YouTube') ||
-    null
-  );
-}
-
-function formatRuntime(minutes) {
-  if (!minutes || Number.isNaN(minutes)) return 'Unknown';
-  const hrs = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${hrs}h ${mins}m`;
-}
-
-function getEmbedUrl({ activePlayer, type, id, season, episode, videoKey }) {
+function getEmbedUrl({ type, id, season, episode, startAt = 0, autoPlay = false }) {
   if (!id || !type) return '';
 
-  const isMovie = type === 'movie';
-  const isTv = type === 'tv';
+  const params = new URLSearchParams();
 
-  if (activePlayer === 'player1') {
-    if (isMovie) {
-      return `https://vidlink.pro/movie/${id}`;
-    }
+  params.set('title', 'true');
+  params.set('poster', 'false');
+  params.set('autoPlay', autoPlay ? 'true' : 'false');
+  params.set('theme', 'E7000B');
+  params.set('hideServerControls', 'false');
+  params.set('fullscreenButton', 'true');
+  params.set('chromecast', 'true');
+  params.set('sub', 'en');
 
-    if (isTv) {
-      if (season && episode) {
-        return `https://vidlink.pro/tv/${id}/${season}/${episode}`;
-      }
-
-      return `https://vidlink.pro/tv/${id}`;
-    }
-
-    return '';
+  if (Number.isFinite(startAt) && startAt > 0) {
+    params.set('startAt', String(Math.max(0, Math.floor(startAt))));
   }
 
-  if (activePlayer === 'player2') {
-    if (isMovie) {
-      return `https://vidsrc-embed.ru/embed/movie/${id}`;
-    }
-
-    if (isTv) {
-      if (season && episode) {
-        return `https://vidsrc-embed.ru/embed/tv/${id}/${season}/${episode}`;
-      }
-
-      return `https://vidsrc-embed.ru/embed/tv/${id}`;
-    }
-
-    return '';
+  if (type === 'movie') {
+    return `https://vidfast.pro/movie/${id}?${params.toString()}`;
   }
 
-  if (activePlayer === 'player3') {
-    if (isMovie) {
-      return `https://www.vidking.net/embed/movie/${id}`;
+  if (type === 'tv') {
+    if (season == null || season === '' || episode == null || episode === '') {
+      return '';
     }
 
-    if (isTv) {
-      if (season && episode) {
-        return `https://www.vidking.net/embed/tv/${id}/${season}/${episode}`;
-      }
+    params.set('nextButton', 'true');
+    params.set('autoNext', 'true');
 
-      return `https://www.vidking.net/embed/tv/${id}`;
-    }
-
-    return '';
+    return `https://vidfast.pro/tv/${id}/${season}/${episode}?${params.toString()}`;
   }
 
   return '';
 }
 
+function getContinueWatchingStorageKey(uid) {
+  return `kflix_continue_watching_${uid}`;
+}
+
+function safeNumber(value, fallback = 0) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
+
+function saveContinueWatchingItem({
+  uid,
+  type,
+  id,
+  heroData,
+  episodeData,
+  season,
+  episode,
+  currentTime,
+  isPlaying,
+}) {
+  if (!uid || !type || !id || !heroData) return;
+
+  const watchedSeconds = Math.max(0, Math.floor(safeNumber(currentTime, 0)));
+
+  const MIN_WATCHED_SECONDS = 3 * 60;
+  const HIDE_WHEN_REMAINING_SECONDS = 5 * 60;
+
+  let totalRuntimeSeconds = 0;
+
+  if (type === 'movie') {
+    totalRuntimeSeconds = safeNumber(heroData.runtime, 0) * 60;
+  } else if (type === 'tv') {
+    totalRuntimeSeconds =
+      safeNumber(episodeData?.runtime, 0) * 60 ||
+      safeNumber(heroData?.episode_run_time?.[0], 0) * 60;
+  }
+
+  const remainingSeconds =
+    totalRuntimeSeconds > 0
+      ? Math.max(0, totalRuntimeSeconds - watchedSeconds)
+      : null;
+
+  const shouldHideBecauseTooEarly = watchedSeconds < MIN_WATCHED_SECONDS;
+  const shouldHideBecauseAlmostDone =
+    totalRuntimeSeconds > 0 &&
+    remainingSeconds !== null &&
+    remainingSeconds <= HIDE_WHEN_REMAINING_SECONDS;
+
+  const storageKey = getContinueWatchingStorageKey(uid);
+
+  try {
+    const raw = localStorage.getItem(storageKey);
+    const parsed = raw ? JSON.parse(raw) : [];
+    const list = Array.isArray(parsed) ? parsed : [];
+
+    const isSameItem = (entry) => {
+      if (type === 'movie') {
+        return entry.media_type === 'movie' && String(entry.id) === String(id);
+      }
+
+      return (
+        entry.media_type === 'tv' &&
+        String(entry.id) === String(id) &&
+        String(entry.season || '') === String(season || '') &&
+        String(entry.episode || '') === String(episode || '')
+      );
+    };
+
+    const filtered = list.filter((entry) => !isSameItem(entry));
+
+    if (shouldHideBecauseTooEarly || shouldHideBecauseAlmostDone) {
+      localStorage.setItem(storageKey, JSON.stringify(filtered));
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new Event('kflix-continue-watching-updated'));
+      return;
+    }
+
+    const item = {
+      id: heroData.id,
+      media_type: type,
+      type,
+      title: heroData.title || heroData.name || 'Untitled',
+      name: heroData.name || heroData.title || 'Untitled',
+      poster_path: heroData.poster_path || null,
+      backdrop_path: heroData.backdrop_path || null,
+      release_date: heroData.release_date || null,
+      first_air_date: heroData.first_air_date || null,
+      vote_average: heroData.vote_average ?? null,
+
+      season: type === 'tv' ? safeNumber(season, '') : null,
+      episode: type === 'tv' ? safeNumber(episode, '') : null,
+      episode_name: type === 'tv' ? episodeData?.name || '' : '',
+      episode_runtime: type === 'tv' ? safeNumber(episodeData?.runtime, 0) : null,
+
+      currentTime: watchedSeconds,
+      totalRuntime: totalRuntimeSeconds,
+      remainingTime:
+        totalRuntimeSeconds > 0 ? Math.max(0, totalRuntimeSeconds - watchedSeconds) : null,
+      progress:
+        totalRuntimeSeconds > 0
+          ? Math.min(100, Math.max(0, (watchedSeconds / totalRuntimeSeconds) * 100))
+          : 0,
+      isPlaying: Boolean(isPlaying),
+      updatedAt: Date.now(),
+    };
+
+    localStorage.setItem(storageKey, JSON.stringify([item, ...filtered].slice(0, 24)));
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('kflix-continue-watching-updated'));
+  } catch (error) {
+    console.error('Failed to save continue watching:', error);
+  }
+}
+
 function WatchPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const playerFrameRef = useRef(null);
+  const publishIntervalRef = useRef(null);
+  const lastStatusRequestRef = useRef(0);
+  const latestPlaybackRef = useRef({ currentTime: 0, isPlaying: false });
+  const pendingInitialSyncRef = useRef(null);
+  const saveContinueWatchingTimeoutRef = useRef(null);
 
   const type = searchParams.get('type') || '';
   const id = searchParams.get('id') || '';
@@ -142,20 +222,33 @@ function WatchPageContent() {
   const initialTimeParam = searchParams.get('t') || '';
   const initialAutoplayParam = searchParams.get('autoplay') || '';
 
+  const initialStartTime = Number(initialTimeParam || 0);
+  const initialAutoplay = initialAutoplayParam === '1';
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [heroData, setHeroData] = useState(null);
   const [episodeData, setEpisodeData] = useState(null);
-  const [video, setVideo] = useState(null);
-  const [activePlayer, setActivePlayer] = useState('player1');
+
   const [syncNotice, setSyncNotice] = useState('');
-  const [pendingSync, setPendingSync] = useState(null);
+  const [showAutoplayHint, setShowAutoplayHint] = useState(false);
 
   const [userId, setUserId] = useState('');
   const [partyCode, setPartyCode] = useState('');
   const [members, setMembers] = useState([]);
 
-  const playerFrameRef = useRef(null);
+  const [playerReady, setPlayerReady] = useState(false);
+  const [playerCurrentTime, setPlayerCurrentTime] = useState(
+    Number.isFinite(initialStartTime) ? Math.max(0, initialStartTime) : 0
+  );
+  const [playerIsPlaying, setPlayerIsPlaying] = useState(initialAutoplay);
+
+  const [embedState, setEmbedState] = useState({
+    startAt: Number.isFinite(initialStartTime) ? Math.max(0, initialStartTime) : 0,
+    autoPlay: initialAutoplay,
+  });
+
+  const [iframeSeed, setIframeSeed] = useState(0);
 
   const currentMember = useMemo(
     () => members.find((member) => String(member.id) === String(userId)) || null,
@@ -163,6 +256,154 @@ function WatchPageContent() {
   );
 
   const isHost = Boolean(currentMember?.isHost);
+
+  const embedUrl = useMemo(() => {
+    return getEmbedUrl({
+      type,
+      id,
+      season,
+      episode,
+      startAt: embedState.startAt,
+      autoPlay: embedState.autoPlay,
+    });
+  }, [type, id, season, episode, embedState]);
+
+  const iframeKey = useMemo(() => {
+    return `${type}-${id}-${season || 'na'}-${episode || 'na'}-${iframeSeed}-${embedState.startAt}-${embedState.autoPlay ? '1' : '0'}`;
+  }, [type, id, season, episode, iframeSeed, embedState]);
+
+  const sendPlayerCommand = (payload) => {
+    const frame = playerFrameRef.current;
+    if (!frame?.contentWindow) return false;
+
+    frame.contentWindow.postMessage(payload, '*');
+    return true;
+  };
+
+  const requestPlayerStatus = () => {
+    const now = Date.now();
+    if (now - lastStatusRequestRef.current < 800) return;
+
+    lastStatusRequestRef.current = now;
+
+    sendPlayerCommand({
+      command: 'playerstatus',
+    });
+  };
+
+  const publishPlaybackState = (currentTimeArg, isPlayingArg) => {
+    if (!partyCode || !userId || !isHost || !type || !id) return;
+
+    const safeTime =
+      typeof currentTimeArg === 'number' && Number.isFinite(currentTimeArg)
+        ? Math.max(0, currentTimeArg)
+        : 0;
+
+    const safePlaying = Boolean(isPlayingArg);
+
+    latestPlaybackRef.current = {
+      currentTime: safeTime,
+      isPlaying: safePlaying,
+    };
+
+    setPartyMedia(partyCode, {
+      mediaType: type,
+      mediaId: id,
+      season: type === 'tv' ? season || null : null,
+      episode: type === 'tv' ? episode || null : null,
+      currentTime: safeTime,
+      isPlaying: safePlaying,
+      updatedBy: userId,
+    }).catch((partyError) => {
+      console.error('Failed to publish host media to party:', partyError);
+    });
+  };
+
+  const queueSaveContinueWatching = (timeArg, playingArg) => {
+    if (!userId || !heroData || !type || !id) return;
+
+    if (saveContinueWatchingTimeoutRef.current) {
+      clearTimeout(saveContinueWatchingTimeoutRef.current);
+    }
+
+    saveContinueWatchingTimeoutRef.current = setTimeout(() => {
+      saveContinueWatchingItem({
+        uid: userId,
+        type,
+        id,
+        heroData,
+        episodeData,
+        season,
+        episode,
+        currentTime: timeArg,
+        isPlaying: playingArg,
+      });
+    }, 300);
+  };
+
+  const reloadPlayerToPosition = ({ currentTime, isPlaying }) => {
+    const targetTime =
+      typeof currentTime === 'number' && Number.isFinite(currentTime)
+        ? Math.max(0, Math.floor(currentTime))
+        : 0;
+
+    const shouldPlay = Boolean(isPlaying);
+
+    setEmbedState({
+      startAt: targetTime,
+      autoPlay: shouldPlay,
+    });
+
+    setPlayerCurrentTime(targetTime);
+    setPlayerIsPlaying(shouldPlay);
+    latestPlaybackRef.current = {
+      currentTime: targetTime,
+      isPlaying: shouldPlay,
+    };
+    setPlayerReady(false);
+    setIframeSeed((prev) => prev + 1);
+    setShowAutoplayHint(shouldPlay);
+  };
+
+  const applyPartyResyncToCurrentPlayer = ({ currentTime, isPlaying }) => {
+    const targetTime =
+      typeof currentTime === 'number' && Number.isFinite(currentTime)
+        ? Math.max(0, currentTime)
+        : 0;
+
+    const shouldPlay = Boolean(isPlaying);
+
+    const didSeek = sendPlayerCommand({
+      command: 'seek',
+      time: targetTime,
+    });
+
+    if (!didSeek) {
+      reloadPlayerToPosition({ currentTime: targetTime, isPlaying: shouldPlay });
+      return;
+    }
+
+    setTimeout(() => {
+      sendPlayerCommand({
+        command: shouldPlay ? 'play' : 'pause',
+        time: targetTime,
+      });
+    }, 150);
+
+    setPlayerCurrentTime(targetTime);
+    setPlayerIsPlaying(shouldPlay);
+    latestPlaybackRef.current = {
+      currentTime: targetTime,
+      isPlaying: shouldPlay,
+    };
+  };
+
+  useEffect(() => {
+    latestPlaybackRef.current = {
+      currentTime: playerCurrentTime,
+      isPlaying: playerIsPlaying,
+    };
+  }, [playerCurrentTime, playerIsPlaying]);
 
   useEffect(() => {
     const auth = getAuth();
@@ -213,14 +454,11 @@ function WatchPageContent() {
         setError('');
         setHeroData(null);
         setEpisodeData(null);
-        setVideo(null);
 
         if (type === 'movie') {
           const movie = await fetchMovieDetail(id);
           if (!active) return;
-
           setHeroData(movie);
-          setVideo(getBestYoutubeVideo(movie?.videos?.results || []));
         } else if (type === 'tv') {
           const [show, ep] = await Promise.all([
             fetchTvDetail(id),
@@ -228,18 +466,12 @@ function WatchPageContent() {
           ]);
 
           if (!active) return;
-
           setHeroData(show);
           setEpisodeData(ep);
-
-          const episodeVideo = getBestYoutubeVideo(ep?.videos?.results || []);
-          const showVideo = getBestYoutubeVideo(show?.videos?.results || []);
-
-          setVideo(episodeVideo || showVideo || null);
         } else {
           throw new Error('Unsupported type.');
         }
-      } catch (err) {
+      } catch {
         if (!active) return;
         setError('Failed to load watch page.');
       } finally {
@@ -256,47 +488,36 @@ function WatchPageContent() {
     };
   }, [type, id, season, episode]);
 
-  // Host publishes current media to party playback
   useEffect(() => {
-    if (!partyCode) return;
-    if (!userId) return;
-    if (!isHost) return;
-    if (!type || !id) return;
+    const nextStartTime = Number(initialTimeParam || 0);
+    const nextAutoplay = initialAutoplayParam === '1';
 
-    setPartyMedia(partyCode, {
-      mediaType: type,
-      mediaId: id,
-      season: type === 'tv' ? season || null : null,
-      episode: type === 'tv' ? episode || null : null,
-      currentTime: Number(initialTimeParam || 0) || 0,
-      isPlaying: initialAutoplayParam === '1',
-      updatedBy: userId,
-    }).catch((error) => {
-      console.error('Failed to publish host media to party:', error);
+    const normalizedTime = Number.isFinite(nextStartTime) ? Math.max(0, nextStartTime) : 0;
+
+    setEmbedState({
+      startAt: normalizedTime,
+      autoPlay: nextAutoplay,
     });
-  }, [
-    partyCode,
-    userId,
-    isHost,
-    type,
-    id,
-    season,
-    episode,
-    initialTimeParam,
-    initialAutoplayParam,
-  ]);
+
+    setPlayerCurrentTime(normalizedTime);
+    setPlayerIsPlaying(nextAutoplay);
+    latestPlaybackRef.current = {
+      currentTime: normalizedTime,
+      isPlaying: nextAutoplay,
+    };
+    pendingInitialSyncRef.current = {
+      currentTime: normalizedTime,
+      isPlaying: nextAutoplay,
+    };
+    setPlayerReady(false);
+    setShowAutoplayHint(nextAutoplay);
+    setIframeSeed((prev) => prev + 1);
+  }, [initialTimeParam, initialAutoplayParam, type, id, season, episode]);
 
   useEffect(() => {
-    const startTime = Number(initialTimeParam || 0);
-    const shouldAutoplay = initialAutoplayParam === '1';
-
     if (!initialTimeParam && !initialAutoplayParam) return;
 
-    setPendingSync({
-      currentTime: Number.isFinite(startTime) ? startTime : 0,
-      isPlaying: shouldAutoplay,
-      source: 'query',
-    });
+    const startTime = Number(initialTimeParam || 0);
 
     setSyncNotice(
       `Synced to host${Number.isFinite(startTime) ? ` at ${Math.max(0, Math.floor(startTime))}s` : ''}.`
@@ -310,12 +531,181 @@ function WatchPageContent() {
   }, [initialTimeParam, initialAutoplayParam]);
 
   useEffect(() => {
+    if (!showAutoplayHint) return;
+
+    const timeout = setTimeout(() => {
+      setShowAutoplayHint(false);
+    }, 4000);
+
+    return () => clearTimeout(timeout);
+  }, [showAutoplayHint]);
+
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (!VIDFAST_ORIGINS.includes(event.origin) || !event.data) {
+        return;
+      }
+
+      if (event.data.type !== 'PLAYER_EVENT') return;
+
+      const payload = event.data.data || {};
+      const playerEvent = payload.event;
+
+      const currentTime =
+        typeof payload.currentTime === 'number' && Number.isFinite(payload.currentTime)
+          ? Math.max(0, payload.currentTime)
+          : 0;
+
+      if (playerEvent === 'play') {
+        setPlayerCurrentTime(currentTime);
+        setPlayerIsPlaying(true);
+        latestPlaybackRef.current = {
+          currentTime,
+          isPlaying: true,
+        };
+
+        if (isHost) {
+          publishPlaybackState(currentTime, true);
+        }
+
+        queueSaveContinueWatching(currentTime, true);
+        return;
+      }
+
+      if (playerEvent === 'pause') {
+        setPlayerCurrentTime(currentTime);
+        setPlayerIsPlaying(false);
+        latestPlaybackRef.current = {
+          currentTime,
+          isPlaying: false,
+        };
+
+        if (isHost) {
+          publishPlaybackState(currentTime, false);
+        }
+
+        queueSaveContinueWatching(currentTime, false);
+        return;
+      }
+
+      if (playerEvent === 'seeked') {
+        setPlayerCurrentTime(currentTime);
+        latestPlaybackRef.current = {
+          currentTime,
+          isPlaying: latestPlaybackRef.current.isPlaying,
+        };
+
+        if (isHost) {
+          publishPlaybackState(currentTime, latestPlaybackRef.current.isPlaying);
+        }
+
+        queueSaveContinueWatching(currentTime, latestPlaybackRef.current.isPlaying);
+        return;
+      }
+
+      if (playerEvent === 'playerstatus') {
+        setPlayerReady(true);
+        setPlayerCurrentTime(currentTime);
+
+        const playing =
+          typeof payload.isPlaying === 'boolean'
+            ? payload.isPlaying
+            : latestPlaybackRef.current.isPlaying;
+
+        setPlayerIsPlaying(playing);
+        latestPlaybackRef.current = {
+          currentTime,
+          isPlaying: playing,
+        };
+
+        if (isHost) {
+          publishPlaybackState(currentTime, playing);
+        }
+
+        queueSaveContinueWatching(currentTime, playing);
+        return;
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [isHost, partyCode, userId, type, id, season, episode, heroData, episodeData]);
+
+  useEffect(() => {
+    if (!partyCode || !userId || !isHost || !type || !id) return;
+
+    publishPlaybackState(latestPlaybackRef.current.currentTime, latestPlaybackRef.current.isPlaying);
+  }, [partyCode, userId, isHost, type, id, season, episode]);
+
+  useEffect(() => {
+    if (publishIntervalRef.current) {
+      clearInterval(publishIntervalRef.current);
+      publishIntervalRef.current = null;
+    }
+
+    if (!partyCode || !userId || !isHost || !playerReady) return;
+
+    publishIntervalRef.current = setInterval(() => {
+      requestPlayerStatus();
+      publishPlaybackState(
+        latestPlaybackRef.current.currentTime,
+        latestPlaybackRef.current.isPlaying
+      );
+    }, 2000);
+
+    return () => {
+      if (publishIntervalRef.current) {
+        clearInterval(publishIntervalRef.current);
+        publishIntervalRef.current = null;
+      }
+    };
+  }, [partyCode, userId, isHost, playerReady, type, id, season, episode]);
+
+  useEffect(() => {
+    if (!playerReady || !pendingInitialSyncRef.current) return;
+
+    const pending = pendingInitialSyncRef.current;
+    pendingInitialSyncRef.current = null;
+
+    const timeout = setTimeout(() => {
+      const didSeek = sendPlayerCommand({
+        command: 'seek',
+        time: pending.currentTime,
+      });
+
+      if (!didSeek) {
+        reloadPlayerToPosition({
+          currentTime: pending.currentTime,
+          isPlaying: pending.isPlaying,
+        });
+        return;
+      }
+
+      if (pending.isPlaying) {
+        sendPlayerCommand({
+          command: 'play',
+          time: pending.currentTime,
+        });
+      } else {
+        sendPlayerCommand({
+          command: 'pause',
+          time: pending.currentTime,
+        });
+      }
+    }, 800);
+
+    return () => clearTimeout(timeout);
+  }, [playerReady, iframeKey]);
+
+  useEffect(() => {
     const handlePartyResync = (event) => {
       const detail = event.detail || {};
+
       const targetTime =
         typeof detail.currentTime === 'number' && Number.isFinite(detail.currentTime)
           ? Math.max(0, detail.currentTime)
           : 0;
+
       const shouldPlay = Boolean(detail.isPlaying);
 
       const incomingType = detail.mediaType ? String(detail.mediaType) : '';
@@ -348,13 +738,24 @@ function WatchPageContent() {
         return;
       }
 
-      setPendingSync({
-        currentTime: targetTime,
-        isPlaying: shouldPlay,
-        source: 'event',
-      });
+      if (!playerReady) {
+        pendingInitialSyncRef.current = {
+          currentTime: targetTime,
+          isPlaying: shouldPlay,
+        };
 
-      setSyncNotice(`Synced to host at ${Math.floor(targetTime)}s.`);
+        reloadPlayerToPosition({
+          currentTime: targetTime,
+          isPlaying: shouldPlay,
+        });
+      } else {
+        applyPartyResyncToCurrentPlayer({
+          currentTime: targetTime,
+          isPlaying: shouldPlay,
+        });
+      }
+
+      setSyncNotice(`Resynced to host at ${Math.floor(targetTime)}s.`);
 
       setTimeout(() => {
         setSyncNotice('');
@@ -366,104 +767,73 @@ function WatchPageContent() {
     return () => {
       window.removeEventListener('kflix-party-resync', handlePartyResync);
     };
-  }, [router, type, id, season, episode]);
+  }, [router, type, id, season, episode, playerReady]);
 
   useEffect(() => {
-    if (!pendingSync) return;
-
-    const frame = playerFrameRef.current;
-    if (!frame) return;
-
-    console.log('Apply sync to player here:', pendingSync);
-
-    // Example area for future player-specific sync logic:
-    // - YouTube iframe API: seekTo(pendingSync.currentTime), playVideo()/pauseVideo()
-    // - Other providers: use their own postMessage / SDK methods
-
-    setPendingSync(null);
-  }, [pendingSync]);
-
-  const title = useMemo(() => {
-    if (type === 'movie') {
-      return heroData?.title || 'Movie';
-    }
-
-    if (type === 'tv' && episodeData) {
-      return episodeData.name || heroData?.name || 'Episode';
-    }
-
-    return heroData?.name || 'Watch';
-  }, [type, heroData, episodeData]);
-
-  const subtitle = useMemo(() => {
-    if (type === 'movie') {
-      const year = heroData?.release_date ? heroData.release_date.slice(0, 4) : 'Unknown';
-      const runtime = heroData?.runtime ? formatRuntime(heroData.runtime) : 'Unknown';
-      return `${year} • ${runtime}`;
-    }
-
-    if (type === 'tv') {
-      const year = heroData?.first_air_date ? heroData.first_air_date.slice(0, 4) : 'Unknown';
-      const runtime = heroData?.episode_run_time?.[0]
-        ? `${heroData.episode_run_time[0]} min / ep`
-        : 'Unknown';
-
-      if (season && episode) {
-        return `S${String(season).padStart(2, '0')} • E${String(episode).padStart(2, '0')} • ${year} • ${runtime}`;
+    return () => {
+      if (publishIntervalRef.current) {
+        clearInterval(publishIntervalRef.current);
       }
+    };
+  }, []);
 
-      return `${year} • ${runtime}`;
-    }
-
-    return '';
-  }, [type, heroData, season, episode]);
-
-  const overview = useMemo(() => {
-    if (type === 'tv' && episodeData?.overview) return episodeData.overview;
-    return heroData?.overview || 'No overview available.';
-  }, [type, heroData, episodeData]);
-
-  const backdropPath = episodeData?.still_path || heroData?.backdrop_path || null;
-  const posterPath = heroData?.poster_path || null;
-  const rating = heroData?.vote_average ? `${heroData.vote_average.toFixed(1)}/10` : 'No rating';
-  const releaseYear =
-    type === 'movie'
-      ? heroData?.release_date?.slice(0, 4) || 'Unknown'
-      : heroData?.first_air_date?.slice(0, 4) || 'Unknown';
-
-  const embedUrl = getEmbedUrl({
-    activePlayer,
-    type,
-    id,
-    season,
-    episode,
-    videoKey: video?.key || '',
-  });
+  useEffect(() => {
+    return () => {
+      if (saveContinueWatchingTimeoutRef.current) {
+        clearTimeout(saveContinueWatchingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black text-white">
-        <Suspense fallback={<div className="h-20" />}>
-          <Navbar />
-        </Suspense>
-        <main className="px-8 pb-10 pt-24">
-          <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-10 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
+      <div className="flex min-h-screen flex-col bg-black text-white">
+        <Navbar />
+
+        <main className="flex flex-1 items-center justify-center px-8 pt-24 pb-4">
+          <div className="w-full max-w-6xl overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-8 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
             <p className="text-lg text-gray-300">Loading watch page...</p>
           </div>
         </main>
+
+        <footer className="px-8 pb-8 pt-2 text-center text-sm text-gray-400">
+          <p>This website does not host or store any media on its servers.</p>
+
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
+            <Link href="/Terms-and-Conditions" className="transition hover:text-red-400">
+              Terms and Conditions
+            </Link>
+            <span>•</span>
+            <Link href="/Privacy-Policy" className="transition hover:text-red-400">
+              Privacy Policy
+            </Link>
+            <span>•</span>
+            <Link href="/Feedback" className="transition hover:text-red-400">
+              Feedback
+            </Link>
+            <span>•</span>
+            <Link href="/Contact" className="transition hover:text-red-400">
+              Contact
+            </Link>
+            <span>•</span>
+            <Link href="/Help" className="transition hover:text-red-400">
+              Help
+            </Link>
+          </div>
+        </footer>
       </div>
     );
   }
 
   if (error || !heroData) {
     return (
-      <div className="min-h-screen bg-black text-white">
-        <Suspense fallback={<div className="h-20" />}>
-          <Navbar />
-        </Suspense>
-        <main className="px-8 pb-10 pt-24">
-          <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-10 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
+      <div className="flex min-h-screen flex-col bg-black text-white">
+        <Navbar />
+
+        <main className="flex flex-1 items-center justify-center px-8 pt-24 pb-4">
+          <div className="w-full max-w-6xl overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-8 text-center shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
             <p className="text-lg text-red-300">{error || 'Unable to load this page.'}</p>
+
             <div className="mt-6">
               <Link
                 href="/"
@@ -474,263 +844,80 @@ function WatchPageContent() {
             </div>
           </div>
         </main>
+
+        <footer className="px-8 pb-8 pt-2 text-center text-sm text-gray-400">
+          <p>This website does not host or store any media on its servers.</p>
+
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
+            <Link href="/Terms-and-Conditions" className="transition hover:text-red-400">
+              Terms and Conditions
+            </Link>
+            <span>•</span>
+            <Link href="/Privacy-Policy" className="transition hover:text-red-400">
+              Privacy Policy
+            </Link>
+            <span>•</span>
+            <Link href="/Feedback" className="transition hover:text-red-400">
+              Feedback
+            </Link>
+            <span>•</span>
+            <Link href="/Contact" className="transition hover:text-red-400">
+              Contact
+            </Link>
+            <span>•</span>
+            <Link href="/Help" className="transition hover:text-red-400">
+              Help
+            </Link>
+          </div>
+        </footer>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <Suspense fallback={<div className="h-20" />}>
-        <Navbar />
-      </Suspense>
+    <div className="flex min-h-screen flex-col bg-black text-white">
+      <Navbar />
 
-      <main className="px-8 pb-10 pt-24">
-        <section className="relative overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-          {backdropPath && (
-            <div
-              className="absolute inset-0 bg-cover bg-center"
-              style={{
-                backgroundImage: `url(${BACKDROP_BASE}${backdropPath})`,
-              }}
-            />
+      <main className="flex flex-1 items-center justify-center px-8 pt-24 pb-4">
+        <section className="w-full max-w-6xl">
+          {syncNotice && (
+            <div className="mb-4 rounded-xl border border-green-500/25 bg-green-500/10 px-4 py-3 text-sm text-green-200">
+              {syncNotice}
+            </div>
           )}
 
-          <div className="absolute inset-0 bg-black/75" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(239,68,68,0.14),transparent_35%)]" />
-
-          <div className="relative z-10 grid gap-8 px-8 py-8 lg:grid-cols-[300px_1fr]">
-            <div className="mx-auto w-full max-w-[300px]">
-              <div className="overflow-hidden rounded-2xl border-[1.5px] border-white/10 bg-black/20 shadow-[0_0_30px_rgba(239,68,68,0.16)]">
-                {posterPath ? (
-                  <img
-                    src={`${POSTER_BASE}${posterPath}`}
-                    alt={title}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex aspect-[2/3] items-center justify-center bg-gray-800 text-sm text-gray-400">
-                    No Poster
-                  </div>
-                )}
-              </div>
+          {showAutoplayHint && (
+            <div className="mb-4 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-100">
+              Autoplay was requested. Some browsers may still require one click to start playback.
             </div>
+          )}
 
-            <div className="flex flex-col justify-end">
-              <div className="inline-flex w-fit rounded-full border border-red-500/30 bg-red-600/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-red-300">
-                {type === 'movie' ? 'Movie Watch Page' : 'Episode Watch Page'}
-              </div>
-
-              <h1 className="mt-4 text-4xl font-bold md:text-6xl">{title}</h1>
-
-              <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-gray-300">
-                <span>{releaseYear}</span>
-                <span className="text-red-400">•</span>
-                <span>{subtitle}</span>
-                <span className="text-red-400">•</span>
-                <span>{rating}</span>
-              </div>
-
-              {heroData?.genres?.length > 0 && (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {heroData.genres.map((genre) => (
-                    <span
-                      key={genre.id}
-                      className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs font-medium text-gray-200"
-                    >
-                      {genre.name}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Link
-                  href={type === 'movie' ? `/movie/${id}` : `/tv/${id}`}
-                  className="flex h-11 items-center justify-center gap-2 rounded-md bg-red-600 px-5 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60"
-                >
-                  <svg
-                    className="h-4 w-4 flex-shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <path d="M15 19l-7-7 7-7" />
-                  </svg>
-                  Back to Details
-                </Link>
-
-                {type === 'tv' && (
-                  <Link
-                    href={`/watch?type=tv&id=${id}`}
-                    className="flex h-11 items-center justify-center gap-2 rounded-md bg-black/25 px-5 text-sm font-semibold text-white backdrop-blur-md transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
-                  >
-                    Show Trailer
-                  </Link>
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-8 overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-          <div className="border-b border-red-500/25 bg-red-600/10 px-6 py-4">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <h2 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400">
-                Player
-              </h2>
-
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setActivePlayer('player1')}
-                  className={`h-10 rounded-md px-4 text-sm font-semibold transition active:scale-95 ${
-                    activePlayer === 'player1'
-                      ? 'bg-red-600 text-white shadow-inner shadow-red-500/60'
-                      : 'bg-black/25 text-gray-200 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40'
-                  }`}
-                >
-                  Player 1
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActivePlayer('player2')}
-                  className={`h-10 rounded-md px-4 text-sm font-semibold transition active:scale-95 ${
-                    activePlayer === 'player2'
-                      ? 'bg-red-600 text-white shadow-inner shadow-red-500/60'
-                      : 'bg-black/25 text-gray-200 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40'
-                  }`}
-                >
-                  Player 2
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActivePlayer('player3')}
-                  className={`h-10 rounded-md px-4 text-sm font-semibold transition active:scale-95 ${
-                    activePlayer === 'player3'
-                      ? 'bg-red-600 text-white shadow-inner shadow-red-500/60'
-                      : 'bg-black/25 text-gray-200 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40'
-                  }`}
-                >
-                  Player 3
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="px-6 py-6">
-            {syncNotice && (
-              <div className="mx-auto mb-4 max-w-4xl rounded-xl border border-green-500/25 bg-green-500/10 px-4 py-3 text-sm text-green-200">
-                {syncNotice}
-              </div>
-            )}
-
-            <div className="mx-auto max-w-4xl overflow-hidden rounded-2xl border-[1.5px] border-white/10 bg-black/30 shadow-[0_0_30px_rgba(239,68,68,0.16)]">
-              <div className="aspect-video w-full">
+          <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-3 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
+            <div className="overflow-hidden rounded-xl border-[1.5px] border-white/10 bg-black/20 shadow-[0_0_30px_rgba(239,68,68,0.16)]">
+              <div className="aspect-video w-full bg-black">
                 {embedUrl ? (
                   <iframe
+                    key={iframeKey}
                     ref={playerFrameRef}
                     src={embedUrl}
-                    title={`${title} - ${activePlayer}`}
+                    title="KFlix Player"
                     className="h-full w-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write; web-share"
                     allowFullScreen
+                    referrerPolicy="no-referrer"
+                    onLoad={() => {
+                      setPlayerReady(true);
+
+                      setTimeout(() => {
+                        requestPlayerStatus();
+                      }, 500);
+                    }}
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center px-6 text-center text-sm text-gray-400">
-                    Selected player is not configured yet.
+                    Unable to build a valid player URL for this media.
                   </div>
                 )}
-              </div>
-            </div>
-
-            <div className="mx-auto mt-4 max-w-4xl rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-gray-400">
-              Active source:{' '}
-              <span className="font-medium text-white">
-                {activePlayer === 'player1'
-                  ? 'Player 1'
-                  : activePlayer === 'player2'
-                  ? 'Player 2'
-                  : 'Player 3'}
-              </span>
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-8 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <div className="border-b border-red-500/25 bg-red-600/10 px-6 py-4">
-              <h2 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400">
-                Overview
-              </h2>
-            </div>
-
-            <div className="px-6 py-5">
-              <p className="text-sm leading-7 text-gray-200 md:text-base">{overview}</p>
-            </div>
-          </div>
-
-          <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <div className="border-b border-red-500/25 bg-red-600/10 px-6 py-4">
-              <h2 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400">
-                Player Details
-              </h2>
-            </div>
-
-            <div className="space-y-4 px-6 py-5">
-              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-red-400">Title</p>
-                <p className="mt-2 text-base text-white">{title}</p>
-              </div>
-
-              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-red-400">Type</p>
-                <p className="mt-2 text-base text-white">
-                  {type === 'movie' ? 'Movie' : 'TV Show'}
-                </p>
-              </div>
-
-              {type === 'tv' && season && episode && (
-                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-red-400">Episode</p>
-                  <p className="mt-2 text-base text-white">
-                    Season {season}, Episode {episode}
-                  </p>
-                </div>
-              )}
-
-              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-red-400">
-                  Selected Player
-                </p>
-                <p className="mt-2 text-base text-white">
-                  {activePlayer === 'player1'
-                    ? 'Player 1'
-                    : activePlayer === 'player2'
-                    ? 'Player 2'
-                    : 'Player 3'}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-red-400">
-                  Sync Params
-                </p>
-                <p className="mt-2 text-base text-white">
-                  t={initialTimeParam || '0'} • autoplay={initialAutoplayParam || '0'}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-red-400">
-                  Fallback TMDB Video
-                </p>
-                <p className="mt-2 text-base text-white">
-                  {video?.name || 'No TMDB video found'}
-                </p>
               </div>
             </div>
           </div>
@@ -738,7 +925,7 @@ function WatchPageContent() {
       </main>
 
       <footer className="px-8 pb-8 pt-2 text-center text-sm text-gray-400">
-        <p>This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
+        <p>This website does not host or store any media on its servers.</p>
 
         <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
           <Link href="/Terms-and-Conditions" className="transition hover:text-red-400">

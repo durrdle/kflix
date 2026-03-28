@@ -1,5 +1,3 @@
-// DetailPageContent.jsx
-
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -7,7 +5,7 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
-const TMDB_API_KEY = 'bb55db1bab2f577940a88a75fa45692a';
+const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
 const BACKDROP_BASE = 'https://image.tmdb.org/t/p/original';
 const POSTER_BASE = 'https://image.tmdb.org/t/p/w500';
 const PROFILE_BASE = 'https://image.tmdb.org/t/p/w185';
@@ -136,7 +134,7 @@ function TrailerModal({ open, onClose, videoKey, title }) {
           <button
             type="button"
             onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-black/25 text-gray-300 backdrop-blur-md transition active:scale-95 hover:text-white hover:shadow-inner hover:shadow-red-500/50"
+            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-black/25 text-gray-300 backdrop-blur-md transition active:scale-95 hover:text-white hover:shadow-inner hover:shadow-red-500/50"
             aria-label="Close trailer"
             title="Close trailer"
           >
@@ -290,7 +288,7 @@ function WatchOptionsModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-black/25 text-gray-300 backdrop-blur-md transition active:scale-95 hover:text-white hover:shadow-inner hover:shadow-red-500/50"
+            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-black/25 text-gray-300 backdrop-blur-md transition active:scale-95 hover:text-white hover:shadow-inner hover:shadow-red-500/50"
             aria-label="Close watch options"
             title="Close watch options"
           >
@@ -358,7 +356,7 @@ function WatchOptionsModal({
                           setSeasonData(null);
                           setSeasonError('');
                         }}
-                        className={`w-full rounded-xl border px-4 py-3 text-left transition ${
+                        className={`w-full cursor-pointer rounded-xl border px-4 py-3 text-left transition ${
                           active
                             ? 'border-red-400 bg-red-600/15 text-red-300 shadow-[0_0_18px_rgba(239,68,68,0.18)]'
                             : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
@@ -412,7 +410,7 @@ function WatchOptionsModal({
                     <Link
                       key={episode.id || episode.episode_number}
                       href={`/watch?type=tv&id=${showId}&season=${selectedSeason}&episode=${episode.episode_number}`}
-                      className="block"
+                      className="block cursor-pointer"
                     >
                       <div className="group rounded-xl border border-white/10 bg-black/20 p-4 transition hover:border-red-400/70 hover:shadow-[0_0_20px_rgba(239,68,68,0.16)]">
                         <div className="flex items-start justify-between gap-4">
@@ -715,7 +713,7 @@ function SimilarCarousel({ items, type }) {
             return (
               <div key={pageIndex} className="grid min-w-full grid-cols-6 gap-4 px-6 py-5">
                 {pageItems.map((item) => (
-                  <Link key={item.id} href={`/${type}/${item.id}`} className="group min-w-0">
+                  <Link key={item.id} href={`/${type}/${item.id}`} className="group min-w-0 cursor-pointer">
                     <div className="relative overflow-hidden rounded-xl border-[1.5px] border-white/10 bg-black/20 transition duration-300 group-hover:border-red-400/80 group-hover:shadow-[0_0_24px_rgba(239,68,68,0.28)]">
                       <div className="aspect-[2/2.8] w-full bg-gray-800">
                         {item.poster_path ? (
@@ -893,15 +891,22 @@ export default function DetailPageContent({ id, type }) {
         const watchlistItem = {
           id: data.id,
           type,
+          media_type: type,
           title: data.title || data.name || 'Untitled',
+          name: data.name || data.title || 'Untitled',
           poster_path: data.poster_path || null,
           backdrop_path: data.backdrop_path || null,
+          release_date: data.release_date || null,
+          first_air_date: data.first_air_date || null,
+          vote_average: data.vote_average ?? null,
           addedAt: Date.now(),
         };
 
         localStorage.setItem(storageKey, JSON.stringify([watchlistItem, ...parsed]));
         setIsInWatchlist(true);
       }
+
+      window.dispatchEvent(new Event('storage'));
     } catch (error) {
       console.error('Watchlist update failed:', error);
     }
@@ -1000,7 +1005,7 @@ export default function DetailPageContent({ id, type }) {
 
               <div className="mt-6 flex flex-wrap gap-3">
                 {type === 'movie' ? (
-                  <Link href={`/watch?type=movie&id=${id}`}>
+                  <Link href={`/watch?type=movie&id=${id}`} className="cursor-pointer">
                     <span className="flex h-11 items-center justify-center gap-2 rounded-md bg-red-600 px-5 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60">
                       <svg
                         className="h-4 w-4 flex-shrink-0"
@@ -1017,7 +1022,7 @@ export default function DetailPageContent({ id, type }) {
                   <button
                     type="button"
                     onClick={() => setWatchOptionsOpen(true)}
-                    className="flex h-11 items-center justify-center gap-2 rounded-md bg-red-600 px-5 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60"
+                    className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-md bg-red-600 px-5 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60"
                   >
                     <svg
                       className="h-4 w-4 flex-shrink-0"
@@ -1035,7 +1040,7 @@ export default function DetailPageContent({ id, type }) {
                   <button
                     type="button"
                     onClick={() => setTrailerOpen(true)}
-                    className="flex h-11 items-center justify-center gap-2 rounded-md bg-red-600 px-5 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60"
+                    className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-md bg-red-600 px-5 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60"
                   >
                     <svg
                       className="h-4 w-4 flex-shrink-0"
@@ -1057,7 +1062,7 @@ export default function DetailPageContent({ id, type }) {
                     isInWatchlist
                       ? 'bg-red-600 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60'
                       : 'bg-black/25 backdrop-blur-md hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40'
-                  } ${!userId ? 'cursor-not-allowed opacity-70' : ''}`}
+                  } ${!userId ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
                   title={!userId ? 'Sign in to use watchlist' : isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
                 >
                   {isInWatchlist ? (

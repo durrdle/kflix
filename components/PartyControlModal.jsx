@@ -33,6 +33,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
   const chatRef = useRef(null);
   const lastHandledResyncRef = useRef(0);
   const lastHandledPlaybackTargetRef = useRef('');
+  const lastAppliedUrlRef = useRef('');
 
   const chatUiKey = useMemo(
     () => (code ? `kflix_party_chat_ui_${code}` : ''),
@@ -45,6 +46,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
   );
 
   const isHost = Boolean(currentMember?.isHost);
+  const isPartyMember = Boolean(currentMember);
 
   const saveChatUi = (next) => {
     if (!chatUiKey) return;
@@ -99,6 +101,58 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
     return `/watch?${params.toString()}`;
   };
 
+  const getPlaybackLabel = () => {
+    if (!playbackState?.mediaType || !playbackState?.mediaId) {
+      return 'Nothing synced yet';
+    }
+
+    if (playbackState.mediaType === 'tv') {
+      const seasonLabel =
+        playbackState.season != null && playbackState.season !== ''
+          ? `S${String(playbackState.season)}`
+          : 'S?';
+      const episodeLabel =
+        playbackState.episode != null && playbackState.episode !== ''
+          ? `E${String(playbackState.episode)}`
+          : 'E?';
+
+      return `TV / ${playbackState.mediaId} / ${seasonLabel} ${episodeLabel}`;
+    }
+
+    return `Movie / ${playbackState.mediaId}`;
+  };
+
+  const getPlaybackTimeLabel = () => {
+    if (
+      typeof playbackState?.currentTime !== 'number' ||
+      !Number.isFinite(playbackState.currentTime)
+    ) {
+      return '0s';
+    }
+
+    const total = Math.max(0, Math.floor(playbackState.currentTime));
+    const hrs = Math.floor(total / 3600);
+    const mins = Math.floor((total % 3600) / 60);
+    const secs = total % 60;
+
+    if (hrs > 0) {
+      return `${hrs}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    return `${mins}:${String(secs).padStart(2, '0')}`;
+  };
+
+  const getPlaybackUpdatedLabel = () => {
+    if (!playbackState?.updatedAt) return 'No live data yet';
+
+    const diff = Math.max(0, Date.now() - playbackState.updatedAt);
+
+    if (diff < 5000) return 'Live now';
+    if (diff < 60000) return `${Math.floor(diff / 1000)}s ago`;
+
+    return `${Math.floor(diff / 60000)}m ago`;
+  };
+
   const applyHostPlaybackNow = () => {
     if (!playbackState?.mediaType || !playbackState?.mediaId) return;
 
@@ -127,6 +181,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
     const currentUrl = `${window.location.pathname}${window.location.search}`;
 
     if (currentUrl !== targetUrl) {
+      lastAppliedUrlRef.current = targetUrl;
       router.push(targetUrl);
     }
   };
@@ -240,71 +295,58 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
     };
   }, [dragging]);
 
-  // Auto-follow host when host starts or switches media
   useEffect(() => {
     if (!code) return;
     if (!userId) return;
     if (isHost) return;
+    if (!isPartyMember) return;
     if (!playbackState?.mediaType || !playbackState?.mediaId) return;
 
-    const mediaKey = [
+    const playbackFingerprint = [
       String(playbackState.mediaType),
       String(playbackState.mediaId),
       String(playbackState.season ?? ''),
       String(playbackState.episode ?? ''),
+      typeof playbackState.currentTime === 'number'
+        ? String(Math.max(0, Math.floor(playbackState.currentTime)))
+        : '0',
+      playbackState.isPlaying ? '1' : '0',
+      String(playbackState.updatedAt ?? ''),
     ].join(':');
 
-    if (lastHandledPlaybackTargetRef.current === mediaKey) return;
-    lastHandledPlaybackTargetRef.current = mediaKey;
+    if (lastHandledPlaybackTargetRef.current === playbackFingerprint) return;
+    lastHandledPlaybackTargetRef.current = playbackFingerprint;
 
-    const currentPath = window.location.pathname;
-    const currentParams = new URLSearchParams(window.location.search);
-
-    const currentType = currentParams.get('type') || '';
-    const currentId = currentParams.get('id') || '';
-    const currentSeason = currentParams.get('season') || '';
-    const currentEpisode = currentParams.get('episode') || '';
-
-    const targetType = String(playbackState.mediaType);
-    const targetId = String(playbackState.mediaId);
-    const targetSeason = String(playbackState.season ?? '');
-    const targetEpisode = String(playbackState.episode ?? '');
-
-    const alreadyOnSameMedia =
-      currentPath === '/watch' &&
-      currentType === targetType &&
-      currentId === targetId &&
-      currentSeason === targetSeason &&
-      currentEpisode === targetEpisode;
-
-    if (!alreadyOnSameMedia) {
-      applyHostPlaybackNow();
-      setSyncStatus('Recently Resynced');
-    }
+    applyHostPlaybackNow();
+    setSyncStatus('Recently Resynced');
   }, [
     code,
     userId,
     isHost,
+    isPartyMember,
     playbackState?.mediaType,
     playbackState?.mediaId,
     playbackState?.season,
     playbackState?.episode,
+    playbackState?.currentTime,
+    playbackState?.isPlaying,
+    playbackState?.updatedAt,
   ]);
 
-  // Manual resync / jump-to-host for non-hosts
   useEffect(() => {
     const syncRequestedAt = partyState?.syncRequestedAt || 0;
 
     if (!syncRequestedAt) return;
     if (!userId) return;
     if (isHost) return;
+    if (!isPartyMember) return;
     if (!playbackState?.mediaType || !playbackState?.mediaId) return;
     if (syncRequestedAt <= lastHandledResyncRef.current) return;
 
     lastHandledResyncRef.current = syncRequestedAt;
     applyHostPlaybackNow();
     setSyncStatus('Recently Resynced');
-  }, [partyState?.syncRequestedAt, isHost, playbackState, userId]);
+  }, [partyState?.syncRequestedAt, isHost, isPartyMember, playbackState, userId]);
 
   const handleCopyCode = async () => {
     try {
@@ -317,7 +359,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
   };
 
   const handleResync = async () => {
-    if (!code || !userId || resyncing) return;
+    if (!code || !userId || resyncing || !isPartyMember) return;
 
     try {
       setResyncing(true);
@@ -343,7 +385,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
     e.preventDefault();
     const trimmed = chatMessage.trim();
 
-    if (!trimmed || !code || !userId) return;
+    if (!trimmed || !code || !userId || !isPartyMember) return;
 
     try {
       await sendPartyMessage(code, userId, trimmed);
@@ -381,7 +423,8 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
   });
 
   const shouldRenderModal = open;
-  const shouldRenderChat = chatOpen && code;
+  const shouldRenderChat = chatOpen && code && isPartyMember;
+  const showJumpSection = isPartyMember && !isHost;
 
   if (!shouldRenderModal && !shouldRenderChat) return null;
 
@@ -426,42 +469,44 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-red-400">
-                    Sync Status
-                  </p>
+              <div className={`grid gap-4 ${showJumpSection ? 'sm:grid-cols-2' : 'sm:grid-cols-1'}`}>
+                {showJumpSection && (
+                  <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-red-400">
+                      Jump to Host
+                    </p>
 
-                  <div className="mt-3">
-                    <div
-                      className={`text-sm font-medium ${
-                        syncStatus === 'Recently Resynced'
-                          ? 'text-green-300'
-                          : syncStatus === 'Party Closed'
-                          ? 'text-red-300'
-                          : 'text-white'
-                      }`}
-                    >
-                      {syncStatus}
+                    <div className="mt-3">
+                      <div
+                        className={`text-sm font-medium ${
+                          syncStatus === 'Recently Resynced'
+                            ? 'text-green-300'
+                            : syncStatus === 'Party Closed'
+                            ? 'text-red-300'
+                            : 'text-white'
+                        }`}
+                      >
+                        {syncStatus}
+                      </div>
+
+                      <p className="mt-2 text-xs text-gray-400">
+                        Jump to the host’s current media and playback position.
+                      </p>
                     </div>
 
-                    <p className="mt-2 text-xs text-gray-400">
-                      Non-hosts can jump to the host. Hosts can broadcast a resync to everyone.
-                    </p>
+                    <button
+                      onClick={handleResync}
+                      disabled={resyncing}
+                      className={`mt-4 flex h-11 w-full items-center justify-center rounded-lg px-4 text-sm font-semibold text-white transition active:scale-95 ${
+                        resyncing
+                          ? 'cursor-not-allowed bg-red-900/50 opacity-70'
+                          : 'bg-red-600 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60'
+                      }`}
+                    >
+                      {resyncing ? 'Resyncing...' : 'Jump to Host'}
+                    </button>
                   </div>
-
-                  <button
-                    onClick={handleResync}
-                    disabled={resyncing}
-                    className={`mt-4 flex h-11 w-full items-center justify-center rounded-lg px-4 text-sm font-semibold text-white transition active:scale-95 ${
-                      resyncing
-                        ? 'cursor-not-allowed bg-red-900/50 opacity-70'
-                        : 'bg-red-600 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60'
-                    }`}
-                  >
-                    {resyncing ? 'Resyncing...' : isHost ? 'Broadcast Resync' : 'Jump to Host'}
-                  </button>
-                </div>
+                )}
 
                 <div className="rounded-xl border border-white/10 bg-black/20 p-4">
                   <p className="text-xs uppercase tracking-[0.18em] text-red-400">
@@ -471,25 +516,21 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
                   <div className="mt-3 space-y-2 text-sm text-white">
                     <div>
                       Media:{' '}
-                      <span className="text-gray-300">
-                        {playbackState?.mediaType && playbackState?.mediaId
-                          ? `${playbackState.mediaType} / ${playbackState.mediaId}`
-                          : 'Nothing synced yet'}
-                      </span>
+                      <span className="text-gray-300">{getPlaybackLabel()}</span>
                     </div>
                     <div>
                       Time:{' '}
-                      <span className="text-gray-300">
-                        {typeof playbackState?.currentTime === 'number'
-                          ? `${Math.floor(playbackState.currentTime)}s`
-                          : '0s'}
-                      </span>
+                      <span className="text-gray-300">{getPlaybackTimeLabel()}</span>
                     </div>
                     <div>
                       Status:{' '}
                       <span className="text-gray-300">
-                        {playbackState?.isPlaying ? 'Playing' : 'Paused'}
+                        {playbackState?.isPlaying ? 'Playing' : playbackState?.mediaId ? 'Paused' : 'Waiting'}
                       </span>
+                    </div>
+                    <div>
+                      Updated:{' '}
+                      <span className="text-gray-300">{getPlaybackUpdatedLabel()}</span>
                     </div>
                   </div>
                 </div>
@@ -508,9 +549,18 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
                         className="flex items-center justify-between rounded-lg border border-white/10 bg-gray-900 px-4 py-3"
                       >
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-medium text-white">
-                            {member.name || `User ${member.id}`}
+                          <div className="flex items-center gap-2">
+                            <div className="truncate text-sm font-medium text-white">
+                              {member.name || `User ${member.id}`}
+                            </div>
+
+                            {member.isHost && (
+                              <span className="rounded-full border border-red-500/30 bg-red-600/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-red-300">
+                                Host
+                              </span>
+                            )}
                           </div>
+
                           <div className="text-xs text-gray-400">
                             {member.isHost ? 'Host' : 'Member'}
                           </div>
@@ -545,6 +595,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
                   <button
                     type="submit"
                     className="flex h-11 items-center justify-center rounded-xl bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60"
+                    disabled={!isPartyMember}
                   >
                     Send
                   </button>
@@ -555,6 +606,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
                     type="button"
                     onClick={() => setChatOpen(true)}
                     className="flex h-10 items-center justify-center rounded-lg bg-black/25 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
+                    disabled={!isPartyMember}
                   >
                     Open Chatbox
                   </button>

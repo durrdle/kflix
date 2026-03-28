@@ -61,6 +61,7 @@ export default function Navbar() {
   const lastScrollYRef = useRef(0);
   const liveSearchTimeoutRef = useRef(null);
   const partyUnsubRef = useRef(null);
+  const partyHeartbeatRef = useRef(null);
   const hostIdRef = useRef('');
   const partyCodeRef = useRef('');
   const inPartyRef = useRef(false);
@@ -71,6 +72,7 @@ export default function Navbar() {
 
   const isProfilePage = pathname === '/profile';
   const isSearchPage = pathname === '/search';
+  const isHomePage = pathname === '/';
 
   const syncPartyStateFromStorage = () => {
     const savedCode = localStorage.getItem('kflix_current_party_code') || '';
@@ -109,8 +111,8 @@ export default function Navbar() {
   };
 
   useEffect(() => {
-  syncPartyStateFromStorage();
-}, []);
+    syncPartyStateFromStorage();
+  }, []);
 
   useEffect(() => {
     const auth = getAuth(app);
@@ -124,6 +126,11 @@ export default function Navbar() {
     if (partyUnsubRef.current) {
       partyUnsubRef.current();
       partyUnsubRef.current = null;
+    }
+
+    if (partyHeartbeatRef.current) {
+      clearInterval(partyHeartbeatRef.current);
+      partyHeartbeatRef.current = null;
     }
 
     if (!partyCode) return;
@@ -148,6 +155,12 @@ export default function Navbar() {
 
     onValue(partyRef, handlePartyValue);
 
+    partyHeartbeatRef.current = setInterval(() => {
+      const activeUserId = getAuth().currentUser?.uid;
+      if (!activeUserId || !partyCodeRef.current || !inPartyRef.current) return;
+      touchPartyMember(partyCodeRef.current, activeUserId);
+    }, 10000);
+
     partyUnsubRef.current = () => {
       off(partyRef, 'value', handlePartyValue);
     };
@@ -156,6 +169,11 @@ export default function Navbar() {
       if (partyUnsubRef.current) {
         partyUnsubRef.current();
         partyUnsubRef.current = null;
+      }
+
+      if (partyHeartbeatRef.current) {
+        clearInterval(partyHeartbeatRef.current);
+        partyHeartbeatRef.current = null;
       }
     };
   }, [partyCode]);
@@ -219,24 +237,62 @@ export default function Navbar() {
     const currentUserId = getAuth().currentUser?.uid;
     if (!currentUserId) return;
 
-    const handlePageHide = () => {
+    const handleBeforeUnload = () => {
       if (!inPartyRef.current || !partyCodeRef.current) return;
 
       const isHost = hostIdRef.current === currentUserId;
-      leavePartyOnUnload(partyCodeRef.current, currentUserId, isHost);
 
-      localStorage.setItem('kflix_current_party_code', '');
-      localStorage.setItem('kflix_in_party', 'false');
-      clearPartyStayPrompt();
+      try {
+        leavePartyOnUnload(partyCodeRef.current, currentUserId, isHost);
+      } catch {
+        // best effort
+      }
     };
 
-    window.addEventListener('pagehide', handlePageHide);
-    window.addEventListener('beforeunload', handlePageHide);
+    window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
-      window.removeEventListener('pagehide', handlePageHide);
-      window.removeEventListener('beforeunload', handlePageHide);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
+  }, []);
+
+  useEffect(() => {
+    const auth = getAuth();
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      const userId = user?.uid;
+      if (!userId) return;
+
+      const code = localStorage.getItem('kflix_current_party_code');
+      const activeInParty = localStorage.getItem('kflix_in_party') === 'true';
+
+      if (!code || !activeInParty) return;
+
+      try {
+        await joinParty(code, userId);
+        await touchPartyMember(code, userId);
+
+        const partyRef = ref(db, `parties/${code}`);
+        const snapshot = await get(partyRef);
+
+        if (snapshot.exists()) {
+          const partyData = snapshot.val() || {};
+          hostIdRef.current = partyData.hostId || '';
+
+          if (!partyData.members?.[userId]) {
+            await update(ref(db, `parties/${code}/members/${userId}`), {
+              joinedAt: Date.now(),
+              lastSeenAt: Date.now(),
+              isHost: partyData.hostId === userId,
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Auto rejoin failed:', err);
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -258,18 +314,11 @@ export default function Navbar() {
       }
 
       const currentY = window.scrollY;
-      const lastY = lastScrollYRef.current;
-
-      if (currentY <= 20) {
-        setNavVisible(true);
-      } else if (currentY > lastY + 6) {
-        setNavVisible(false);
-      } else if (currentY < lastY - 6) {
-        setNavVisible(true);
-      }
-
+      setNavVisible(currentY <= 8);
       lastScrollYRef.current = currentY;
     };
+
+    handleScroll();
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
@@ -299,8 +348,6 @@ export default function Navbar() {
   };
 
   useEffect(() => {
-    if (isSearchPage) return;
-
     const delay = setTimeout(() => {
       if (!searchQuery.trim()) {
         setResults([]);
@@ -309,47 +356,10 @@ export default function Navbar() {
       }
 
       fetchResults(searchQuery);
-    }, 900);
-
-    return () => clearTimeout(delay);
-  }, [searchQuery, isSearchPage]);
-
-  useEffect(() => {
-    if (isSearchPage) return;
-    if (!focused || !searchQuery.trim()) return;
-
-    const delay = setTimeout(() => {
-      fetchResults(searchQuery);
     }, 250);
 
     return () => clearTimeout(delay);
-  }, [focused, searchQuery, isSearchPage]);
-
-  useEffect(() => {
-    if (!isSearchPage) return;
-
-    const currentParamQuery = searchParams.get('q') || '';
-    if (searchQuery === currentParamQuery) return;
-
-    if (liveSearchTimeoutRef.current) {
-      clearTimeout(liveSearchTimeoutRef.current);
-    }
-
-    liveSearchTimeoutRef.current = setTimeout(() => {
-      const params = new URLSearchParams(searchParams.toString());
-
-      if (searchQuery.trim()) params.set('q', searchQuery.trim());
-      else params.delete('q');
-
-      router.replace(`/search${params.toString() ? `?${params.toString()}` : ''}`);
-    }, 350);
-
-    return () => {
-      if (liveSearchTimeoutRef.current) {
-        clearTimeout(liveSearchTimeoutRef.current);
-      }
-    };
-  }, [isSearchPage, searchQuery, searchParams, router]);
+  }, [searchQuery]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -408,18 +418,15 @@ export default function Navbar() {
     e.preventDefault();
     if (!searchQuery.trim()) return;
 
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('q', searchQuery.trim());
+
     if (isSearchPage) {
-      const params = new URLSearchParams(searchParams.toString());
-      params.set('q', searchQuery.trim());
       router.replace(`/search?${params.toString()}`);
-      setSearchOpen(false);
-      setFocused(false);
-      return;
+    } else {
+      router.push(`/search?${params.toString()}`);
     }
 
-    const params = new URLSearchParams();
-    params.set('q', searchQuery.trim());
-    router.push(`/search?${params.toString()}`);
     setSearchOpen(false);
     setFocused(false);
   };
@@ -475,9 +482,9 @@ export default function Navbar() {
 
   const handlePartyJoined = async (code) => {
     try {
-      const userId = getAuth().currentUser?.uid;
-      if (!userId) return;
-      await joinParty(code, userId);
+      const currentUserId = getAuth().currentUser?.uid;
+      if (!currentUserId) return;
+      await joinParty(code, currentUserId);
 
       schedulePartyStayPrompt();
       persistCurrentPartyState(code, true);
@@ -556,6 +563,15 @@ export default function Navbar() {
     }
   };
 
+  const handleBackClick = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push(targetHref);
+  };
+
   const filterActive =
     draftType !== 'all' ||
     draftSort !== 'newest' ||
@@ -566,8 +582,10 @@ export default function Navbar() {
   return (
     <>
       <nav
-        className={`fixed top-0 left-0 z-50 flex h-20 w-full items-center px-8 transition-all duration-300 ${
-          navVisible ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-4 opacity-0'
+        className={`fixed left-0 top-0 z-50 flex h-20 w-full items-center px-8 transition-all duration-300 ${
+          navVisible
+            ? 'translate-y-0 opacity-100'
+            : 'pointer-events-none -translate-y-full opacity-0'
         }`}
       >
         <div className="flex items-center">
@@ -767,116 +785,131 @@ export default function Navbar() {
               </button>
             </form>
 
-            {!isSearchPage && (
-              <div
-                className={`absolute left-0 top-full mt-2 w-full overflow-hidden rounded-lg border border-red-500/40 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_10px_30px_rgba(0,0,0,0.45)] transition-all duration-200 ${
-                  searchOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-2 opacity-0'
-                } ${
-                  resultsPulse ? 'ring-1 ring-red-500/60 shadow-[0_0_18px_rgba(239,68,68,0.25)]' : ''
-                }`}
-              >
-                {searchOpen && (
-                  <div className="flex items-center justify-between border-b border-red-500/20 bg-red-600/10 px-4 py-2">
-                    <span className="text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
-                      Top Results
-                    </span>
-                    <span className="text-[11px] text-gray-300">{results.length} shown</span>
+            <div
+              className={`absolute left-0 top-full mt-2 w-full overflow-hidden rounded-lg border border-red-500/40 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_10px_30px_rgba(0,0,0,0.45)] transition-all duration-200 ${
+                searchOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-2 opacity-0'
+              } ${
+                resultsPulse ? 'ring-1 ring-red-500/60 shadow-[0_0_18px_rgba(239,68,68,0.25)]' : ''
+              }`}
+            >
+              {searchOpen && (
+                <div className="flex items-center justify-between border-b border-red-500/20 bg-red-600/10 px-4 py-2">
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                    Top Results
+                  </span>
+                  <span className="text-[11px] text-gray-300">{results.length} shown</span>
+                </div>
+              )}
+
+              <div className="relative">
+                {canScrollUp && (
+                  <div className="absolute left-1/2 top-2 z-20 -translate-x-1/2">
+                    <button
+                      type="button"
+                      onClick={() => scrollResults('up')}
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path d="M6 15l6-6 6 6" />
+                      </svg>
+                    </button>
                   </div>
                 )}
 
-                <div className="relative">
-                  {canScrollUp && (
-                    <div className="absolute left-1/2 top-2 z-20 -translate-x-1/2">
-                      <button
-                        type="button"
-                        onClick={() => scrollResults('up')}
-                        className="flex h-8 w-8 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60"
-                      >
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                          <path d="M6 15l6-6 6 6" />
-                        </svg>
-                      </button>
-                    </div>
-                  )}
-
-                  {canScrollDown && (
-                    <div className="absolute bottom-2 left-1/2 z-20 -translate-x-1/2">
-                      <button
-                        type="button"
-                        onClick={() => scrollResults('down')}
-                        className="flex h-8 w-8 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60"
-                      >
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                          <path d="M6 9l6 6 6-6" />
-                        </svg>
-                      </button>
-                    </div>
-                  )}
-
-                  <div
-                    ref={resultsScrollRef}
-                    className="max-h-[360px] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-                  >
-                    {results.map((item, index) => (
-                      <Link
-                        key={`${item.media_type}-${item.id}`}
-                        href={item.media_type === 'movie' ? `/movie/${item.id}` : `/tv/${item.id}`}
-                      >
-                        <div
-                          className={`group flex cursor-pointer items-center gap-3 px-4 py-3 transition-all duration-200 hover:bg-red-600/12 ${
-                            index !== results.length - 1 ? 'border-b border-white/5' : ''
-                          }`}
-                        >
-                          <div className="h-14 w-10 flex-shrink-0 overflow-hidden rounded bg-gray-700 ring-1 ring-white/10 transition group-hover:ring-red-400/50">
-                            {item.poster_path ? (
-                              <img
-                                src={`${IMAGE_BASE}${item.poster_path}`}
-                                className="h-full w-full object-cover"
-                                alt={item.title || item.name || 'Poster'}
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center text-[10px] text-gray-300">
-                                N/A
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="truncate text-sm font-medium text-white transition group-hover:text-red-300">
-                                {item.title || item.name}
-                              </span>
-
-                              <span className="rounded border border-red-500/20 bg-red-600/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-red-300">
-                                {item.media_type}
-                              </span>
-                            </div>
-
-                            <div className="mt-1 truncate text-xs text-gray-400">
-                              {item.release_date || item.first_air_date || 'No date available'}
-                            </div>
-                          </div>
-
-                          <svg
-                            className="h-4 w-4 flex-shrink-0 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            viewBox="0 0 24 24"
-                          >
-                            <path d="M9 6l6 6-6 6" />
-                          </svg>
-                        </div>
-                      </Link>
-                    ))}
+                {canScrollDown && (
+                  <div className="absolute bottom-2 left-1/2 z-20 -translate-x-1/2">
+                    <button
+                      type="button"
+                      onClick={() => scrollResults('down')}
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path d="M6 9l6 6 6-6" />
+                      </svg>
+                    </button>
                   </div>
+                )}
+
+                <div
+                  ref={resultsScrollRef}
+                  className="max-h-[360px] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                >
+                  {results.map((item, index) => (
+                    <Link
+                      key={`${item.media_type}-${item.id}`}
+                      href={item.media_type === 'movie' ? `/movie/${item.id}` : `/tv/${item.id}`}
+                      onClick={() => {
+                        setSearchOpen(false);
+                        setFocused(false);
+                      }}
+                    >
+                      <div
+                        className={`group flex cursor-pointer items-center gap-3 px-4 py-3 transition-all duration-200 hover:bg-red-600/12 ${
+                          index !== results.length - 1 ? 'border-b border-white/5' : ''
+                        }`}
+                      >
+                        <div className="h-14 w-10 flex-shrink-0 overflow-hidden rounded bg-gray-700 ring-1 ring-white/10 transition group-hover:ring-red-400/50">
+                          {item.poster_path ? (
+                            <img
+                              src={`${IMAGE_BASE}${item.poster_path}`}
+                              className="h-full w-full object-cover"
+                              alt={item.title || item.name || 'Poster'}
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-[10px] text-gray-300">
+                              N/A
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate text-sm font-medium text-white transition group-hover:text-red-300">
+                              {item.title || item.name}
+                            </span>
+
+                            <span className="rounded border border-red-500/20 bg-red-600/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-red-300">
+                              {item.media_type}
+                            </span>
+                          </div>
+
+                          <div className="mt-1 truncate text-xs text-gray-400">
+                            {item.release_date || item.first_air_date || 'No date available'}
+                          </div>
+                        </div>
+
+                        <svg
+                          className="h-4 w-4 flex-shrink-0 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M9 6l6 6-6 6" />
+                        </svg>
+                      </div>
+                    </Link>
+                  ))}
                 </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
 
         <div className="ml-auto flex items-center space-x-2">
+          {!isHomePage && (
+            <button
+              type="button"
+              onClick={handleBackClick}
+              className="flex h-9 items-center gap-2 rounded-md bg-black/25 px-4 text-sm font-semibold text-white backdrop-blur-md transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
+            >
+              <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M15 6l-6 6 6 6" />
+              </svg>
+              Back
+            </button>
+          )}
+
           {!isSearchPage && (
             <div ref={browseRef} className="relative">
               <button
@@ -917,6 +950,19 @@ export default function Navbar() {
                   <div className="group flex items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-red-600/12">
                     <span className="text-sm font-medium text-white transition group-hover:text-red-300">
                       Shows
+                    </span>
+                    <svg className="h-4 w-4 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path d="M9 6l6 6-6 6" />
+                    </svg>
+                  </div>
+                </Link>
+
+                <div className="border-t border-white/5" />
+
+                <Link href="/search?type=tv&tab=anime">
+                  <div className="group flex items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-red-600/12">
+                    <span className="text-sm font-medium text-white transition group-hover:text-red-300">
+                      Anime
                     </span>
                     <svg className="h-4 w-4 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                       <path d="M9 6l6 6-6 6" />
