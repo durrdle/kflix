@@ -60,7 +60,6 @@ export default function Navbar() {
   const filterRef = useRef(null);
   const resultsScrollRef = useRef(null);
   const lastScrollYRef = useRef(0);
-  const liveSearchTimeoutRef = useRef(null);
   const partyUnsubRef = useRef(null);
   const partyHeartbeatRef = useRef(null);
   const hostIdRef = useRef('');
@@ -74,6 +73,7 @@ export default function Navbar() {
   const isProfilePage = pathname === '/profile';
   const isSearchPage = pathname === '/search';
   const isHomePage = pathname === '/';
+  const isWatchPage = pathname === '/watch';
 
   const syncPartyStateFromStorage = () => {
     const savedCode = localStorage.getItem('kflix_current_party_code') || '';
@@ -565,6 +565,21 @@ export default function Navbar() {
   };
 
   const handleBackClick = () => {
+    if (isWatchPage) {
+      const watchType = searchParams.get('type') || '';
+      const watchId = searchParams.get('id') || '';
+
+      if (watchType === 'movie' && watchId) {
+        router.push(`/movie/${watchId}`);
+        return;
+      }
+
+      if (watchType === 'tv' && watchId) {
+        router.push(`/tv/${watchId}`);
+        return;
+      }
+    }
+
     if (typeof window !== 'undefined' && window.history.length > 1) {
       router.back();
       return;

@@ -84,6 +84,19 @@ function getContinueWatchingItem(userId, showId) {
 function resolveContinueEpisodeTarget(item, seasons) {
   if (!item) return null;
 
+  const explicitNextSeason = Number(item.nextSeason || 0);
+  const explicitNextEpisode = Number(item.nextEpisode || 0);
+
+  if (explicitNextSeason > 0 && explicitNextEpisode > 0) {
+    return {
+      ...item,
+      season: explicitNextSeason,
+      episode: explicitNextEpisode,
+      currentTime: 0,
+      remainingTime: null,
+    };
+  }
+
   const seasonNumber = Number(item.season || 0);
   const episodeNumber = Number(item.episode || 0);
 
@@ -1047,6 +1060,7 @@ export default function DetailPageContent({ id, type }) {
     window.addEventListener('storage', syncContinueEpisode);
     window.addEventListener('focus', syncContinueEpisode);
     window.addEventListener('kflix-continue-watching-updated', syncContinueEpisode);
+    window.addEventListener('kflix-watched-episode-updated', syncContinueEpisode);
     document.addEventListener('visibilitychange', handleVisibility);
 
     const interval = setInterval(syncContinueEpisode, 1500);
@@ -1056,6 +1070,7 @@ export default function DetailPageContent({ id, type }) {
       window.removeEventListener('storage', syncContinueEpisode);
       window.removeEventListener('focus', syncContinueEpisode);
       window.removeEventListener('kflix-continue-watching-updated', syncContinueEpisode);
+      window.removeEventListener('kflix-watched-episode-updated', syncContinueEpisode);
       document.removeEventListener('visibilitychange', handleVisibility);
       clearInterval(interval);
     };
@@ -1066,22 +1081,36 @@ export default function DetailPageContent({ id, type }) {
 
     const syncCompletedEpisodeFromContinueWatching = async () => {
       try {
+        const seasonNumber = Number(continueEpisode.season || 0);
+        const episodeNumber = Number(continueEpisode.episode || 0);
+
+        if (seasonNumber <= 0 || episodeNumber <= 0) {
+          return;
+        }
+
+        const explicitNextSeason = Number(continueEpisode.nextSeason || 0);
+        const explicitNextEpisode = Number(continueEpisode.nextEpisode || 0);
+        const hasExplicitNext =
+          explicitNextSeason > 0 &&
+          explicitNextEpisode > 0 &&
+          (explicitNextSeason !== seasonNumber || explicitNextEpisode !== episodeNumber);
+
         const remainingTimeValue = continueEpisode.remainingTime;
         const remainingTime =
           remainingTimeValue === undefined || remainingTimeValue === null
             ? null
             : Number(remainingTimeValue);
 
-        const seasonNumber = Number(continueEpisode.season || 0);
-        const episodeNumber = Number(continueEpisode.episode || 0);
+        const currentTime = Number(continueEpisode.currentTime || 0);
 
-        if (
-          remainingTime === null ||
-          Number.isNaN(remainingTime) ||
-          remainingTime > 240 ||
-          seasonNumber <= 0 ||
-          episodeNumber <= 0
-        ) {
+        const shouldMarkWatched =
+          hasExplicitNext ||
+          (remainingTime !== null &&
+            !Number.isNaN(remainingTime) &&
+            remainingTime <= 240 &&
+            currentTime > 0);
+
+        if (!shouldMarkWatched) {
           return;
         }
 
@@ -1091,6 +1120,9 @@ export default function DetailPageContent({ id, type }) {
 
         const snapshot = await get(getWatchedEpisodesDbRef(userId));
         const existing = normalizeWatchedMap(snapshot.exists() ? snapshot.val() : {});
+
+        if (existing[key]) return;
+
         const updated = {
           ...existing,
           [key]: true,

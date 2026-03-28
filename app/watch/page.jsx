@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { onValue, ref } from 'firebase/database';
+import { get, onValue, ref, update } from 'firebase/database';
 import Navbar from '@/components/Navbar';
 import { db, setPartyMedia, subscribeToMembers } from '@/lib/firebaseParty';
 
@@ -101,12 +101,40 @@ function safeNumber(value, fallback = 0) {
   return Number.isFinite(num) ? num : fallback;
 }
 
+function buildEpisodeKey(showId, seasonNumber, episodeNumber) {
+  return `${showId}-S${seasonNumber}-E${episodeNumber}`;
+}
+
+async function markEpisodeWatched({ uid, showId, season, episode }) {
+  const safeSeason = safeNumber(season, 0);
+  const safeEpisode = safeNumber(episode, 0);
+
+  if (!uid || !showId || safeSeason <= 0 || safeEpisode <= 0) return;
+
+  try {
+    const watchedRef = ref(db, `users/${uid}/watchedEpisodes`);
+    const snapshot = await get(watchedRef);
+    const existing =
+      snapshot.exists() && snapshot.val() && typeof snapshot.val() === 'object'
+        ? snapshot.val()
+        : {};
+
+    const key = buildEpisodeKey(showId, safeSeason, safeEpisode);
+
+    if (existing[key]) return;
+
+    await update(watchedRef, {
+      [key]: true,
+    });
+
+    window.dispatchEvent(new Event('kflix-watched-episode-updated'));
+  } catch (error) {
+    console.error('Failed to mark episode as watched:', error);
+  }
+}
+
 function extractPayloadSeason(payload, fallback = '') {
-  const candidates = [
-    payload?.season,
-    payload?.seasonNumber,
-    payload?.season_number,
-  ];
+  const candidates = [payload?.season, payload?.seasonNumber, payload?.season_number];
 
   for (const candidate of candidates) {
     const value = safeNumber(candidate, NaN);
@@ -119,11 +147,7 @@ function extractPayloadSeason(payload, fallback = '') {
 }
 
 function extractPayloadEpisode(payload, fallback = '') {
-  const candidates = [
-    payload?.episode,
-    payload?.episodeNumber,
-    payload?.episode_number,
-  ];
+  const candidates = [payload?.episode, payload?.episodeNumber, payload?.episode_number];
 
   for (const candidate of candidates) {
     const value = safeNumber(candidate, NaN);
@@ -223,9 +247,7 @@ function saveContinueWatchingItem({
   }
 
   const remainingSeconds =
-    totalRuntimeSeconds > 0
-      ? Math.max(0, totalRuntimeSeconds - watchedSeconds)
-      : null;
+    totalRuntimeSeconds > 0 ? Math.max(0, totalRuntimeSeconds - watchedSeconds) : null;
 
   const shouldHideBecauseTooEarly = watchedSeconds < MIN_WATCHED_SECONDS;
   const shouldHideBecauseAlmostDone =
@@ -283,8 +305,7 @@ function saveContinueWatchingItem({
       episode: type === 'tv' ? activeEpisode : null,
       nextSeason: nextEpisodeTarget?.season ?? null,
       nextEpisode: nextEpisodeTarget?.episode ?? null,
-      episode_name:
-        type === 'tv' ? episodeName || episodeData?.name || '' : '',
+      episode_name: type === 'tv' ? episodeName || episodeData?.name || '' : '',
       episode_runtime: type === 'tv' ? safeNumber(episodeData?.runtime, 0) : null,
 
       currentTime: watchedSeconds,
@@ -676,19 +697,28 @@ function WatchPageContent() {
       const payload = event.data.data || {};
       const playerEvent = payload.event;
 
-      const currentTime =
+      const rawCurrentTime =
         typeof payload.currentTime === 'number' && Number.isFinite(payload.currentTime)
           ? Math.max(0, payload.currentTime)
           : 0;
 
+      const previousSeason = safeNumber(liveTvProgressRef.current.season, 0);
+      const previousEpisode = safeNumber(liveTvProgressRef.current.episode, 0);
+
       const liveSeason =
         type === 'tv'
-          ? extractPayloadSeason(payload, liveTvProgressRef.current.season || safeNumber(season, ''))
+          ? extractPayloadSeason(
+              payload,
+              liveTvProgressRef.current.season || safeNumber(season, '')
+            )
           : '';
 
       const liveEpisode =
         type === 'tv'
-          ? extractPayloadEpisode(payload, liveTvProgressRef.current.episode || safeNumber(episode, ''))
+          ? extractPayloadEpisode(
+              payload,
+              liveTvProgressRef.current.episode || safeNumber(episode, '')
+            )
           : '';
 
       const liveEpisodeName =
@@ -699,6 +729,26 @@ function WatchPageContent() {
             )
           : '';
 
+      const nextSeasonNumber = safeNumber(liveSeason, 0);
+      const nextEpisodeNumber = safeNumber(liveEpisode, 0);
+
+      const hasEpisodeTransition =
+        type === 'tv' &&
+        previousSeason > 0 &&
+        previousEpisode > 0 &&
+        nextSeasonNumber > 0 &&
+        nextEpisodeNumber > 0 &&
+        (previousSeason !== nextSeasonNumber || previousEpisode !== nextEpisodeNumber);
+
+      if (hasEpisodeTransition) {
+        markEpisodeWatched({
+          uid: userId,
+          showId: id,
+          season: previousSeason,
+          episode: previousEpisode,
+        });
+      }
+
       if (type === 'tv') {
         liveTvProgressRef.current = {
           season: liveSeason,
@@ -706,6 +756,8 @@ function WatchPageContent() {
           episodeName: liveEpisodeName,
         };
       }
+
+      const currentTime = hasEpisodeTransition ? 0 : rawCurrentTime;
 
       if (playerEvent === 'play') {
         setPlayerCurrentTime(currentTime);
@@ -796,10 +848,14 @@ function WatchPageContent() {
   useEffect(() => {
     if (!partyCode || !userId || !isHost || !type || !id) return;
 
-    publishPlaybackState(latestPlaybackRef.current.currentTime, latestPlaybackRef.current.isPlaying, {
-      season: liveTvProgressRef.current.season || season,
-      episode: liveTvProgressRef.current.episode || episode,
-    });
+    publishPlaybackState(
+      latestPlaybackRef.current.currentTime,
+      latestPlaybackRef.current.isPlaying,
+      {
+        season: liveTvProgressRef.current.season || season,
+        episode: liveTvProgressRef.current.episode || episode,
+      }
+    );
   }, [partyCode, userId, isHost, type, id, season, episode]);
 
   useEffect(() => {
