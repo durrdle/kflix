@@ -4,8 +4,9 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { onValue, ref } from 'firebase/database';
 import Navbar from '@/components/Navbar';
-import { setPartyMedia, subscribeToMembers } from '@/lib/firebaseParty';
+import { db, setPartyMedia, subscribeToMembers } from '@/lib/firebaseParty';
 
 const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
 
@@ -214,6 +215,7 @@ function WatchPageContent() {
   const latestPlaybackRef = useRef({ currentTime: 0, isPlaying: false });
   const pendingInitialSyncRef = useRef(null);
   const saveContinueWatchingTimeoutRef = useRef(null);
+  const lastRemoteMediaSignatureRef = useRef('');
 
   const type = searchParams.get('type') || '';
   const id = searchParams.get('id') || '';
@@ -623,7 +625,6 @@ function WatchPageContent() {
         }
 
         queueSaveContinueWatching(currentTime, playing);
-        return;
       }
     };
 
@@ -698,76 +699,89 @@ function WatchPageContent() {
   }, [playerReady, iframeKey]);
 
   useEffect(() => {
-    const handlePartyResync = (event) => {
-      const detail = event.detail || {};
+    if (!partyCode || !userId || isHost) return;
 
-      const targetTime =
-        typeof detail.currentTime === 'number' && Number.isFinite(detail.currentTime)
-          ? Math.max(0, detail.currentTime)
+    const mediaRef = ref(db, `parties/${partyCode}/media`);
+
+    const unsubscribe = onValue(mediaRef, (snapshot) => {
+      if (!snapshot.exists()) return;
+
+      const media = snapshot.val() || {};
+      const mediaType = media.mediaType ? String(media.mediaType) : '';
+      const mediaId = media.mediaId ? String(media.mediaId) : '';
+      const mediaSeason =
+        media.season !== undefined && media.season !== null ? String(media.season) : '';
+      const mediaEpisode =
+        media.episode !== undefined && media.episode !== null ? String(media.episode) : '';
+      const mediaTime =
+        typeof media.currentTime === 'number' && Number.isFinite(media.currentTime)
+          ? Math.max(0, media.currentTime)
           : 0;
+      const mediaPlaying = Boolean(media.isPlaying);
 
-      const shouldPlay = Boolean(detail.isPlaying);
+      if (!mediaType || !mediaId) return;
 
-      const incomingType = detail.mediaType ? String(detail.mediaType) : '';
-      const incomingId = detail.mediaId ? String(detail.mediaId) : '';
-      const incomingSeason =
-        detail.season !== undefined && detail.season !== null ? String(detail.season) : '';
-      const incomingEpisode =
-        detail.episode !== undefined && detail.episode !== null ? String(detail.episode) : '';
+      const signature = [
+        mediaType,
+        mediaId,
+        mediaSeason,
+        mediaEpisode,
+        Math.floor(mediaTime),
+        mediaPlaying ? '1' : '0',
+      ].join('|');
+
+      if (signature === lastRemoteMediaSignatureRef.current) return;
+      lastRemoteMediaSignatureRef.current = signature;
 
       const sameMedia =
-        incomingType === type &&
-        incomingId === id &&
-        (incomingType !== 'tv' ||
-          (incomingSeason === String(season || '') &&
-            incomingEpisode === String(episode || '')));
+        mediaType === type &&
+        mediaId === String(id) &&
+        (mediaType !== 'tv' ||
+          (mediaSeason === String(season || '') &&
+            mediaEpisode === String(episode || '')));
 
       if (!sameMedia) {
-        const nextParams = new URLSearchParams();
-        nextParams.set('type', incomingType);
-        nextParams.set('id', incomingId);
-        nextParams.set('t', String(Math.floor(targetTime)));
-        nextParams.set('autoplay', shouldPlay ? '1' : '0');
+        const params = new URLSearchParams();
+        params.set('type', mediaType);
+        params.set('id', mediaId);
+        params.set('t', String(Math.floor(mediaTime)));
+        params.set('autoplay', mediaPlaying ? '1' : '0');
 
-        if (incomingType === 'tv') {
-          if (incomingSeason) nextParams.set('season', incomingSeason);
-          if (incomingEpisode) nextParams.set('episode', incomingEpisode);
+        if (mediaType === 'tv') {
+          if (mediaSeason) params.set('season', mediaSeason);
+          if (mediaEpisode) params.set('episode', mediaEpisode);
         }
 
-        router.push(`/watch?${nextParams.toString()}`);
+        router.push(`/watch?${params.toString()}`);
         return;
       }
 
       if (!playerReady) {
         pendingInitialSyncRef.current = {
-          currentTime: targetTime,
-          isPlaying: shouldPlay,
+          currentTime: mediaTime,
+          isPlaying: mediaPlaying,
         };
 
         reloadPlayerToPosition({
-          currentTime: targetTime,
-          isPlaying: shouldPlay,
+          currentTime: mediaTime,
+          isPlaying: mediaPlaying,
         });
       } else {
         applyPartyResyncToCurrentPlayer({
-          currentTime: targetTime,
-          isPlaying: shouldPlay,
+          currentTime: mediaTime,
+          isPlaying: mediaPlaying,
         });
       }
 
-      setSyncNotice(`Resynced to host at ${Math.floor(targetTime)}s.`);
+      setSyncNotice(`Synced to host at ${Math.floor(mediaTime)}s.`);
 
       setTimeout(() => {
         setSyncNotice('');
       }, 2500);
-    };
+    });
 
-    window.addEventListener('kflix-party-resync', handlePartyResync);
-
-    return () => {
-      window.removeEventListener('kflix-party-resync', handlePartyResync);
-    };
-  }, [router, type, id, season, episode, playerReady]);
+    return () => unsubscribe();
+  }, [partyCode, userId, isHost, router, type, id, season, episode, playerReady]);
 
   useEffect(() => {
     return () => {
@@ -785,12 +799,18 @@ function WatchPageContent() {
     };
   }, []);
 
+  const handleCastHelp = () => {
+    window.alert(
+      'To cast to your TV, use the Chromecast icon inside the player when available. If you do not see it, use your browser’s Cast / Cast tab feature.'
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col bg-black text-white">
         <Navbar />
 
-        <main className="flex flex-1 items-center justify-center px-8 pt-24 pb-4">
+        <main className="flex flex-1 items-center justify-center px-8 pb-4 pt-24">
           <div className="w-full max-w-6xl overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-8 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
             <p className="text-lg text-gray-300">Loading watch page...</p>
           </div>
@@ -830,7 +850,7 @@ function WatchPageContent() {
       <div className="flex min-h-screen flex-col bg-black text-white">
         <Navbar />
 
-        <main className="flex flex-1 items-center justify-center px-8 pt-24 pb-4">
+        <main className="flex flex-1 items-center justify-center px-8 pb-4 pt-24">
           <div className="w-full max-w-6xl overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-8 text-center shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
             <p className="text-lg text-red-300">{error || 'Unable to load this page.'}</p>
 
@@ -878,7 +898,7 @@ function WatchPageContent() {
     <div className="flex min-h-screen flex-col bg-black text-white">
       <Navbar />
 
-      <main className="flex flex-1 items-center justify-center px-8 pt-24 pb-4">
+      <main className="flex flex-1 items-center justify-center px-8 pb-4 pt-24">
         <section className="w-full max-w-6xl">
           {syncNotice && (
             <div className="mb-4 rounded-xl border border-green-500/25 bg-green-500/10 px-4 py-3 text-sm text-green-200">
@@ -891,6 +911,20 @@ function WatchPageContent() {
               Autoplay was requested. Some browsers may still require one click to start playback.
             </div>
           )}
+
+          <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="rounded-xl border border-red-500/25 bg-red-600/10 px-4 py-3 text-sm text-red-100">
+              Chromecast is available through the player when supported. If you do not see the cast icon, use your browser’s Cast feature.
+            </div>
+
+            <button
+              type="button"
+              onClick={handleCastHelp}
+              className="flex h-10 items-center justify-center rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60"
+            >
+              Cast Help
+            </button>
+          </div>
 
           <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-3 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
             <div className="overflow-hidden rounded-xl border-[1.5px] border-white/10 bg-black/20 shadow-[0_0_30px_rgba(239,68,68,0.16)]">
