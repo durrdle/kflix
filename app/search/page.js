@@ -708,16 +708,19 @@ function SearchPageContent() {
             <div className="border-b border-red-500/15 px-6 py-4">
               <div className="flex items-center gap-2">
                 <button
-                  type="button"
-                  onClick={() => scrollTabs('left')}
-                  disabled={!canScrollTabsLeft}
-                  className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
-                    canScrollTabsLeft
-                      ? 'bg-black/25 text-white cursor-pointer hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40'
-                      : 'bg-black/15 text-gray-500 cursor-not-allowed opacity-60'
-                  }`}
-                  aria-label="Scroll tabs left"
-                >
+  type="button"
+  onClick={() => {
+    if (!canScrollTabsLeft) return;
+    scrollTabs('left');
+  }}
+  aria-disabled={!canScrollTabsLeft}
+  className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full backdrop-blur-md transition ${
+    canScrollTabsLeft
+      ? 'bg-black/25 text-white cursor-pointer active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40'
+      : 'bg-black/15 text-gray-500 cursor-default opacity-60'
+  }`}
+  aria-label="Scroll tabs left"
+>
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <path d="M15 6l-6 6 6 6" />
                   </svg>
@@ -750,16 +753,19 @@ function SearchPageContent() {
                 </div>
 
                 <button
-                  type="button"
-                  onClick={() => scrollTabs('right')}
-                  disabled={!canScrollTabsRight}
-                  className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
-                    canScrollTabsRight
-                      ? 'bg-black/25 text-white cursor-pointer hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40'
-                      : 'bg-black/15 text-gray-500 cursor-not-allowed opacity-60'
-                  }`}
-                  aria-label="Scroll tabs right"
-                >
+  type="button"
+  onClick={() => {
+    if (!canScrollTabsRight) return;
+    scrollTabs('right');
+  }}
+  aria-disabled={!canScrollTabsRight}
+  className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full backdrop-blur-md transition ${
+    canScrollTabsRight
+      ? 'bg-black/25 text-white cursor-pointer active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40'
+      : 'bg-black/15 text-gray-500 cursor-default opacity-60'
+  }`}
+  aria-label="Scroll tabs right"
+>
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <path d="M9 6l6 6-6 6" />
                   </svg>
@@ -838,7 +844,7 @@ function SearchPageContent() {
     disabled={loadingMore}
     className={`flex h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition active:scale-95 ${
       loadingMore
-        ? 'cursor-not-allowed bg-red-600/70'
+        ? 'cursor-default bg-red-600/70'
         : 'bg-red-600 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60'
     }`}
   >

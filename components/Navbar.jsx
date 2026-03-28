@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import {
@@ -579,6 +580,23 @@ export default function Navbar() {
     draftYearFrom.trim() ||
     draftYearTo.trim();
 
+  const logoNode = (
+    <div
+      className={`relative h-12 w-[160px] transition ${
+        logoClick ? 'scale-110 brightness-125' : 'hover:scale-105'
+      }`}
+    >
+      <Image
+        src="/images/kflix-header.png"
+        alt="KFlix"
+        fill
+        priority
+        className="object-contain object-left"
+        sizes="160px"
+      />
+    </div>
+  );
+
   return (
     <>
       <nav
@@ -590,19 +608,17 @@ export default function Navbar() {
       >
         <div className="flex items-center">
           {pathname === targetHref ? (
-            <span
+            <button
+              type="button"
               onClick={handleLogoClick}
-              className={`cursor-pointer text-3xl font-bold text-red-600 transition ${
-                logoClick ? 'scale-110 brightness-125' : 'hover:scale-105'
-              }`}
+              className="cursor-pointer bg-transparent p-0"
+              aria-label="KFlix home"
             >
-              KFlix
-            </span>
+              {logoNode}
+            </button>
           ) : (
-            <Link href={targetHref}>
-              <span className="cursor-pointer text-3xl font-bold text-red-600 transition hover:scale-105">
-                KFlix
-              </span>
+            <Link href={targetHref} aria-label="KFlix home">
+              {logoNode}
             </Link>
           )}
         </div>
@@ -963,6 +979,19 @@ export default function Navbar() {
                   <div className="group flex items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-red-600/12">
                     <span className="text-sm font-medium text-white transition group-hover:text-red-300">
                       Anime
+                    </span>
+                    <svg className="h-4 w-4 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path d="M9 6l6 6-6 6" />
+                    </svg>
+                  </div>
+                </Link>
+
+                <div className="border-t border-white/5" />
+
+                <Link href="/livesports">
+                  <div className="group flex items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-red-600/12">
+                    <span className="text-sm font-medium text-white transition group-hover:text-red-300">
+                      Live Sports
                     </span>
                     <svg className="h-4 w-4 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                       <path d="M9 6l6 6-6 6" />

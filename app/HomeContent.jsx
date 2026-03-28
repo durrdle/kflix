@@ -146,11 +146,12 @@ function CarouselSection({
   getItemType,
   emptyText,
   compact = false,
+  preservePageOnItemsChange = false,
 }) {
   const scrollRef = useRef(null);
   const [currentPage, setCurrentPage] = useState(0);
 
-  const effectiveCardsPerPage = compact ? 7 : cardsPerPage;
+  const effectiveCardsPerPage = cardsPerPage;
   const totalPages = Math.max(1, Math.ceil(items.length / effectiveCardsPerPage));
   const maxPage = totalPages - 1;
 
@@ -178,11 +179,28 @@ function CarouselSection({
   };
 
   useEffect(() => {
-    setCurrentPage(0);
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({ left: 0, behavior: 'auto' });
+    if (!scrollRef.current) return;
+
+    if (preservePageOnItemsChange) {
+      const clampedPage = Math.max(0, Math.min(currentPage, maxPage));
+      const container = scrollRef.current;
+      const pageWidth = container.clientWidth;
+
+      if (clampedPage !== currentPage) {
+        setCurrentPage(clampedPage);
+      }
+
+      container.scrollTo({
+        left: clampedPage * pageWidth,
+        behavior: 'auto',
+      });
+
+      return;
     }
-  }, [items, effectiveCardsPerPage]);
+
+    setCurrentPage(0);
+    scrollRef.current.scrollTo({ left: 0, behavior: 'auto' });
+  }, [items, effectiveCardsPerPage, preservePageOnItemsChange, maxPage]);
 
   useEffect(() => {
     const container = scrollRef.current;
@@ -233,7 +251,7 @@ function CarouselSection({
             className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
               canScrollLeft
                 ? 'cursor-pointer bg-black/25 text-gray-300 hover:text-white hover:shadow-inner hover:shadow-red-500/60'
-                : 'cursor-not-allowed bg-black/15 text-gray-500 opacity-60'
+                : 'cursor-default bg-black/15 text-gray-500 opacity-60'
             }`}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -248,7 +266,7 @@ function CarouselSection({
             className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
               canScrollRight
                 ? 'cursor-pointer bg-black/25 text-gray-300 hover:text-white hover:shadow-inner hover:shadow-red-500/60'
-                : 'cursor-not-allowed bg-black/15 text-gray-500 opacity-60'
+                : 'cursor-default bg-black/15 text-gray-500 opacity-60'
             }`}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -274,7 +292,9 @@ function CarouselSection({
                 key={pageIndex}
                 className={`grid min-w-full gap-4 px-5 py-5 ${
                   compact
-                    ? 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-7'
+                    ? cardsPerPage === 10
+                      ? 'grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-10'
+                      : 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-7'
                     : cardsPerPage === 5
                       ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
                       : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'
@@ -674,6 +694,8 @@ export default function HomeContent() {
           getItemType={(item) => item.media_type || item.type || 'movie'}
           emptyText="Start watching something and it’ll show up here."
           compact
+          cardsPerPage={10}
+          preservePageOnItemsChange
         />
 
         <CarouselSection
@@ -684,6 +706,8 @@ export default function HomeContent() {
           getItemType={(item) => item.type || item.media_type || 'movie'}
           emptyText="Save content to your bookmarks and it’ll show up here."
           compact
+          cardsPerPage={10}
+          preservePageOnItemsChange
         />
 
         <CarouselSection
