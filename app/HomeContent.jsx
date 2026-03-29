@@ -3,7 +3,9 @@
 import Link from 'next/link';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { onValue, ref } from 'firebase/database';
 import Navbar from '@/components/Navbar';
+import { db } from '@/lib/firebaseParty';
 
 const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
 const IMAGE_BACKDROP = 'https://image.tmdb.org/t/p/original';
@@ -31,7 +33,62 @@ function formatRemainingTime(seconds) {
   return `${mins}m left`;
 }
 
+function buildEpisodeKey(showId, seasonNumber, episodeNumber) {
+  return `${showId}-S${seasonNumber}-E${episodeNumber}`;
+}
+
+function normalizeWatchedMap(value) {
+  if (!value || typeof value !== 'object') return {};
+  return value;
+}
+
+function parseContinueWatchingStorage(uid) {
+  if (!uid) return [];
+
+  try {
+    const raw = localStorage.getItem(`kflix_continue_watching_${uid}`);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 function buildContinueWatchingHref(item) {
+  const mediaType = item.media_type || item.type || 'movie';
+  const params = new URLSearchParams();
+
+  params.set('type', mediaType);
+  params.set('id', String(item.id));
+
+  if (mediaType === 'tv') {
+    const targetSeason =
+      item.season !== undefined && item.season !== null && item.season !== ''
+        ? item.season
+        : '';
+
+    const targetEpisode =
+      item.episode !== undefined && item.episode !== null && item.episode !== ''
+        ? item.episode
+        : '';
+
+    if (targetSeason !== '') {
+      params.set('season', String(targetSeason));
+    }
+
+    if (targetEpisode !== '') {
+      params.set('episode', String(targetEpisode));
+    }
+  }
+
+  if (item.currentTime && Number(item.currentTime) > 0) {
+    params.set('t', String(Math.floor(Number(item.currentTime))));
+  }
+
+  return `/watch?${params.toString()}`;
+}
+
+function buildNextUpHref(item) {
   const mediaType = item.media_type || item.type || 'movie';
   const params = new URLSearchParams();
 
@@ -58,16 +115,54 @@ function buildContinueWatchingHref(item) {
     }
   }
 
-  const shouldUseCurrentTime = !(
-    item.nextSeason !== undefined ||
-    item.nextEpisode !== undefined
-  );
+  return `/watch?${params.toString()}&autoplay=1`;
+}
 
-  if (shouldUseCurrentTime && item.currentTime && Number(item.currentTime) > 0) {
-    params.set('t', String(Math.floor(Number(item.currentTime))));
-  }
+function splitProgressIntoSections(items, watchedMap) {
+  const continueItems = [];
+  const nextUpItems = [];
 
-  return `/watch?${params.toString()}`;
+  items.forEach((item) => {
+    if (!item || !item.id) return;
+
+    const mediaType = item.media_type || item.type || 'movie';
+
+    if (mediaType !== 'tv') {
+      continueItems.push(item);
+      return;
+    }
+
+    const season = Number(item.season || 0);
+    const episode = Number(item.episode || 0);
+    const nextSeason = Number(item.nextSeason || 0);
+    const nextEpisode = Number(item.nextEpisode || 0);
+
+    const hasExplicitNext =
+      nextSeason > 0 &&
+      nextEpisode > 0 &&
+      (nextSeason !== season || nextEpisode !== episode);
+
+    const currentKey =
+      season > 0 && episode > 0 ? buildEpisodeKey(item.id, season, episode) : '';
+
+    const currentIsWatched = currentKey ? Boolean(watchedMap[currentKey]) : false;
+
+    if (hasExplicitNext) {
+      nextUpItems.push(item);
+      return;
+    }
+
+    if (currentIsWatched) {
+      return;
+    }
+
+    continueItems.push(item);
+  });
+
+  return {
+    continueItems: continueItems.slice(0, 10),
+    nextUpItems: nextUpItems.slice(0, 10),
+  };
 }
 
 function RatingBadge({ label, value, filled = false }) {
@@ -96,7 +191,7 @@ function BookmarkBadge({ active, onToggle }) {
         e.stopPropagation();
         onToggle?.();
       }}
-      className={`pointer-events-auto inline-flex min-h-[28px] cursor-pointer items-center justify-center rounded-md border px-2 py-1 text-[10px] font-bold tracking-[0.08em] backdrop-blur-md transition active:scale-95 ${
+      className={`pointer-events-auto inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border backdrop-blur-md transition active:scale-95 ${
         active
           ? 'border-red-400/70 bg-red-600/90 text-white shadow-[0_0_14px_rgba(239,68,68,0.35)] hover:bg-red-700'
           : 'border-white/15 bg-black/65 text-white shadow-[0_0_14px_rgba(0,0,0,0.2)] hover:border-red-400/60 hover:text-red-300'
@@ -114,8 +209,6 @@ function BookmarkBadge({ active, onToggle }) {
       >
         <path d="M6 4h12a1 1 0 011 1v15l-7-4-7 4V5a1 1 0 011-1z" />
       </svg>
-
-      {active && <span className="ml-1">Saved</span>}
     </button>
   );
 }
@@ -127,17 +220,23 @@ function CardBadges({ item, isBookmarked, onToggleBookmark, compact = false }) {
       : null;
 
   return (
-    <div className={`absolute left-2 top-2 z-20 flex flex-col ${compact ? 'gap-1' : 'gap-1.5'}`}>
-      <BookmarkBadge active={isBookmarked} onToggle={onToggleBookmark} />
-      {item.imdbRating ? <RatingBadge label="IMDb" value={item.imdbRating} /> : null}
-      {item.rtRating ? <RatingBadge label="RT" value={item.rtRating} /> : null}
-      {tmdbRating ? <RatingBadge label="TMDB" value={tmdbRating} /> : null}
-    </div>
+    <>
+      <div className={`absolute left-2 top-2 z-20 flex flex-col ${compact ? 'gap-1' : 'gap-1.5'}`}>
+        {item.imdbRating ? <RatingBadge label="IMDb" value={item.imdbRating} /> : null}
+        {item.rtRating ? <RatingBadge label="RT" value={item.rtRating} /> : null}
+        {tmdbRating ? <RatingBadge label="TMDB" value={tmdbRating} /> : null}
+      </div>
+
+      <div className="absolute right-2 top-2 z-20">
+        <BookmarkBadge active={isBookmarked} onToggle={onToggleBookmark} />
+      </div>
+    </>
   );
 }
 
 function CarouselSection({
   title,
+  sectionKey,
   items,
   type,
   bookmarkedIds,
@@ -147,12 +246,12 @@ function CarouselSection({
   emptyText,
   compact = false,
   preservePageOnItemsChange = false,
+  hrefBuilder,
 }) {
   const scrollRef = useRef(null);
   const [currentPage, setCurrentPage] = useState(0);
 
-  const effectiveCardsPerPage = cardsPerPage;
-  const totalPages = Math.max(1, Math.ceil(items.length / effectiveCardsPerPage));
+  const totalPages = Math.max(1, Math.ceil(items.length / cardsPerPage));
   const maxPage = totalPages - 1;
 
   const canScrollLeft = currentPage > 0;
@@ -163,14 +262,18 @@ function CarouselSection({
     return type;
   };
 
+  const resolveHref = (item, mediaType) => {
+    if (typeof hrefBuilder === 'function') return hrefBuilder(item);
+    return `/${mediaType}/${item.id}`;
+  };
+
   const goToPage = (page) => {
     if (!scrollRef.current) return;
 
     const clampedPage = Math.max(0, Math.min(page, maxPage));
-    const container = scrollRef.current;
-    const pageWidth = container.clientWidth;
+    const pageWidth = scrollRef.current.clientWidth || 1;
 
-    container.scrollTo({
+    scrollRef.current.scrollTo({
       left: clampedPage * pageWidth,
       behavior: 'smooth',
     });
@@ -179,28 +282,24 @@ function CarouselSection({
   };
 
   useEffect(() => {
-    if (!scrollRef.current) return;
+    const container = scrollRef.current;
+    if (!container) return;
 
-    if (preservePageOnItemsChange) {
-      const clampedPage = Math.max(0, Math.min(currentPage, maxPage));
-      const container = scrollRef.current;
-      const pageWidth = container.clientWidth;
+    const targetPage = preservePageOnItemsChange
+      ? Math.max(0, Math.min(currentPage, maxPage))
+      : 0;
 
-      if (clampedPage !== currentPage) {
-        setCurrentPage(clampedPage);
-      }
+    const pageWidth = container.clientWidth || 1;
 
-      container.scrollTo({
-        left: clampedPage * pageWidth,
-        behavior: 'auto',
-      });
-
-      return;
+    if (targetPage !== currentPage) {
+      setCurrentPage(targetPage);
     }
 
-    setCurrentPage(0);
-    scrollRef.current.scrollTo({ left: 0, behavior: 'auto' });
-  }, [items, effectiveCardsPerPage, preservePageOnItemsChange, maxPage]);
+    container.scrollTo({
+      left: targetPage * pageWidth,
+      behavior: 'auto',
+    });
+  }, [items.length, maxPage, preservePageOnItemsChange, sectionKey]);
 
   useEffect(() => {
     const container = scrollRef.current;
@@ -209,7 +308,10 @@ function CarouselSection({
     const handleScroll = () => {
       const pageWidth = container.clientWidth || 1;
       const nextPage = Math.round(container.scrollLeft / pageWidth);
-      setCurrentPage(Math.max(0, Math.min(nextPage, maxPage)));
+      setCurrentPage((prev) => {
+        const normalized = Math.max(0, Math.min(nextPage, maxPage));
+        return prev === normalized ? prev : normalized;
+      });
     };
 
     container.addEventListener('scroll', handleScroll, { passive: true });
@@ -226,11 +328,34 @@ function CarouselSection({
 
     return (
       <div className="overflow-hidden rounded-xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-        <div className="border-b border-red-500/25 bg-red-600/10 px-5 py-3">
+        <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-5 py-3">
           <h2 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400 md:text-xl">
             {title}
           </h2>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/15 text-gray-500 opacity-60"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M15 6l-6 6 6 6" />
+              </svg>
+            </button>
+
+            <button
+              type="button"
+              disabled
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/15 text-gray-500 opacity-60"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M9 6l6 6-6 6" />
+              </svg>
+            </button>
+          </div>
         </div>
+
         <div className="px-5 py-8 text-sm text-gray-400">{emptyText}</div>
       </div>
     );
@@ -283,18 +408,20 @@ function CarouselSection({
         <div className="flex w-full">
           {Array.from({ length: totalPages }).map((_, pageIndex) => {
             const pageItems = items.slice(
-              pageIndex * effectiveCardsPerPage,
-              pageIndex * effectiveCardsPerPage + effectiveCardsPerPage
+              pageIndex * cardsPerPage,
+              pageIndex * cardsPerPage + cardsPerPage
             );
 
             return (
               <div
-                key={pageIndex}
+                key={`${sectionKey}-page-${pageIndex}`}
                 className={`grid min-w-full gap-4 px-5 py-5 ${
                   compact
                     ? cardsPerPage === 10
                       ? 'grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-10'
-                      : 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-7'
+                      : cardsPerPage === 5
+                        ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
+                        : 'grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6'
                     : cardsPerPage === 5
                       ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
                       : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'
@@ -304,17 +431,14 @@ function CarouselSection({
                   const mediaType = resolveMediaType(item) || 'movie';
                   const bookmarkKey = `${mediaType}-${item.id}`;
                   const isBookmarked = bookmarkedIds.has(bookmarkKey);
-                  const isContinueWatching = title === 'Continue Watching';
+                  const isContinueWatchingSection = title === 'Continue Watching';
+                  const isNextUpSection = title === 'Next Up';
 
                   return (
                     <Link
-                      key={`${item.id || index}-${mediaType}`}
-                      href={
-                        isContinueWatching
-                          ? buildContinueWatchingHref(item)
-                          : `/${mediaType}/${item.id}`
-                      }
-                      className={`group block min-w-0 cursor-pointer ${compact ? 'max-w-[170px]' : ''}`}
+                      key={`${sectionKey}-${item.id || index}-${mediaType}`}
+                      href={resolveHref(item, mediaType)}
+                      className={`group block min-w-0 cursor-pointer ${compact ? 'max-w-[190px]' : ''}`}
                     >
                       <div className="relative overflow-hidden rounded-lg border-[1.5px] border-white/10 bg-black/20 transition duration-300 group-hover:border-red-400/90 group-hover:shadow-[0_0_30px_rgba(239,68,68,0.45)]">
                         <CardBadges
@@ -350,28 +474,47 @@ function CarouselSection({
                           {item.title || item.name || 'Untitled'}
                         </div>
 
-                        {isContinueWatching ? (
+                        {isContinueWatchingSection || isNextUpSection ? (
                           <>
                             <div className={`mt-1 text-gray-400 ${compact ? 'text-[11px]' : 'text-xs'}`}>
                               {(item.media_type || item.type) === 'tv'
-                                ? `S${item.nextSeason || item.season || '?'} • E${item.nextEpisode || item.episode || '?'}${item.episode_name ? ` • ${item.episode_name}` : ''}`
+                                ? `S${
+                                    isNextUpSection
+                                      ? item.nextSeason || item.season || '?'
+                                      : item.season || '?'
+                                  } • E${
+                                    isNextUpSection
+                                      ? item.nextEpisode || item.episode || '?'
+                                      : item.episode || '?'
+                                  }${
+                                    !isNextUpSection && item.episode_name
+                                      ? ` • ${item.episode_name}`
+                                      : ''
+                                  }`
                                 : formatRemainingTime(item.remainingTime)}
                             </div>
 
                             {(item.media_type || item.type) === 'tv' && (
                               <div className={`mt-1 text-gray-500 ${compact ? 'text-[11px]' : 'text-xs'}`}>
-                                {formatRemainingTime(item.remainingTime)}
+                                {isNextUpSection
+                                  ? 'Ready to start'
+                                  : formatRemainingTime(item.remainingTime)}
                               </div>
                             )}
 
-                            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-                              <div
-                                className="h-full rounded-full bg-red-500"
-                                style={{
-                                  width: `${Math.max(0, Math.min(100, Number(item.progress) || 0))}%`,
-                                }}
-                              />
-                            </div>
+                            {!isNextUpSection && (
+                              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                                <div
+                                  className="h-full rounded-full bg-red-500"
+                                  style={{
+                                    width: `${Math.max(
+                                      0,
+                                      Math.min(100, Number(item.progress) || 0)
+                                    )}%`,
+                                  }}
+                                />
+                              </div>
+                            )}
                           </>
                         ) : (
                           <div className={`mt-1 text-gray-400 ${compact ? 'text-[11px]' : 'text-xs'}`}>
@@ -383,9 +526,9 @@ function CarouselSection({
                   );
                 })}
 
-                {pageItems.length < effectiveCardsPerPage &&
-                  Array.from({ length: effectiveCardsPerPage - pageItems.length }).map((_, fillerIndex) => (
-                    <div key={`filler-${pageIndex}-${fillerIndex}`} />
+                {pageItems.length < cardsPerPage &&
+                  Array.from({ length: cardsPerPage - pageItems.length }).map((_, fillerIndex) => (
+                    <div key={`${sectionKey}-filler-${pageIndex}-${fillerIndex}`} />
                   ))}
               </div>
             );
@@ -406,52 +549,19 @@ export default function HomeContent() {
   const [trendingWeekShows, setTrendingWeekShows] = useState([]);
 
   const [continueWatching, setContinueWatching] = useState([]);
+  const [nextUp, setNextUp] = useState([]);
   const [bookmarkedContent, setBookmarkedContent] = useState([]);
   const [userId, setUserId] = useState('');
   const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
+  const [progressReady, setProgressReady] = useState(false);
+  const [progressTick, setProgressTick] = useState(0);
+
+  const watchedEpisodesRef = useRef({});
 
   const currentHero = useMemo(
     () => heroMovies[currentBackdrop] || null,
     [heroMovies, currentBackdrop]
   );
-
-  const readContinueWatching = (uid) => {
-    if (!uid) {
-      setContinueWatching([]);
-      return;
-    }
-
-    const raw = localStorage.getItem(`kflix_continue_watching_${uid}`);
-
-    if (!raw) {
-      setContinueWatching([]);
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(raw);
-      const normalized = Array.isArray(parsed) ? parsed : [];
-
-      const latestByTitle = normalized.reduce((map, item) => {
-        if (!item || !item.id) return map;
-
-        const mediaType = item.media_type || item.type || 'movie';
-        const key = `${mediaType}-${item.id}`;
-        const existing = map.get(key);
-
-        if (!existing || (item.updatedAt || 0) > (existing.updatedAt || 0)) {
-          map.set(key, item);
-        }
-
-        return map;
-      }, new Map());
-
-      const sorted = [...latestByTitle.values()].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-      setContinueWatching(sorted.slice(0, 18));
-    } catch {
-      setContinueWatching([]);
-    }
-  };
 
   const readBookmarks = (uid) => {
     if (!uid) {
@@ -475,6 +585,48 @@ export default function HomeContent() {
     } catch {
       setBookmarkedIds(new Set());
       setBookmarkedContent([]);
+    }
+  };
+
+  const syncProgressSections = (uid, watchedMapArg) => {
+    if (!uid) {
+      setContinueWatching([]);
+      setNextUp([]);
+      setProgressReady(true);
+      return;
+    }
+
+    try {
+      const normalized = parseContinueWatchingStorage(uid);
+
+      const latestByTitle = normalized.reduce((map, item) => {
+        if (!item || !item.id) return map;
+
+        const mediaType = item.media_type || item.type || 'movie';
+        const key = `${mediaType}-${item.id}`;
+        const existing = map.get(key);
+
+        if (!existing || (item.updatedAt || 0) > (existing.updatedAt || 0)) {
+          map.set(key, item);
+        }
+
+        return map;
+      }, new Map());
+
+      const sorted = [...latestByTitle.values()].sort(
+        (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)
+      );
+
+      const watchedMap = normalizeWatchedMap(watchedMapArg);
+      const { continueItems, nextUpItems } = splitProgressIntoSections(sorted, watchedMap);
+
+      setContinueWatching(continueItems);
+      setNextUp(nextUpItems);
+      setProgressReady(true);
+    } catch {
+      setContinueWatching([]);
+      setNextUp([]);
+      setProgressReady(true);
     }
   };
 
@@ -524,15 +676,91 @@ export default function HomeContent() {
 
   useEffect(() => {
     const auth = getAuth();
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       const uid = currentUser?.uid || '';
       setUserId(uid);
+      setProgressReady(false);
       readBookmarks(uid);
-      readContinueWatching(uid);
+
+      if (!uid) {
+        watchedEpisodesRef.current = {};
+        setContinueWatching([]);
+        setNextUp([]);
+        setProgressReady(true);
+      }
     });
 
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const watchedRef = ref(db, `users/${userId}/watchedEpisodes`);
+
+    const unsubscribe = onValue(watchedRef, (snapshot) => {
+      const nextMap = normalizeWatchedMap(snapshot.exists() ? snapshot.val() : {});
+      watchedEpisodesRef.current = nextMap;
+      syncProgressSections(userId, nextMap);
+    });
+
+    return () => unsubscribe();
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const sync = () => {
+      syncProgressSections(userId, watchedEpisodesRef.current);
+      readBookmarks(userId);
+    };
+
+    sync();
+
+    const handleStorage = (event) => {
+      if (
+        !event.key ||
+        event.key === `kflix_continue_watching_${userId}` ||
+        event.key === `kflix_watchlist_${userId}`
+      ) {
+        setProgressTick((prev) => prev + 1);
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        setProgressTick((prev) => prev + 1);
+      }
+    };
+
+    const handleCustom = () => {
+      setProgressTick((prev) => prev + 1);
+    };
+
+    window.addEventListener('storage', handleStorage);
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('kflix-continue-watching-updated', handleCustom);
+    window.addEventListener('kflix-watched-episode-updated', handleCustom);
+
+    const interval = setInterval(() => {
+      setProgressTick((prev) => prev + 1);
+    }, 1500);
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('kflix-continue-watching-updated', handleCustom);
+      window.removeEventListener('kflix-watched-episode-updated', handleCustom);
+      clearInterval(interval);
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    syncProgressSections(userId, watchedEpisodesRef.current);
+    readBookmarks(userId);
+  }, [progressTick, userId]);
 
   useEffect(() => {
     const fetchHero = async () => {
@@ -570,48 +798,6 @@ export default function HomeContent() {
 
     fetchCarousels();
   }, []);
-
-  useEffect(() => {
-    const sync = () => {
-      readContinueWatching(userId);
-      readBookmarks(userId);
-    };
-
-    sync();
-
-    const handleStorage = (event) => {
-      if (
-        !event.key ||
-        event.key === `kflix_continue_watching_${userId}` ||
-        event.key === `kflix_watchlist_${userId}`
-      ) {
-        sync();
-      }
-    };
-
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        sync();
-      }
-    };
-
-    const handleCustom = () => {
-      sync();
-    };
-
-    window.addEventListener('storage', handleStorage);
-    document.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('kflix-continue-watching-updated', handleCustom);
-
-    const interval = setInterval(sync, 1500);
-
-    return () => {
-      window.removeEventListener('storage', handleStorage);
-      document.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('kflix-continue-watching-updated', handleCustom);
-      clearInterval(interval);
-    };
-  }, [userId]);
 
   const goHeroLeft = () => {
     if (!heroMovies.length) return;
@@ -686,20 +872,109 @@ export default function HomeContent() {
       </section>
 
       <section className="space-y-10 px-4 py-10 sm:px-6 lg:px-8">
-        <CarouselSection
-          title="Continue Watching"
-          items={continueWatching}
-          bookmarkedIds={bookmarkedIds}
-          onToggleBookmark={toggleBookmark}
-          getItemType={(item) => item.media_type || item.type || 'movie'}
-          emptyText="Start watching something and it’ll show up here."
-          compact
-          cardsPerPage={10}
-          preservePageOnItemsChange
-        />
+        <div className="grid gap-10 xl:grid-cols-2">
+          {progressReady ? (
+            <>
+              <CarouselSection
+                title="Continue Watching"
+                sectionKey="continue-watching"
+                items={continueWatching}
+                bookmarkedIds={bookmarkedIds}
+                onToggleBookmark={toggleBookmark}
+                getItemType={(item) => item.media_type || item.type || 'movie'}
+                hrefBuilder={buildContinueWatchingHref}
+                emptyText="Start watching something and it’ll show up here."
+                compact
+                cardsPerPage={5}
+                preservePageOnItemsChange
+              />
+
+              <CarouselSection
+                title="Next Up"
+                sectionKey="next-up"
+                items={nextUp}
+                bookmarkedIds={bookmarkedIds}
+                onToggleBookmark={toggleBookmark}
+                getItemType={(item) => item.media_type || item.type || 'movie'}
+                hrefBuilder={buildNextUpHref}
+                emptyText="Finish an episode and the next one will show up here."
+                compact
+                cardsPerPage={5}
+                preservePageOnItemsChange
+              />
+            </>
+          ) : (
+            <>
+              <div className="overflow-hidden rounded-xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
+                <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-5 py-3">
+                  <h2 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400 md:text-xl">
+                    Continue Watching
+                  </h2>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-black/15 text-gray-500 opacity-60"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path d="M15 6l-6 6 6 6" />
+                      </svg>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-black/15 text-gray-500 opacity-60"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path d="M9 6l6 6-6 6" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="px-5 py-8 text-sm text-gray-400">Loading your progress...</div>
+              </div>
+
+              <div className="overflow-hidden rounded-xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
+                <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-5 py-3">
+                  <h2 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400 md:text-xl">
+                    Next Up
+                  </h2>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-black/15 text-gray-500 opacity-60"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path d="M15 6l-6 6 6 6" />
+                      </svg>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-black/15 text-gray-500 opacity-60"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path d="M9 6l6 6-6 6" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="px-5 py-8 text-sm text-gray-400">Loading your progress...</div>
+              </div>
+            </>
+          )}
+        </div>
 
         <CarouselSection
           title="Bookmarked Content"
+          sectionKey="bookmarked-content"
           items={bookmarkedContent}
           bookmarkedIds={bookmarkedIds}
           onToggleBookmark={toggleBookmark}
@@ -712,6 +987,7 @@ export default function HomeContent() {
 
         <CarouselSection
           title="Top 10 Movies of the Day"
+          sectionKey="top-10-movies-day"
           items={topDayMovies}
           type="movie"
           bookmarkedIds={bookmarkedIds}
@@ -721,6 +997,7 @@ export default function HomeContent() {
 
         <CarouselSection
           title="Top 10 Shows of the Day"
+          sectionKey="top-10-shows-day"
           items={topDayShows}
           type="tv"
           bookmarkedIds={bookmarkedIds}
@@ -730,6 +1007,7 @@ export default function HomeContent() {
 
         <CarouselSection
           title="Trending Movies This Week"
+          sectionKey="trending-movies-week"
           items={trendingWeekMovies}
           type="movie"
           bookmarkedIds={bookmarkedIds}
@@ -738,6 +1016,7 @@ export default function HomeContent() {
 
         <CarouselSection
           title="Trending Shows This Week"
+          sectionKey="trending-shows-week"
           items={trendingWeekShows}
           type="tv"
           bookmarkedIds={bookmarkedIds}

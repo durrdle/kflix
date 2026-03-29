@@ -4,6 +4,7 @@ import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  promotePartyHost,
   requestResync,
   sendPartyMessage,
   subscribeToMembers,
@@ -28,12 +29,10 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
   const [chatPosition, setChatPosition] = useState({ x: 24, y: 24 });
   const [resyncing, setResyncing] = useState(false);
   const [partyState, setPartyState] = useState(null);
+  const [promotingId, setPromotingId] = useState('');
 
   const dragOffsetRef = useRef({ x: 0, y: 0 });
   const chatRef = useRef(null);
-  const lastHandledResyncRef = useRef(0);
-  const lastHandledPlaybackTargetRef = useRef('');
-  const lastAppliedUrlRef = useRef('');
 
   const chatUiKey = useMemo(
     () => (code ? `kflix_party_chat_ui_${code}` : ''),
@@ -45,8 +44,29 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
     [members, userId]
   );
 
-  const isHost = Boolean(currentMember?.isHost);
+  const isHost = Boolean(
+    currentMember?.isHost ||
+      (partyState?.hostId && String(currentMember?.id || '') === String(partyState.hostId))
+  );
+
   const isPartyMember = Boolean(currentMember);
+
+  const normalizedMembers = useMemo(() => {
+    const hostId = partyState?.hostId ? String(partyState.hostId) : '';
+
+    return [...members].sort((a, b) => {
+      const aIsHost = Boolean(a?.isHost || (hostId && String(a?.id) === hostId));
+      const bIsHost = Boolean(b?.isHost || (hostId && String(b?.id) === hostId));
+
+      if (aIsHost && !bIsHost) return -1;
+      if (!aIsHost && bIsHost) return 1;
+
+      const aSeen = Number(a?.lastSeenAt || 0);
+      const bSeen = Number(b?.lastSeenAt || 0);
+
+      return bSeen - aSeen;
+    });
+  }, [members, partyState?.hostId]);
 
   const saveChatUi = (next) => {
     if (!chatUiKey) return;
@@ -73,7 +93,27 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
   };
 
   const buildResyncUrl = () => {
-    if (!playbackState?.mediaType || !playbackState?.mediaId) return null;
+    if (!playbackState?.mediaType) return null;
+
+    if (playbackState.mediaType === 'live') {
+      const params = new URLSearchParams();
+
+      if (playbackState.sourcesParam) {
+        params.set('sources', playbackState.sourcesParam);
+      }
+
+      if (Number.isFinite(Number(playbackState.sourceIndex))) {
+        params.set('sourceIndex', String(playbackState.sourceIndex));
+      }
+
+      if (Number.isFinite(Number(playbackState.streamIndex))) {
+        params.set('streamIndex', String(playbackState.streamIndex));
+      }
+
+      return `/livesports/watch${params.toString() ? `?${params.toString()}` : ''}`;
+    }
+
+    if (!playbackState?.mediaId) return null;
 
     const mediaType = String(playbackState.mediaType);
     const mediaId = String(playbackState.mediaId);
@@ -102,7 +142,15 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
   };
 
   const getPlaybackLabel = () => {
-    if (!playbackState?.mediaType || !playbackState?.mediaId) {
+    if (!playbackState?.mediaType) {
+      return 'Nothing synced yet';
+    }
+
+    if (playbackState.mediaType === 'live') {
+      return 'Live Event';
+    }
+
+    if (!playbackState?.mediaId) {
       return 'Nothing synced yet';
     }
 
@@ -123,6 +171,10 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
   };
 
   const getPlaybackTimeLabel = () => {
+    if (playbackState?.mediaType === 'live') {
+      return 'Live';
+    }
+
     if (
       typeof playbackState?.currentTime !== 'number' ||
       !Number.isFinite(playbackState.currentTime)
@@ -154,10 +206,13 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
   };
 
   const applyHostPlaybackNow = () => {
-    if (!playbackState?.mediaType || !playbackState?.mediaId) return;
-
     const targetUrl = buildResyncUrl();
     if (!targetUrl) return;
+
+    if (playbackState?.mediaType === 'live') {
+      router.replace(targetUrl);
+      return;
+    }
 
     const eventDetail = {
       mediaType: playbackState.mediaType || '',
@@ -179,10 +234,8 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
     );
 
     const currentUrl = `${window.location.pathname}${window.location.search}`;
-
     if (currentUrl !== targetUrl) {
-      lastAppliedUrlRef.current = targetUrl;
-      router.push(targetUrl);
+      router.replace(targetUrl);
     }
   };
 
@@ -229,7 +282,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
     });
 
     const unsubMembers = subscribeToMembers(code, (nextMembers) => {
-      setMembers(nextMembers);
+      setMembers(nextMembers || []);
     });
 
     const unsubPlayback = subscribeToPlayback(code, (nextPlayback) => {
@@ -295,59 +348,6 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
     };
   }, [dragging]);
 
-  useEffect(() => {
-    if (!code) return;
-    if (!userId) return;
-    if (isHost) return;
-    if (!isPartyMember) return;
-    if (!playbackState?.mediaType || !playbackState?.mediaId) return;
-
-    const playbackFingerprint = [
-      String(playbackState.mediaType),
-      String(playbackState.mediaId),
-      String(playbackState.season ?? ''),
-      String(playbackState.episode ?? ''),
-      typeof playbackState.currentTime === 'number'
-        ? String(Math.max(0, Math.floor(playbackState.currentTime)))
-        : '0',
-      playbackState.isPlaying ? '1' : '0',
-      String(playbackState.updatedAt ?? ''),
-    ].join(':');
-
-    if (lastHandledPlaybackTargetRef.current === playbackFingerprint) return;
-    lastHandledPlaybackTargetRef.current = playbackFingerprint;
-
-    applyHostPlaybackNow();
-    setSyncStatus('Recently Resynced');
-  }, [
-    code,
-    userId,
-    isHost,
-    isPartyMember,
-    playbackState?.mediaType,
-    playbackState?.mediaId,
-    playbackState?.season,
-    playbackState?.episode,
-    playbackState?.currentTime,
-    playbackState?.isPlaying,
-    playbackState?.updatedAt,
-  ]);
-
-  useEffect(() => {
-    const syncRequestedAt = partyState?.syncRequestedAt || 0;
-
-    if (!syncRequestedAt) return;
-    if (!userId) return;
-    if (isHost) return;
-    if (!isPartyMember) return;
-    if (!playbackState?.mediaType || !playbackState?.mediaId) return;
-    if (syncRequestedAt <= lastHandledResyncRef.current) return;
-
-    lastHandledResyncRef.current = syncRequestedAt;
-    applyHostPlaybackNow();
-    setSyncStatus('Recently Resynced');
-  }, [partyState?.syncRequestedAt, isHost, isPartyMember, playbackState, userId]);
-
   const handleCopyCode = async () => {
     try {
       await navigator.clipboard.writeText(code || '');
@@ -359,18 +359,13 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
   };
 
   const handleResync = async () => {
-    if (!code || !userId || resyncing || !isPartyMember) return;
+    if (!code || !userId || resyncing || !isPartyMember || isHost) return;
 
     try {
       setResyncing(true);
-
-      if (isHost) {
-        await requestResync(code, userId);
-        setSyncStatus('Recently Resynced');
-      } else {
-        applyHostPlaybackNow();
-        setSyncStatus('Recently Resynced');
-      }
+      await requestResync(code, userId);
+      applyHostPlaybackNow();
+      setSyncStatus('Recently Resynced');
 
       setTimeout(() => {
         setResyncing(false);
@@ -378,6 +373,19 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
     } catch (error) {
       console.error('Resync failed:', error);
       setResyncing(false);
+    }
+  };
+
+  const handlePromote = async (memberId) => {
+    if (!code || !userId || !isHost || !memberId || memberId === userId) return;
+
+    try {
+      setPromotingId(memberId);
+      await promotePartyHost(code, userId, memberId);
+    } catch (error) {
+      console.error('Failed to promote member:', error);
+    } finally {
+      setPromotingId('');
     }
   };
 
@@ -432,7 +440,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
     <>
       {shouldRenderModal && (
         <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="w-[520px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border-[1.5px] border-red-500/40 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
+          <div className="w-[560px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border-[1.5px] border-red-500/40 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
             <div className="flex items-center justify-between border-b border-red-500/20 bg-red-600/10 px-6 py-4">
               <h2 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400">
                 Party Controls
@@ -442,6 +450,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
                 onClick={onClose}
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-black/25 text-gray-300 backdrop-blur-md transition active:scale-95 hover:text-white hover:shadow-inner hover:shadow-red-500/50"
                 aria-label="Close"
+                type="button"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path d="M6 6l12 12M18 6L6 18" />
@@ -463,6 +472,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
                   <button
                     onClick={handleCopyCode}
                     className="flex h-11 items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60"
+                    type="button"
                   >
                     {copied ? 'Copied' : 'Copy'}
                   </button>
@@ -502,6 +512,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
                           ? 'cursor-not-allowed bg-red-900/50 opacity-70'
                           : 'bg-red-600 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60'
                       }`}
+                      type="button"
                     >
                       {resyncing ? 'Resyncing...' : 'Jump to Host'}
                     </button>
@@ -515,22 +526,25 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
 
                   <div className="mt-3 space-y-2 text-sm text-white">
                     <div>
-                      Media:{' '}
-                      <span className="text-gray-300">{getPlaybackLabel()}</span>
+                      Media: <span className="text-gray-300">{getPlaybackLabel()}</span>
                     </div>
                     <div>
-                      Time:{' '}
-                      <span className="text-gray-300">{getPlaybackTimeLabel()}</span>
+                      Time: <span className="text-gray-300">{getPlaybackTimeLabel()}</span>
                     </div>
                     <div>
                       Status:{' '}
                       <span className="text-gray-300">
-                        {playbackState?.isPlaying ? 'Playing' : playbackState?.mediaId ? 'Paused' : 'Waiting'}
+                        {playbackState?.mediaType === 'live'
+                          ? 'Live'
+                          : playbackState?.isPlaying
+                          ? 'Playing'
+                          : playbackState?.mediaId
+                          ? 'Paused'
+                          : 'Waiting'}
                       </span>
                     </div>
                     <div>
-                      Updated:{' '}
-                      <span className="text-gray-300">{getPlaybackUpdatedLabel()}</span>
+                      Updated: <span className="text-gray-300">{getPlaybackUpdatedLabel()}</span>
                     </div>
                   </div>
                 </div>
@@ -542,35 +556,59 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
                 </p>
 
                 <div className="mt-3 grid gap-2">
-                  {members.length > 0 ? (
-                    members.map((member) => (
-                      <div
-                        key={member.id}
-                        className="flex items-center justify-between rounded-lg border border-white/10 bg-gray-900 px-4 py-3"
-                      >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <div className="truncate text-sm font-medium text-white">
-                              {member.name || `User ${member.id}`}
+                  {normalizedMembers.length > 0 ? (
+                    normalizedMembers.map((member) => {
+                      const memberIsHost = Boolean(
+                        member.isHost ||
+                          (partyState?.hostId && String(member.id) === String(partyState.hostId))
+                      );
+
+                      return (
+                        <div
+                          key={member.id}
+                          className="flex items-center justify-between rounded-lg border border-white/10 bg-gray-900 px-4 py-3"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <div className="truncate text-sm font-medium text-white">
+                                {member.name || `User ${member.id}`}
+                              </div>
+
+                              {memberIsHost && (
+                                <span className="rounded-full border border-red-500/30 bg-red-600/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-red-300">
+                                  Host
+                                </span>
+                              )}
                             </div>
 
-                            {member.isHost && (
-                              <span className="rounded-full border border-red-500/30 bg-red-600/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-red-300">
-                                Host
-                              </span>
+                            <div className="text-xs text-gray-400">
+                              {memberIsHost ? 'Host' : 'Member'}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <div className="text-xs text-gray-400">
+                              {Date.now() - (member.lastSeenAt || 0) < 30000 ? 'Online' : 'Idle'}
+                            </div>
+
+                            {isHost && !memberIsHost && (
+                              <button
+                                type="button"
+                                onClick={() => handlePromote(member.id)}
+                                disabled={promotingId === member.id}
+                                className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition ${
+                                  promotingId === member.id
+                                    ? 'cursor-not-allowed bg-red-900/40 text-red-200 opacity-70'
+                                    : 'bg-red-600 text-white hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60'
+                                }`}
+                              >
+                                {promotingId === member.id ? 'Promoting...' : 'Promote'}
+                              </button>
                             )}
                           </div>
-
-                          <div className="text-xs text-gray-400">
-                            {member.isHost ? 'Host' : 'Member'}
-                          </div>
                         </div>
-
-                        <div className="text-xs text-gray-400">
-                          {Date.now() - (member.lastSeenAt || 0) < 30000 ? 'Online' : 'Idle'}
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="rounded-lg border border-white/10 bg-gray-900 px-4 py-3 text-sm text-gray-400">
                       No members found.
@@ -625,6 +663,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
                 <button
                   onClick={onLeave}
                   className="flex h-11 flex-1 items-center justify-center rounded-xl bg-gray-700 text-sm font-semibold text-white transition active:scale-95 hover:bg-gray-600"
+                  type="button"
                 >
                   Leave Party
                 </button>
@@ -632,6 +671,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
                 <button
                   onClick={onClose}
                   className="flex h-11 flex-1 items-center justify-center rounded-xl bg-black/25 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
+                  type="button"
                 >
                   Close
                 </button>
@@ -667,6 +707,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
               onClick={() => setChatOpen(false)}
               className="flex h-8 w-8 items-center justify-center rounded-full bg-black/25 text-gray-300 transition active:scale-95 hover:text-white hover:shadow-inner hover:shadow-red-500/50"
               aria-label="Close chat"
+              type="button"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M6 6l12 12M18 6L6 18" />

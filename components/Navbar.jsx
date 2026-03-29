@@ -5,14 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
-import {
-  get,
-  off,
-  onValue,
-  ref,
-  remove,
-  update,
-} from 'firebase/database';
+import { get, off, onValue, ref } from 'firebase/database';
 import PartyModal from '@/components/PartyModal';
 import PartyControlModal from '@/components/PartyControlModal';
 import {
@@ -21,6 +14,7 @@ import {
   clearPartyStayPrompt,
   getPartyStayPromptAt,
   joinParty,
+  leaveParty,
   leavePartyOnUnload,
   schedulePartyStayPrompt,
   touchPartyMember,
@@ -235,16 +229,31 @@ export default function Navbar() {
   }, [inParty, partyCode]);
 
   useEffect(() => {
-    const currentUserId = getAuth().currentUser?.uid;
-    if (!currentUserId) return;
+    const auth = getAuth(app);
 
     const handleBeforeUnload = () => {
-      if (!inPartyRef.current || !partyCodeRef.current) return;
+      const currentUserId = auth.currentUser?.uid;
+      if (!currentUserId || !inPartyRef.current || !partyCodeRef.current) return;
 
       const isHost = hostIdRef.current === currentUserId;
 
       try {
         leavePartyOnUnload(partyCodeRef.current, currentUserId, isHost);
+      } catch {
+        // best effort
+      }
+
+      try {
+        localStorage.removeItem('kflix_current_party_code');
+        localStorage.removeItem('kflix_in_party');
+        localStorage.removeItem('kflix_party_joined_at');
+        clearPartyStayPrompt();
+      } catch {
+        // ignore
+      }
+
+      try {
+        signOut(auth);
       } catch {
         // best effort
       }
@@ -260,8 +269,8 @@ export default function Navbar() {
   useEffect(() => {
     const auth = getAuth();
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      const userId = user?.uid;
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      const userId = currentUser?.uid;
       if (!userId) return;
 
       const code = localStorage.getItem('kflix_current_party_code');
@@ -279,17 +288,12 @@ export default function Navbar() {
         if (snapshot.exists()) {
           const partyData = snapshot.val() || {};
           hostIdRef.current = partyData.hostId || '';
-
-          if (!partyData.members?.[userId]) {
-            await update(ref(db, `parties/${code}/members/${userId}`), {
-              joinedAt: Date.now(),
-              lastSeenAt: Date.now(),
-              isHost: partyData.hostId === userId,
-            });
-          }
+        } else {
+          persistCurrentPartyState('', false);
         }
       } catch (err) {
         console.error('Auto rejoin failed:', err);
+        persistCurrentPartyState('', false);
       }
     });
 
@@ -504,27 +508,9 @@ export default function Navbar() {
   const handleLeaveParty = async () => {
     try {
       const currentUserId = getAuth().currentUser?.uid;
-      if (!currentUserId) return;
+      if (!currentUserId || !partyCode) return;
 
-      if (partyCode) {
-        const partyRef = ref(db, `parties/${partyCode}`);
-        const snapshot = await get(partyRef);
-
-        if (snapshot.exists()) {
-          const partyData = snapshot.val() || {};
-          const hostId = partyData.hostId || null;
-
-          await remove(ref(db, `parties/${partyCode}/members/${currentUserId}`));
-
-          if (hostId === currentUserId) {
-            await remove(partyRef);
-          } else {
-            await update(ref(db, `parties/${partyCode}`), {
-              lastLeaveAt: Date.now(),
-            });
-          }
-        }
-      }
+      await leaveParty(partyCode, currentUserId);
 
       clearPartyStayPrompt();
       persistCurrentPartyState('', false);
@@ -556,6 +542,15 @@ export default function Navbar() {
     try {
       setSigningOut(true);
       const auth = getAuth(app);
+      const currentUserId = auth.currentUser?.uid;
+
+      if (currentUserId && partyCode) {
+        await leaveParty(partyCode, currentUserId);
+      }
+
+      clearPartyStayPrompt();
+      persistCurrentPartyState('', false);
+
       await signOut(auth);
       router.push('/login');
     } catch (error) {

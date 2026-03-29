@@ -56,7 +56,7 @@ async function fetchEpisodeDetail(id, season, episode) {
   return res.json();
 }
 
-function getEmbedUrl({ type, id, season, episode, startAt = 0, autoPlay = false }) {
+function getEmbedUrl({ type, id, season, episode, startAt = 0, autoPlay = true }) {
   if (!id || !type) return '';
 
   const params = new URLSearchParams();
@@ -68,7 +68,8 @@ function getEmbedUrl({ type, id, season, episode, startAt = 0, autoPlay = false 
   params.set('hideServerControls', 'false');
   params.set('fullscreenButton', 'true');
   params.set('chromecast', 'true');
-  params.set('sub', 'en');
+  params.set('sub', '0');
+  params.set('server', type === 'movie' ? 'Alpha' : 'Oscar');
 
   if (Number.isFinite(startAt) && startAt > 0) {
     params.set('startAt', String(Math.max(0, Math.floor(startAt))));
@@ -217,7 +218,7 @@ function resolveNextTvEpisode(heroData, season, episode) {
   return null;
 }
 
-function saveContinueWatchingItem({
+async function saveContinueWatchingItem({
   uid,
   type,
   id,
@@ -257,6 +258,7 @@ function saveContinueWatchingItem({
     remainingSeconds <= HIDE_WHEN_REMAINING_SECONDS;
 
   const storageKey = getContinueWatchingStorageKey(uid);
+  const firebaseKey = `${type}-${heroData.id}`;
 
   try {
     const raw = localStorage.getItem(storageKey);
@@ -275,6 +277,15 @@ function saveContinueWatchingItem({
       localStorage.setItem(storageKey, JSON.stringify(filtered));
       window.dispatchEvent(new Event('storage'));
       window.dispatchEvent(new Event('kflix-continue-watching-updated'));
+
+      try {
+        await update(ref(db, `users/${uid}/continueWatching`), {
+          [firebaseKey]: null,
+        });
+      } catch (firebaseError) {
+        console.error('Failed to remove continue watching from Firebase:', firebaseError);
+      }
+
       return;
     }
 
@@ -323,6 +334,14 @@ function saveContinueWatchingItem({
     localStorage.setItem(storageKey, JSON.stringify([item, ...filtered].slice(0, 24)));
     window.dispatchEvent(new Event('storage'));
     window.dispatchEvent(new Event('kflix-continue-watching-updated'));
+
+    try {
+      await update(ref(db, `users/${uid}/continueWatching`), {
+        [firebaseKey]: item,
+      });
+    } catch (firebaseError) {
+        console.error('Failed to sync continue watching to Firebase:', firebaseError);
+    }
   } catch (error) {
     console.error('Failed to save continue watching:', error);
   }
@@ -334,7 +353,7 @@ function WatchPageContent() {
   const playerFrameRef = useRef(null);
   const publishIntervalRef = useRef(null);
   const lastStatusRequestRef = useRef(0);
-  const latestPlaybackRef = useRef({ currentTime: 0, isPlaying: false });
+  const latestPlaybackRef = useRef({ currentTime: 0, isPlaying: true });
   const pendingInitialSyncRef = useRef(null);
   const saveContinueWatchingTimeoutRef = useRef(null);
   const lastRemoteMediaSignatureRef = useRef('');
@@ -352,7 +371,7 @@ function WatchPageContent() {
   const initialAutoplayParam = searchParams.get('autoplay') || '';
 
   const initialStartTime = Number(initialTimeParam || 0);
-  const initialAutoplay = initialAutoplayParam === '1';
+  const initialAutoplay = initialAutoplayParam ? initialAutoplayParam === '1' : true;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -411,13 +430,10 @@ function WatchPageContent() {
 
   const requestPlayerStatus = () => {
     const now = Date.now();
-    if (now - lastStatusRequestRef.current < 800) return;
+    if (now - lastStatusRequestRef.current < 600) return;
 
     lastStatusRequestRef.current = now;
-
-    sendPlayerCommand({
-      command: 'playerstatus',
-    });
+    sendPlayerCommand({ command: 'getStatus' });
   };
 
   const publishPlaybackState = (currentTimeArg, isPlayingArg, overrides = {}) => {
@@ -435,10 +451,8 @@ function WatchPageContent() {
       isPlaying: safePlaying,
     };
 
-    const liveSeason =
-      overrides.season ?? liveTvProgressRef.current.season ?? season ?? null;
-    const liveEpisode =
-      overrides.episode ?? liveTvProgressRef.current.episode ?? episode ?? null;
+    const liveSeason = overrides.season ?? liveTvProgressRef.current.season ?? season ?? null;
+    const liveEpisode = overrides.episode ?? liveTvProgressRef.current.episode ?? episode ?? null;
 
     setPartyMedia(partyCode, {
       mediaType: type,
@@ -448,6 +462,7 @@ function WatchPageContent() {
       currentTime: safeTime,
       isPlaying: safePlaying,
       updatedBy: userId,
+      route: '/watch',
     }).catch((partyError) => {
       console.error('Failed to publish host media to party:', partyError);
     });
@@ -476,7 +491,7 @@ function WatchPageContent() {
         currentTime: timeArg,
         isPlaying: playingArg,
       });
-    }, 300);
+    }, 250);
   };
 
   const reloadPlayerToPosition = ({ currentTime, isPlaying }) => {
@@ -635,8 +650,12 @@ function WatchPageContent() {
   }, [type, season, episode, episodeData]);
 
   useEffect(() => {
+    lastRemoteMediaSignatureRef.current = '';
+  }, [type, id, season, episode]);
+
+  useEffect(() => {
     const nextStartTime = Number(initialTimeParam || 0);
-    const nextAutoplay = initialAutoplayParam === '1';
+    const nextAutoplay = initialAutoplayParam ? initialAutoplayParam === '1' : true;
 
     const normalizedTime = Number.isFinite(nextStartTime) ? Math.max(0, nextStartTime) : 0;
 
@@ -685,6 +704,19 @@ function WatchPageContent() {
 
     return () => clearTimeout(timeout);
   }, [showAutoplayHint]);
+
+  useEffect(() => {
+    if (!partyCode || !userId || !isHost || !type || !id) return;
+
+    publishPlaybackState(
+      latestPlaybackRef.current.currentTime,
+      latestPlaybackRef.current.isPlaying,
+      {
+        season: liveTvProgressRef.current.season || season,
+        episode: liveTvProgressRef.current.episode || episode,
+      }
+    );
+  }, [partyCode, userId, isHost, type, id, season, episode]);
 
   useEffect(() => {
     const handleMessage = (event) => {
@@ -820,7 +852,9 @@ function WatchPageContent() {
         setPlayerCurrentTime(currentTime);
 
         const playing =
-          typeof payload.isPlaying === 'boolean'
+          typeof payload.playing === 'boolean'
+            ? payload.playing
+            : typeof payload.isPlaying === 'boolean'
             ? payload.isPlaying
             : latestPlaybackRef.current.isPlaying;
 
@@ -843,20 +877,7 @@ function WatchPageContent() {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [isHost, partyCode, userId, type, id, season, episode, heroData, episodeData]);
-
-  useEffect(() => {
-    if (!partyCode || !userId || !isHost || !type || !id) return;
-
-    publishPlaybackState(
-      latestPlaybackRef.current.currentTime,
-      latestPlaybackRef.current.isPlaying,
-      {
-        season: liveTvProgressRef.current.season || season,
-        episode: liveTvProgressRef.current.episode || episode,
-      }
-    );
-  }, [partyCode, userId, isHost, type, id, season, episode]);
+  }, [isHost, userId, type, id, season, episode, heroData, episodeData]);
 
   useEffect(() => {
     if (publishIntervalRef.current) {
@@ -906,31 +927,74 @@ function WatchPageContent() {
         return;
       }
 
-      if (pending.isPlaying) {
-        sendPlayerCommand({
-          command: 'play',
-          time: pending.currentTime,
-        });
-      } else {
-        sendPlayerCommand({
-          command: 'pause',
-          time: pending.currentTime,
-        });
-      }
-    }, 800);
+      sendPlayerCommand({
+        command: pending.isPlaying ? 'play' : 'pause',
+        time: pending.currentTime,
+      });
+    }, 700);
 
     return () => clearTimeout(timeout);
   }, [playerReady, iframeKey]);
 
   useEffect(() => {
+    const handlePartyResync = (event) => {
+      const detail = event.detail || {};
+      if (!detail.mediaType || !detail.mediaId) return;
+
+      const sameMedia =
+        detail.mediaType === type &&
+        String(detail.mediaId) === String(id) &&
+        (detail.mediaType !== 'tv' ||
+          (String(detail.season || '') === String(season || '') &&
+            String(detail.episode || '') === String(episode || '')));
+
+      if (!sameMedia) {
+        const params = new URLSearchParams();
+        params.set('type', String(detail.mediaType));
+        params.set('id', String(detail.mediaId));
+        params.set('t', String(Math.max(0, Math.floor(Number(detail.currentTime || 0)))));
+        params.set('autoplay', detail.isPlaying ? '1' : '0');
+
+        if (detail.mediaType === 'tv') {
+          if (detail.season !== undefined && detail.season !== null && String(detail.season) !== '') {
+            params.set('season', String(detail.season));
+          }
+          if (detail.episode !== undefined && detail.episode !== null && String(detail.episode) !== '') {
+            params.set('episode', String(detail.episode));
+          }
+        }
+
+        router.replace(`/watch?${params.toString()}`);
+        return;
+      }
+
+      applyPartyResyncToCurrentPlayer({
+        currentTime: Number(detail.currentTime || 0),
+        isPlaying: Boolean(detail.isPlaying),
+      });
+
+      setSyncNotice(`Synced to host at ${Math.floor(Number(detail.currentTime || 0))}s.`);
+      setTimeout(() => setSyncNotice(''), 2500);
+    };
+
+    window.addEventListener('kflix-party-resync', handlePartyResync);
+
+    return () => {
+      window.removeEventListener('kflix-party-resync', handlePartyResync);
+    };
+  }, [router, type, id, season, episode]);
+
+  useEffect(() => {
     if (!partyCode || !userId || isHost) return;
 
-    const mediaRef = ref(db, `parties/${partyCode}/media`);
+    const playbackRef = ref(db, `parties/${partyCode}/playback`);
 
-    const unsubscribe = onValue(mediaRef, (snapshot) => {
+    const unsubscribe = onValue(playbackRef, (snapshot) => {
       if (!snapshot.exists()) return;
 
       const media = snapshot.val() || {};
+      if (media.mediaType === 'live') return;
+
       const mediaType = media.mediaType ? String(media.mediaType) : '';
       const mediaId = media.mediaId ? String(media.mediaId) : '';
       const mediaSeason =
@@ -952,6 +1016,7 @@ function WatchPageContent() {
         mediaEpisode,
         Math.floor(mediaTime),
         mediaPlaying ? '1' : '0',
+        String(media.updatedAt || ''),
       ].join('|');
 
       if (signature === lastRemoteMediaSignatureRef.current) return;
@@ -976,7 +1041,7 @@ function WatchPageContent() {
           if (mediaEpisode) params.set('episode', mediaEpisode);
         }
 
-        router.push(`/watch?${params.toString()}`);
+        router.replace(`/watch?${params.toString()}`);
         return;
       }
 
@@ -998,7 +1063,6 @@ function WatchPageContent() {
       }
 
       setSyncNotice(`Synced to host at ${Math.floor(mediaTime)}s.`);
-
       setTimeout(() => {
         setSyncNotice('');
       }, 2500);
@@ -1168,7 +1232,18 @@ function WatchPageContent() {
 
                       setTimeout(() => {
                         requestPlayerStatus();
-                      }, 500);
+
+                        if (isHost && partyCode) {
+                          publishPlaybackState(
+                            latestPlaybackRef.current.currentTime,
+                            latestPlaybackRef.current.isPlaying,
+                            {
+                              season: liveTvProgressRef.current.season || season,
+                              episode: liveTvProgressRef.current.episode || episode,
+                            }
+                          );
+                        }
+                      }, 700);
                     }}
                   />
                 ) : (

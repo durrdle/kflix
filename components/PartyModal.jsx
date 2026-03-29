@@ -1,12 +1,12 @@
 // components/PartyModal.jsx
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import {
-  buildPartyCode,
   createParty,
   ensureHostMembership,
+  generateUniquePartyCode,
   joinParty,
 } from '@/lib/firebaseParty';
 
@@ -20,31 +20,47 @@ export default function PartyModal({ open, onClose, onJoinParty, onCreateParty }
   const [working, setWorking] = useState(false);
 
   useEffect(() => {
-  const auth = getAuth();
-  const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-    setUserId(currentUser?.uid || '');
-  });
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUserId(currentUser?.uid || '');
+    });
 
-  return () => unsubscribe();
-}, []);
-
-  const ownPartyCode = useMemo(() => {
-    if (!userId) return '';
-    return buildPartyCode(userId);
-  }, [userId]);
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
-    if (mode === 'create' && ownPartyCode) {
-      setJoinCode(ownPartyCode);
-      setPulse(true);
-      const timer = setTimeout(() => setPulse(false), 220);
-      return () => clearTimeout(timer);
-    }
-  }, [mode, ownPartyCode]);
+    let cancelled = false;
+
+    const loadCode = async () => {
+      if (mode !== 'create') return;
+
+      try {
+        setWarning('');
+        const code = await generateUniquePartyCode();
+        if (!cancelled) {
+          setJoinCode(code);
+          setPulse(true);
+          const timer = setTimeout(() => setPulse(false), 220);
+          return () => clearTimeout(timer);
+        }
+      } catch {
+        if (!cancelled) {
+          setWarning('Failed to generate a party code.');
+        }
+      }
+    };
+
+    loadCode();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mode]);
 
   useEffect(() => {
     if (!open) {
       setMode('default');
+      setJoinCode('');
       setInputCode('');
       setPulse(false);
       setWarning('');
@@ -64,14 +80,7 @@ export default function PartyModal({ open, onClose, onJoinParty, onCreateParty }
     'w-52 h-10 px-4 rounded-md bg-gray-800 border border-white/10 text-white text-sm text-center focus:outline-none focus:border-red-500/50 focus:shadow-[0_0_10px_rgba(255,0,0,0.25)]';
 
   const handleJoin = async () => {
-    if (inputCode.length !== 6 || working) return;
-
-    if (inputCode === ownPartyCode) {
-      setWarning('You cannot join your own party code.');
-      setPulse(true);
-      setTimeout(() => setPulse(false), 220);
-      return;
-    }
+    if (inputCode.length !== 6 || working || !userId) return;
 
     try {
       setWorking(true);
@@ -89,7 +98,7 @@ export default function PartyModal({ open, onClose, onJoinParty, onCreateParty }
   };
 
   const handleCreate = async () => {
-    if (!joinCode || working) return;
+    if (!joinCode || working || !userId) return;
 
     try {
       setWorking(true);
@@ -128,6 +137,7 @@ export default function PartyModal({ open, onClose, onJoinParty, onCreateParty }
                   setInputCode('');
                 }}
                 className={navIconClass}
+                type="button"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path d="M15 6l-6 6 6 6" />
@@ -142,7 +152,7 @@ export default function PartyModal({ open, onClose, onJoinParty, onCreateParty }
             Party Menu
           </div>
 
-          <button onClick={onClose} className={navIconClass}>
+          <button onClick={onClose} className={navIconClass} type="button">
             <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path d="M6 6l12 12M18 6L6 18" />
             </svg>
@@ -158,6 +168,7 @@ export default function PartyModal({ open, onClose, onJoinParty, onCreateParty }
                   setMode('join');
                 }}
                 className={primaryButtonClass}
+                type="button"
               >
                 <span>Join</span>
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -171,6 +182,7 @@ export default function PartyModal({ open, onClose, onJoinParty, onCreateParty }
                   setMode('create');
                 }}
                 className={primaryButtonClass}
+                type="button"
               >
                 <span>Create</span>
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
@@ -201,9 +213,12 @@ export default function PartyModal({ open, onClose, onJoinParty, onCreateParty }
               <button
                 onClick={handleJoin}
                 className={`${primaryButtonClass} ${
-                  inputCode.length !== 6 || working ? 'cursor-not-allowed opacity-50 hover:bg-red-600 hover:shadow-none' : ''
+                  inputCode.length !== 6 || working
+                    ? 'cursor-not-allowed opacity-50 hover:bg-red-600 hover:shadow-none'
+                    : ''
                 }`}
                 disabled={inputCode.length !== 6 || working}
+                type="button"
               >
                 <span>{working ? 'Joining...' : 'Join Party'}</span>
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -216,13 +231,20 @@ export default function PartyModal({ open, onClose, onJoinParty, onCreateParty }
           {mode === 'create' && (
             <div className="flex w-full flex-col items-center justify-center gap-3">
               <div className={`${inputClass} flex items-center justify-center font-semibold tracking-[0.2em]`}>
-                {joinCode}
+                {joinCode || '......'}
               </div>
+
+              {warning && (
+                <div className="w-56 rounded-md border border-red-500/30 bg-red-600/10 px-3 py-2 text-center text-xs text-red-300">
+                  {warning}
+                </div>
+              )}
 
               <button
                 onClick={handleCreate}
-                className={`${primaryButtonClass} ${working ? 'cursor-not-allowed opacity-50' : ''}`}
-                disabled={working}
+                className={`${primaryButtonClass} ${working || !joinCode ? 'cursor-not-allowed opacity-50' : ''}`}
+                disabled={working || !joinCode}
+                type="button"
               >
                 <span>{working ? 'Starting...' : 'Start Party'}</span>
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">

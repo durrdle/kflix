@@ -11,6 +11,7 @@ const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
 const BACKDROP_BASE = 'https://image.tmdb.org/t/p/original';
 const POSTER_BASE = 'https://image.tmdb.org/t/p/w500';
 const PROFILE_BASE = 'https://image.tmdb.org/t/p/w185';
+const CAST_PLACEHOLDER = '/images/cast-placeholder.webp';
 
 async function fetchDetail(type, id) {
   const res = await fetch(
@@ -158,6 +159,193 @@ function resolveContinueEpisodeTarget(item, seasons) {
   };
 }
 
+function getManualUnwatchedStorageKey(userId, showId) {
+  return `kflix_manual_unwatched_${userId}_${showId}`;
+}
+
+function readManualUnwatchedSet(userId, showId) {
+  if (!userId || !showId) return new Set();
+
+  try {
+    const raw = localStorage.getItem(getManualUnwatchedStorageKey(userId, showId));
+    const parsed = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(parsed) ? parsed : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeManualUnwatchedSet(userId, showId, setValue) {
+  if (!userId || !showId) return;
+
+  try {
+    localStorage.setItem(
+      getManualUnwatchedStorageKey(userId, showId),
+      JSON.stringify(Array.from(setValue))
+    );
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('kflix-manual-unwatched-updated'));
+  } catch (error) {
+    console.error('Failed to persist manual unwatched overrides:', error);
+  }
+}
+
+function compareEpisodeOrder(aSeason, aEpisode, bSeason, bEpisode) {
+  const as = Number(aSeason || 0);
+  const ae = Number(aEpisode || 0);
+  const bs = Number(bSeason || 0);
+  const be = Number(bEpisode || 0);
+
+  if (as !== bs) return as - bs;
+  return ae - be;
+}
+
+function shouldAutoMarkCurrentEpisode(continueEpisode) {
+  if (!continueEpisode) return false;
+
+  const seasonNumber = Number(continueEpisode.season || 0);
+  const episodeNumber = Number(continueEpisode.episode || 0);
+
+  if (seasonNumber <= 0 || episodeNumber <= 0) {
+    return false;
+  }
+
+  const explicitNextSeason = Number(continueEpisode.nextSeason || 0);
+  const explicitNextEpisode = Number(continueEpisode.nextEpisode || 0);
+  const hasExplicitNext =
+    explicitNextSeason > 0 &&
+    explicitNextEpisode > 0 &&
+    (explicitNextSeason !== seasonNumber || explicitNextEpisode !== episodeNumber);
+
+  const remainingTimeValue = continueEpisode.remainingTime;
+  const remainingTime =
+    remainingTimeValue === undefined || remainingTimeValue === null
+      ? null
+      : Number(remainingTimeValue);
+
+  const currentTime = Number(continueEpisode.currentTime || 0);
+
+  return (
+    hasExplicitNext ||
+    (remainingTime !== null &&
+      !Number.isNaN(remainingTime) &&
+      remainingTime <= 240 &&
+      currentTime > 0)
+  );
+}
+
+function buildEpisodesToAutoMark(showId, seasons, continueEpisode, manualUnwatchedSet) {
+  if (!continueEpisode || !shouldAutoMarkCurrentEpisode(continueEpisode)) {
+    return [];
+  }
+
+  const targetSeason = Number(continueEpisode.season || 0);
+  const targetEpisode = Number(continueEpisode.episode || 0);
+
+  if (targetSeason <= 0 || targetEpisode <= 0) {
+    return [];
+  }
+
+  const normalizedSeasons = Array.isArray(seasons)
+    ? [...seasons]
+        .filter((season) => Number(season?.season_number) > 0)
+        .sort((a, b) => Number(a.season_number) - Number(b.season_number))
+    : [];
+
+  const keys = [];
+
+  normalizedSeasons.forEach((season) => {
+    const seasonNumber = Number(season?.season_number || 0);
+    const episodeCount = Number(season?.episode_count || 0);
+
+    if (seasonNumber <= 0 || episodeCount <= 0) return;
+
+    for (let episodeNumber = 1; episodeNumber <= episodeCount; episodeNumber += 1) {
+      const isBeforeOrEqualTarget =
+        compareEpisodeOrder(seasonNumber, episodeNumber, targetSeason, targetEpisode) <= 0;
+
+      if (!isBeforeOrEqualTarget) continue;
+
+      const key = buildEpisodeKey(showId, seasonNumber, episodeNumber);
+
+      if (manualUnwatchedSet.has(key)) continue;
+
+      keys.push(key);
+    }
+  });
+
+  return keys;
+}
+
+function RatingBadge({ label, value, filled = false }) {
+  if (value === undefined || value === null || value === '') return null;
+
+  return (
+    <div
+      className={`inline-flex min-h-[28px] min-w-[54px] items-center justify-center rounded-md border px-2 py-1 text-[10px] font-bold tracking-[0.08em] backdrop-blur-md ${
+        filled
+          ? 'border-red-400/70 bg-red-600/90 text-white shadow-[0_0_14px_rgba(239,68,68,0.35)]'
+          : 'border-white/15 bg-black/65 text-white shadow-[0_0_14px_rgba(0,0,0,0.2)]'
+      }`}
+    >
+      <span className="mr-1 text-red-300">{label}</span>
+      <span>{value}</span>
+    </div>
+  );
+}
+
+function BookmarkBadge({ active, onToggle }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onToggle?.();
+      }}
+      className={`pointer-events-auto inline-flex min-h-[28px] min-w-[28px] cursor-pointer items-center justify-center rounded-md border px-2 py-1 text-[10px] font-bold tracking-[0.08em] backdrop-blur-md transition active:scale-95 ${
+        active
+          ? 'border-red-400/70 bg-red-600/90 text-white shadow-[0_0_14px_rgba(239,68,68,0.35)] hover:bg-red-700'
+          : 'border-white/15 bg-black/65 text-white shadow-[0_0_14px_rgba(0,0,0,0.2)] hover:border-red-400/60 hover:text-red-300'
+      }`}
+      title={active ? 'Remove bookmark' : 'Save bookmark'}
+      aria-label={active ? 'Remove bookmark' : 'Save bookmark'}
+    >
+      <svg
+        className="h-3 w-3 flex-shrink-0"
+        fill={active ? 'currentColor' : 'none'}
+        stroke="currentColor"
+        strokeWidth="2"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path d="M6 4h12a1 1 0 011 1v15l-7-4-7 4V5a1 1 0 011-1z" />
+      </svg>
+    </button>
+  );
+}
+
+function SimilarCardBadges({ item, isBookmarked, onToggleBookmark }) {
+  const tmdbRating =
+    typeof item.vote_average === 'number' && item.vote_average > 0
+      ? item.vote_average.toFixed(1)
+      : null;
+
+  return (
+    <>
+      <div className="absolute left-2 top-2 z-20 flex flex-col gap-1.5">
+        {item.imdbRating ? <RatingBadge label="IMDb" value={item.imdbRating} /> : null}
+        {item.rtRating ? <RatingBadge label="RT" value={item.rtRating} /> : null}
+        {tmdbRating ? <RatingBadge label="TMDB" value={tmdbRating} /> : null}
+      </div>
+
+      <div className="absolute right-2 top-2 z-20">
+        <BookmarkBadge active={isBookmarked} onToggle={onToggleBookmark} />
+      </div>
+    </>
+  );
+}
+
 function TrailerModal({ open, onClose, videoKey, title }) {
   const [playerReady, setPlayerReady] = useState(false);
 
@@ -298,6 +486,34 @@ function WatchBadge({ checked, onClick, title }) {
       >
         <rect x="5" y="5" width="14" height="14" rx="2" />
         {checked ? <path d="M8 12.5l2.5 2.5L16 9.5" /> : null}
+      </svg>
+    </button>
+  );
+}
+
+function BookmarkIconButton({ active, onClick, disabled = false, title }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      aria-label={title}
+      className={`flex h-11 w-11 items-center justify-center rounded-md border transition active:scale-95 ${
+        active
+          ? 'border-red-400/70 bg-red-600/90 text-white shadow-[0_0_14px_rgba(239,68,68,0.35)] hover:bg-red-700'
+          : 'border-white/15 bg-black/25 text-white backdrop-blur-md hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40'
+      } ${disabled ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
+    >
+      <svg
+        className="h-4 w-4 flex-shrink-0"
+        fill={active ? 'currentColor' : 'none'}
+        stroke="currentColor"
+        strokeWidth="2"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path d="M6 4h12a1 1 0 011 1v15l-7-4-7 4V5a1 1 0 011-1z" />
       </svg>
     </button>
   );
@@ -487,7 +703,7 @@ function WatchOptionsModal({
                     className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
                       canScrollSeasonUp
                         ? 'bg-black/25 text-gray-300 cursor-pointer hover:text-white hover:shadow-inner hover:shadow-red-500/60'
-                        : 'bg-black/15 text-gray-500 cursor-not-allowed opacity-60'
+                        : 'bg-black/15 text-gray-500 opacity-60'
                     }`}
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -502,7 +718,7 @@ function WatchOptionsModal({
                     className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
                       canScrollSeasonDown
                         ? 'bg-black/25 text-gray-300 cursor-pointer hover:text-white hover:shadow-inner hover:shadow-red-500/60'
-                        : 'bg-black/15 text-gray-500 cursor-not-allowed opacity-60'
+                        : 'bg-black/15 text-gray-500 opacity-60'
                     }`}
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -663,7 +879,7 @@ function CastCarousel({ cast }) {
   const scrollRef = useRef(null);
   const [currentPage, setCurrentPage] = useState(0);
 
-  const cardsPerPage = 6;
+  const cardsPerPage = 10;
   const totalPages = Math.max(1, Math.ceil(cast.length / cardsPerPage));
   const maxPage = totalPages - 1;
 
@@ -735,7 +951,7 @@ function CastCarousel({ cast }) {
             className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
               canScrollLeft
                 ? 'bg-black/25 text-gray-300 cursor-pointer hover:text-white hover:shadow-inner hover:shadow-red-500/60'
-                : 'bg-black/15 text-gray-500 cursor-not-allowed opacity-60'
+                : 'bg-black/15 text-gray-500 opacity-60'
             }`}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -750,7 +966,7 @@ function CastCarousel({ cast }) {
             className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
               canScrollRight
                 ? 'bg-black/25 text-gray-300 cursor-pointer hover:text-white hover:shadow-inner hover:shadow-red-500/60'
-                : 'bg-black/15 text-gray-500 cursor-not-allowed opacity-60'
+                : 'bg-black/15 text-gray-500 opacity-60'
             }`}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -766,33 +982,33 @@ function CastCarousel({ cast }) {
       >
         <div className="flex w-full">
           {Array.from({ length: totalPages }).map((_, pageIndex) => {
-            const pageItems = cast.slice(pageIndex * cardsPerPage, pageIndex * cardsPerPage + cardsPerPage);
+            const pageItems = cast.slice(
+              pageIndex * cardsPerPage,
+              pageIndex * cardsPerPage + cardsPerPage
+            );
 
             return (
-              <div key={pageIndex} className="grid min-w-full grid-cols-6 gap-4 px-6 py-5">
+              <div
+                key={pageIndex}
+                className="grid min-w-full grid-cols-2 gap-4 px-6 py-5 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-10"
+              >
                 {pageItems.map((person) => (
                   <div key={`${person.id}-${person.cast_id || person.credit_id}`} className="group min-w-0">
                     <div className="relative overflow-hidden rounded-xl border-[1.5px] border-white/10 bg-black/20 transition duration-300 group-hover:border-red-400/80 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.24)]">
-                      <div className="aspect-[2/2.55] w-full bg-gray-800">
-                        {person.profile_path ? (
-                          <img
-                            src={`${PROFILE_BASE}${person.profile_path}`}
-                            alt={person.name}
-                            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]"
-                          />
-                        ) : (
-                          <div className="flex h-full items-center justify-center px-3 text-center text-xs text-gray-400">
-                            No Image
-                          </div>
-                        )}
+                      <div className="aspect-[2/2.6] w-full bg-gray-800">
+                        <img
+                          src={person.profile_path ? `${PROFILE_BASE}${person.profile_path}` : CAST_PLACEHOLDER}
+                          alt={person.name}
+                          className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]"
+                        />
                       </div>
                     </div>
 
                     <div className="mt-2">
-                      <div className="line-clamp-1 text-sm font-medium text-white transition group-hover:text-red-300">
+                      <div className="line-clamp-1 text-xs font-medium text-white transition group-hover:text-red-300">
                         {person.name}
                       </div>
-                      <div className="mt-1 line-clamp-2 text-xs text-gray-400">
+                      <div className="mt-1 line-clamp-2 text-[11px] text-gray-400">
                         {person.character || 'Unknown Role'}
                       </div>
                     </div>
@@ -812,7 +1028,12 @@ function CastCarousel({ cast }) {
   );
 }
 
-function SimilarCarousel({ items, type }) {
+function SimilarCarousel({
+  items,
+  type,
+  bookmarkedIds,
+  onToggleBookmark,
+}) {
   const scrollRef = useRef(null);
   const [currentPage, setCurrentPage] = useState(0);
 
@@ -888,7 +1109,7 @@ function SimilarCarousel({ items, type }) {
             className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
               canScrollLeft
                 ? 'bg-black/25 text-gray-300 cursor-pointer hover:text-white hover:shadow-inner hover:shadow-red-500/60'
-                : 'bg-black/15 text-gray-500 cursor-not-allowed opacity-60'
+                : 'bg-black/15 text-gray-500 opacity-60'
             }`}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -903,7 +1124,7 @@ function SimilarCarousel({ items, type }) {
             className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
               canScrollRight
                 ? 'bg-black/25 text-gray-300 cursor-pointer hover:text-white hover:shadow-inner hover:shadow-red-500/60'
-                : 'bg-black/15 text-gray-500 cursor-not-allowed opacity-60'
+                : 'bg-black/15 text-gray-500 opacity-60'
             }`}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -919,38 +1140,52 @@ function SimilarCarousel({ items, type }) {
       >
         <div className="flex w-full">
           {Array.from({ length: totalPages }).map((_, pageIndex) => {
-            const pageItems = items.slice(pageIndex * cardsPerPage, pageIndex * cardsPerPage + cardsPerPage);
+            const pageItems = items.slice(
+              pageIndex * cardsPerPage,
+              pageIndex * cardsPerPage + cardsPerPage
+            );
 
             return (
               <div key={pageIndex} className="grid min-w-full grid-cols-6 gap-4 px-6 py-5">
-                {pageItems.map((item) => (
-                  <Link key={item.id} href={`/${type}/${item.id}`} className="group min-w-0 cursor-pointer">
-                    <div className="relative overflow-hidden rounded-xl border-[1.5px] border-white/10 bg-black/20 transition duration-300 group-hover:border-red-400/80 group-hover:shadow-[0_0_24px_rgba(239,68,68,0.28)]">
-                      <div className="aspect-[2/2.8] w-full bg-gray-800">
-                        {item.poster_path ? (
-                          <img
-                            src={`${POSTER_BASE}${item.poster_path}`}
-                            alt={item.title || item.name || 'Poster'}
-                            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.05]"
-                          />
-                        ) : (
-                          <div className="flex h-full items-center justify-center px-3 text-center text-xs text-gray-400">
-                            No Image
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                {pageItems.map((item) => {
+                  const bookmarkKey = `${type}-${item.id}`;
+                  const isBookmarked = bookmarkedIds.has(bookmarkKey);
 
-                    <div className="mt-2">
-                      <div className="line-clamp-1 text-sm font-medium text-white transition group-hover:text-red-300">
-                        {item.title || item.name || 'Untitled'}
+                  return (
+                    <Link key={item.id} href={`/${type}/${item.id}`} className="group min-w-0 cursor-pointer">
+                      <div className="relative overflow-hidden rounded-xl border-[1.5px] border-white/10 bg-black/20 transition duration-300 group-hover:border-red-400/80 group-hover:shadow-[0_0_24px_rgba(239,68,68,0.28)]">
+                        <SimilarCardBadges
+                          item={item}
+                          isBookmarked={isBookmarked}
+                          onToggleBookmark={() => onToggleBookmark(item, type)}
+                        />
+
+                        <div className="aspect-[2/2.8] w-full bg-gray-800">
+                          {item.poster_path ? (
+                            <img
+                              src={`${POSTER_BASE}${item.poster_path}`}
+                              alt={item.title || item.name || 'Poster'}
+                              className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.05]"
+                            />
+                          ) : (
+                            <div className="flex h-full items-center justify-center px-3 text-center text-xs text-gray-400">
+                              No Image
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="mt-1 text-xs text-gray-400">
-                        {(item.release_date || item.first_air_date || 'Unknown').slice(0, 4)}
+
+                      <div className="mt-2">
+                        <div className="line-clamp-1 text-sm font-medium text-white transition group-hover:text-red-300">
+                          {item.title || item.name || 'Untitled'}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-400">
+                          {(item.release_date || item.first_air_date || 'Unknown').slice(0, 4)}
+                        </div>
                       </div>
-                    </div>
-                  </Link>
-                ))}
+                    </Link>
+                  );
+                })}
 
                 {pageItems.length < cardsPerPage &&
                   Array.from({ length: cardsPerPage - pageItems.length }).map((_, fillerIndex) => (
@@ -975,6 +1210,8 @@ export default function DetailPageContent({ id, type }) {
   const [isInWatchlist, setIsInWatchlist] = useState(false);
   const [watchedEpisodes, setWatchedEpisodes] = useState({});
   const [continueEpisode, setContinueEpisode] = useState(null);
+  const [manualUnwatchedKeys, setManualUnwatchedKeys] = useState(new Set());
+  const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
 
   useEffect(() => {
     const auth = getAuth();
@@ -1018,16 +1255,28 @@ export default function DetailPageContent({ id, type }) {
   useEffect(() => {
     if (!userId || !id || !type) {
       setIsInWatchlist(false);
+      setBookmarkedIds(new Set());
       return;
     }
 
     try {
       const raw = localStorage.getItem(`kflix_watchlist_${userId}`);
       const parsed = raw ? JSON.parse(raw) : [];
-      const exists = parsed.some((item) => String(item.id) === String(id) && item.type === type);
+      const normalized = Array.isArray(parsed) ? parsed : [];
+
+      const exists = normalized.some(
+        (item) => String(item.id) === String(id) && item.type === type
+      );
+
+      const ids = new Set(
+        normalized.map((item) => `${item.type || item.media_type || 'movie'}-${item.id}`)
+      );
+
       setIsInWatchlist(exists);
+      setBookmarkedIds(ids);
     } catch {
       setIsInWatchlist(false);
+      setBookmarkedIds(new Set());
     }
   }, [userId, id, type, data]);
 
@@ -1035,6 +1284,7 @@ export default function DetailPageContent({ id, type }) {
     if (!userId || type !== 'tv' || !id) {
       setWatchedEpisodes({});
       setContinueEpisode(null);
+      setManualUnwatchedKeys(new Set());
       return;
     }
 
@@ -1049,95 +1299,114 @@ export default function DetailPageContent({ id, type }) {
       setContinueEpisode(getContinueWatchingItem(userId, id));
     };
 
+    const syncManualUnwatched = () => {
+      setManualUnwatchedKeys(readManualUnwatchedSet(userId, id));
+    };
+
     syncContinueEpisode();
+    syncManualUnwatched();
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
         syncContinueEpisode();
+        syncManualUnwatched();
       }
     };
 
-    window.addEventListener('storage', syncContinueEpisode);
-    window.addEventListener('focus', syncContinueEpisode);
-    window.addEventListener('kflix-continue-watching-updated', syncContinueEpisode);
-    window.addEventListener('kflix-watched-episode-updated', syncContinueEpisode);
+    const handleStorageOrCustom = () => {
+      syncContinueEpisode();
+      syncManualUnwatched();
+
+      try {
+        const raw = localStorage.getItem(`kflix_watchlist_${userId}`);
+        const parsed = raw ? JSON.parse(raw) : [];
+        const normalized = Array.isArray(parsed) ? parsed : [];
+        const ids = new Set(
+          normalized.map((item) => `${item.type || item.media_type || 'movie'}-${item.id}`)
+        );
+        setBookmarkedIds(ids);
+
+        const exists = normalized.some(
+          (item) => String(item.id) === String(id) && item.type === type
+        );
+        setIsInWatchlist(exists);
+      } catch {
+        setBookmarkedIds(new Set());
+      }
+    };
+
+    window.addEventListener('storage', handleStorageOrCustom);
+    window.addEventListener('focus', handleStorageOrCustom);
+    window.addEventListener('kflix-continue-watching-updated', handleStorageOrCustom);
+    window.addEventListener('kflix-watched-episode-updated', handleStorageOrCustom);
+    window.addEventListener('kflix-manual-unwatched-updated', handleStorageOrCustom);
     document.addEventListener('visibilitychange', handleVisibility);
 
-    const interval = setInterval(syncContinueEpisode, 1500);
+    const interval = setInterval(() => {
+      syncContinueEpisode();
+      syncManualUnwatched();
+    }, 1500);
 
     return () => {
       unsubscribe();
-      window.removeEventListener('storage', syncContinueEpisode);
-      window.removeEventListener('focus', syncContinueEpisode);
-      window.removeEventListener('kflix-continue-watching-updated', syncContinueEpisode);
-      window.removeEventListener('kflix-watched-episode-updated', syncContinueEpisode);
+      window.removeEventListener('storage', handleStorageOrCustom);
+      window.removeEventListener('focus', handleStorageOrCustom);
+      window.removeEventListener('kflix-continue-watching-updated', handleStorageOrCustom);
+      window.removeEventListener('kflix-watched-episode-updated', handleStorageOrCustom);
+      window.removeEventListener('kflix-manual-unwatched-updated', handleStorageOrCustom);
       document.removeEventListener('visibilitychange', handleVisibility);
       clearInterval(interval);
     };
   }, [userId, type, id]);
 
+  const selectableSeasons = useMemo(() => {
+    if (type !== 'tv' || !data?.seasons) return [];
+    return data.seasons.filter((season) => season.season_number > 0);
+  }, [data, type]);
+
   useEffect(() => {
-    if (!userId || type !== 'tv' || !id || !continueEpisode) return;
+    if (!userId || type !== 'tv' || !id || !continueEpisode || !selectableSeasons.length) return;
 
     const syncCompletedEpisodeFromContinueWatching = async () => {
       try {
-        const seasonNumber = Number(continueEpisode.season || 0);
-        const episodeNumber = Number(continueEpisode.episode || 0);
+        const keysToMark = buildEpisodesToAutoMark(
+          id,
+          selectableSeasons,
+          continueEpisode,
+          manualUnwatchedKeys
+        );
 
-        if (seasonNumber <= 0 || episodeNumber <= 0) {
+        if (!keysToMark.length) {
           return;
         }
-
-        const explicitNextSeason = Number(continueEpisode.nextSeason || 0);
-        const explicitNextEpisode = Number(continueEpisode.nextEpisode || 0);
-        const hasExplicitNext =
-          explicitNextSeason > 0 &&
-          explicitNextEpisode > 0 &&
-          (explicitNextSeason !== seasonNumber || explicitNextEpisode !== episodeNumber);
-
-        const remainingTimeValue = continueEpisode.remainingTime;
-        const remainingTime =
-          remainingTimeValue === undefined || remainingTimeValue === null
-            ? null
-            : Number(remainingTimeValue);
-
-        const currentTime = Number(continueEpisode.currentTime || 0);
-
-        const shouldMarkWatched =
-          hasExplicitNext ||
-          (remainingTime !== null &&
-            !Number.isNaN(remainingTime) &&
-            remainingTime <= 240 &&
-            currentTime > 0);
-
-        if (!shouldMarkWatched) {
-          return;
-        }
-
-        const key = buildEpisodeKey(id, seasonNumber, episodeNumber);
-
-        if (watchedEpisodes[key]) return;
 
         const snapshot = await get(getWatchedEpisodesDbRef(userId));
         const existing = normalizeWatchedMap(snapshot.exists() ? snapshot.val() : {});
+        const updated = { ...existing };
 
-        if (existing[key]) return;
+        let changed = false;
 
-        const updated = {
-          ...existing,
-          [key]: true,
-        };
+        keysToMark.forEach((key) => {
+          if (!updated[key]) {
+            updated[key] = true;
+            changed = true;
+          }
+        });
+
+        if (!changed) {
+          return;
+        }
 
         await update(ref(db, `users/${userId}`), {
           watchedEpisodes: updated,
         });
       } catch (syncError) {
-        console.error('Failed to sync watched episode:', syncError);
+        console.error('Failed to sync watched episode chain:', syncError);
       }
     };
 
     syncCompletedEpisodeFromContinueWatching();
-  }, [userId, type, id, continueEpisode, watchedEpisodes]);
+  }, [userId, type, id, continueEpisode, selectableSeasons, manualUnwatchedKeys]);
 
   const title = useMemo(() => {
     if (!data) return '';
@@ -1182,13 +1451,12 @@ export default function DetailPageContent({ id, type }) {
 
   const similarTitles = useMemo(() => {
     if (!data?.similar?.results) return [];
-    return data.similar.results.filter((item) => item.poster_path).slice(0, 24);
-  }, [data]);
 
-  const selectableSeasons = useMemo(() => {
-    if (type !== 'tv' || !data?.seasons) return [];
-    return data.seasons.filter((season) => season.season_number > 0);
-  }, [data, type]);
+    return data.similar.results
+      .filter((item) => item && item.id && item.poster_path)
+      .filter((item) => String(item.id) !== String(id))
+      .slice(0, 24);
+  }, [data, id]);
 
   const resolvedContinueEpisode = useMemo(() => {
     if (type !== 'tv' || !continueEpisode) return null;
@@ -1212,14 +1480,18 @@ export default function DetailPageContent({ id, type }) {
       const storageKey = `kflix_watchlist_${userId}`;
       const raw = localStorage.getItem(storageKey);
       const parsed = raw ? JSON.parse(raw) : [];
+      const normalized = Array.isArray(parsed) ? parsed : [];
 
-      const exists = parsed.some((item) => String(item.id) === String(id) && item.type === type);
+      const exists = normalized.some(
+        (item) => String(item.id) === String(id) && item.type === type
+      );
+
+      let updated;
 
       if (exists) {
-        const updated = parsed.filter(
+        updated = normalized.filter(
           (item) => !(String(item.id) === String(id) && item.type === type)
         );
-        localStorage.setItem(storageKey, JSON.stringify(updated));
         setIsInWatchlist(false);
       } else {
         const watchlistItem = {
@@ -1236,13 +1508,70 @@ export default function DetailPageContent({ id, type }) {
           addedAt: Date.now(),
         };
 
-        localStorage.setItem(storageKey, JSON.stringify([watchlistItem, ...parsed]));
+        updated = [watchlistItem, ...normalized];
         setIsInWatchlist(true);
       }
 
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+      setBookmarkedIds(
+        new Set(updated.map((item) => `${item.type || item.media_type || 'movie'}-${item.id}`))
+      );
       window.dispatchEvent(new Event('storage'));
     } catch (error) {
       console.error('Watchlist update failed:', error);
+    }
+  };
+
+  const handleToggleSimilarBookmark = (item, mediaType) => {
+    if (!userId || !item?.id) return;
+
+    try {
+      const storageKey = `kflix_watchlist_${userId}`;
+      const raw = localStorage.getItem(storageKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      const normalized = Array.isArray(parsed) ? parsed : [];
+
+      const exists = normalized.some(
+        (entry) => String(entry.id) === String(item.id) && entry.type === mediaType
+      );
+
+      let updated;
+
+      if (exists) {
+        updated = normalized.filter(
+          (entry) => !(String(entry.id) === String(item.id) && entry.type === mediaType)
+        );
+      } else {
+        const watchlistItem = {
+          id: item.id,
+          type: mediaType,
+          media_type: mediaType,
+          title: item.title || item.name || 'Untitled',
+          name: item.name || item.title || 'Untitled',
+          poster_path: item.poster_path || null,
+          backdrop_path: item.backdrop_path || null,
+          release_date: item.release_date || null,
+          first_air_date: item.first_air_date || null,
+          vote_average: item.vote_average ?? null,
+          addedAt: Date.now(),
+        };
+
+        updated = [watchlistItem, ...normalized];
+      }
+
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+      setBookmarkedIds(
+        new Set(updated.map((entry) => `${entry.type || entry.media_type || 'movie'}-${entry.id}`))
+      );
+
+      const existsCurrentTitle = updated.some(
+        (entry) => String(entry.id) === String(id) && entry.type === type
+      );
+      setIsInWatchlist(existsCurrentTitle);
+
+      window.dispatchEvent(new Event('storage'));
+    } catch (error) {
+      console.error('Similar bookmark toggle failed:', error);
     }
   };
 
@@ -1254,15 +1583,21 @@ export default function DetailPageContent({ id, type }) {
       const key = buildEpisodeKey(id, seasonNumber, episodeNumber);
       const updated = { ...currentMap };
 
+      const manualSet = readManualUnwatchedSet(userId, id);
+
       if (updated[key]) {
         delete updated[key];
+        manualSet.add(key);
       } else {
         updated[key] = true;
+        manualSet.delete(key);
       }
 
       await update(ref(db, `users/${userId}`), {
         watchedEpisodes: updated,
       });
+
+      writeManualUnwatchedSet(userId, id, manualSet);
     } catch (toggleError) {
       console.error('Failed to toggle episode:', toggleError);
     }
@@ -1274,6 +1609,7 @@ export default function DetailPageContent({ id, type }) {
     try {
       const currentMap = normalizeWatchedMap(watchedEpisodes);
       const updated = { ...currentMap };
+      const manualSet = readManualUnwatchedSet(userId, id);
 
       const allWatched = episodes.every((episode) =>
         updated[buildEpisodeKey(id, seasonNumber, episode.episode_number)]
@@ -1284,14 +1620,18 @@ export default function DetailPageContent({ id, type }) {
 
         if (allWatched) {
           delete updated[key];
+          manualSet.add(key);
         } else {
           updated[key] = true;
+          manualSet.delete(key);
         }
       });
 
       await update(ref(db, `users/${userId}`), {
         watchedEpisodes: updated,
       });
+
+      writeManualUnwatchedSet(userId, id, manualSet);
     } catch (toggleError) {
       console.error('Failed to toggle season:', toggleError);
     }
@@ -1455,40 +1795,18 @@ export default function DetailPageContent({ id, type }) {
                   </button>
                 )}
 
-                <button
-                  type="button"
+                <BookmarkIconButton
+                  active={isInWatchlist}
                   onClick={handleWatchlistToggle}
                   disabled={!userId}
-                  className={`flex h-11 items-center justify-center gap-2 rounded-md px-5 text-sm font-semibold text-white transition active:scale-95 ${
-                    isInWatchlist
-                      ? 'bg-red-600 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60'
-                      : 'bg-black/25 backdrop-blur-md hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40'
-                  } ${!userId ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
-                  title={!userId ? 'Sign in to use watchlist' : isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
-                >
-                  {isInWatchlist ? (
-                    <svg
-                      className="h-4 w-4 flex-shrink-0"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                    >
-                      <path d="M6 4h12a1 1 0 011 1v15l-7-4-7 4V5a1 1 0 011-1z" />
-                    </svg>
-                  ) : (
-                    <svg
-                      className="h-4 w-4 flex-shrink-0"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                    >
-                      <path d="M6 4h12a1 1 0 011 1v15l-7-4-7 4V5a1 1 0 011-1z" />
-                    </svg>
-                  )}
-                  {isInWatchlist ? 'In Watchlist' : 'Add to Watchlist'}
-                </button>
+                  title={
+                    !userId
+                      ? 'Sign in to use watchlist'
+                      : isInWatchlist
+                        ? 'Remove from watchlist'
+                        : 'Add to watchlist'
+                  }
+                />
               </div>
             </div>
           </div>
@@ -1551,7 +1869,12 @@ export default function DetailPageContent({ id, type }) {
         </section>
 
         <section className="mt-8">
-          <SimilarCarousel items={similarTitles} type={type} />
+          <SimilarCarousel
+            items={similarTitles}
+            type={type}
+            bookmarkedIds={bookmarkedIds}
+            onToggleBookmark={handleToggleSimilarBookmark}
+          />
         </section>
       </main>
 
