@@ -11,7 +11,6 @@ import {
   subscribeToMessages,
   subscribeToParty,
   subscribeToPlayback,
-  touchPartyMember,
 } from '@/lib/firebaseParty';
 
 export default function PartyControlModal({ open, onClose, onLeave, code }) {
@@ -253,6 +252,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
 
   useEffect(() => {
     if (!code) return;
+    if (!open && !chatOpen) return;
 
     const unsubParty = subscribeToParty(code, (party) => {
       setPartyState(party || null);
@@ -292,7 +292,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
       unsubMembers?.();
       unsubPlayback?.();
     };
-  }, [code]);
+  }, [code, open, chatOpen]);
 
   useEffect(() => {
     const hostId = String(partyState?.hostId || '');
@@ -305,18 +305,6 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
       }))
     );
   }, [partyState?.hostId]);
-
-  useEffect(() => {
-    if (!code || !userId) return;
-
-    touchPartyMember(code, userId);
-
-    const interval = setInterval(() => {
-      touchPartyMember(code, userId);
-    }, 15000);
-
-    return () => clearInterval(interval);
-  }, [code, userId]);
 
   useEffect(() => {
     if (!code) return;

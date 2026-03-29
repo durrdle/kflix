@@ -98,11 +98,24 @@ export default function Navbar() {
   };
 
   const persistCurrentPartyState = (code, active) => {
-    localStorage.setItem('kflix_current_party_code', code || '');
-    localStorage.setItem('kflix_in_party', active ? 'true' : 'false');
+    const nextCode = code || '';
+    const nextActive = Boolean(active);
+    const currentStoredCode = localStorage.getItem('kflix_current_party_code') || '';
+    const currentStoredActive = localStorage.getItem('kflix_in_party') === 'true';
 
-    if (active && code) {
-      localStorage.setItem('kflix_party_joined_at', String(Date.now()));
+    const changed =
+      currentStoredCode !== nextCode || currentStoredActive !== nextActive;
+
+    if (changed) {
+      localStorage.setItem('kflix_current_party_code', nextCode);
+      localStorage.setItem('kflix_in_party', nextActive ? 'true' : 'false');
+    }
+
+    if (nextActive && nextCode) {
+      if (!localStorage.getItem('kflix_party_joined_at')) {
+        localStorage.setItem('kflix_party_joined_at', String(Date.now()));
+      }
+
       if (!getPartyStayPromptAt()) {
         schedulePartyStayPrompt();
       }
@@ -114,11 +127,14 @@ export default function Navbar() {
       resetInitialPartyFollow();
     }
 
-    setPartyCode(code || '');
-    setInParty(active);
-    partyCodeRef.current = code || '';
-    inPartyRef.current = active;
-    dispatchPartyUpdate();
+    setPartyCode((prev) => (prev === nextCode ? prev : nextCode));
+    setInParty((prev) => (prev === nextActive ? prev : nextActive));
+    partyCodeRef.current = nextCode;
+    inPartyRef.current = nextActive;
+
+    if (changed) {
+      dispatchPartyUpdate();
+    }
   };
 
   useEffect(() => {
@@ -161,7 +177,6 @@ export default function Navbar() {
 
       hostIdRef.current = party.hostId || '';
       persistCurrentPartyState(partyCode, true);
-      touchPartyMember(partyCode, currentUserId);
     };
 
     onValue(partyRef, handlePartyValue);

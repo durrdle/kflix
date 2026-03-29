@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { get, ref, update } from 'firebase/database';
+import { get, onValue, ref, update } from 'firebase/database';
 import Navbar from '@/components/Navbar';
 import { db, setPartyMedia, subscribeToMembers } from '@/lib/firebaseParty';
 
@@ -351,7 +351,6 @@ function WatchPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const playerFrameRef = useRef(null);
-  const publishIntervalRef = useRef(null);
   const lastStatusRequestRef = useRef(0);
   const latestPlaybackRef = useRef({ currentTime: 0, isPlaying: true });
   const pendingInitialSyncRef = useRef(null);
@@ -361,6 +360,8 @@ function WatchPageContent() {
     episode: '',
     episodeName: '',
   });
+  const lastHandledRemotePlaybackRef = useRef('');
+  const suppressBroadcastUntilRef = useRef(0);
 
   const type = searchParams.get('type') || '';
   const id = searchParams.get('id') || '';
@@ -519,13 +520,15 @@ function WatchPageContent() {
     setShowAutoplayHint(shouldPlay);
   };
 
-  const applyPartyResyncToCurrentPlayer = ({ currentTime, isPlaying }) => {
+  const applyPartyCommandToCurrentPlayer = ({ currentTime, isPlaying }) => {
     const targetTime =
       typeof currentTime === 'number' && Number.isFinite(currentTime)
         ? Math.max(0, currentTime)
         : 0;
 
     const shouldPlay = Boolean(isPlaying);
+
+    suppressBroadcastUntilRef.current = Date.now() + 1200;
 
     const didSeek = sendPlayerCommand({
       command: 'seek',
@@ -542,7 +545,7 @@ function WatchPageContent() {
         command: shouldPlay ? 'play' : 'pause',
         time: targetTime,
       });
-    }, 150);
+    }, 120);
 
     setPlayerCurrentTime(targetTime);
     setPlayerIsPlaying(shouldPlay);
@@ -649,6 +652,10 @@ function WatchPageContent() {
       episodeName: type === 'tv' ? episodeData?.name || '' : '',
     };
   }, [type, season, episode, episodeData]);
+
+  useEffect(() => {
+    lastHandledRemotePlaybackRef.current = '';
+  }, [type, id, season, episode]);
 
   useEffect(() => {
     const nextStartTime = Number(initialTimeParam || 0);
@@ -796,7 +803,7 @@ function WatchPageContent() {
           isPlaying: true,
         };
 
-        if (isHost) {
+        if (isHost && Date.now() > suppressBroadcastUntilRef.current) {
           publishPlaybackState(currentTime, true, {
             season: liveSeason,
             episode: liveEpisode,
@@ -815,7 +822,7 @@ function WatchPageContent() {
           isPlaying: false,
         };
 
-        if (isHost) {
+        if (isHost && Date.now() > suppressBroadcastUntilRef.current) {
           publishPlaybackState(currentTime, false, {
             season: liveSeason,
             episode: liveEpisode,
@@ -833,7 +840,7 @@ function WatchPageContent() {
           isPlaying: latestPlaybackRef.current.isPlaying,
         };
 
-        if (isHost) {
+        if (isHost && Date.now() > suppressBroadcastUntilRef.current) {
           publishPlaybackState(currentTime, latestPlaybackRef.current.isPlaying, {
             season: liveSeason,
             episode: liveEpisode,
@@ -861,13 +868,6 @@ function WatchPageContent() {
           isPlaying: playing,
         };
 
-        if (isHost) {
-          publishPlaybackState(currentTime, playing, {
-            season: liveSeason,
-            episode: liveEpisode,
-          });
-        }
-
         queueSaveContinueWatching(currentTime, playing);
       }
     };
@@ -875,34 +875,6 @@ function WatchPageContent() {
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, [isHost, userId, type, id, season, episode, heroData, episodeData]);
-
-  useEffect(() => {
-    if (publishIntervalRef.current) {
-      clearInterval(publishIntervalRef.current);
-      publishIntervalRef.current = null;
-    }
-
-    if (!partyCode || !userId || !isHost || !playerReady) return;
-
-    publishIntervalRef.current = setInterval(() => {
-      requestPlayerStatus();
-      publishPlaybackState(
-        latestPlaybackRef.current.currentTime,
-        latestPlaybackRef.current.isPlaying,
-        {
-          season: liveTvProgressRef.current.season || season,
-          episode: liveTvProgressRef.current.episode || episode,
-        }
-      );
-    }, 2000);
-
-    return () => {
-      if (publishIntervalRef.current) {
-        clearInterval(publishIntervalRef.current);
-        publishIntervalRef.current = null;
-      }
-    };
-  }, [partyCode, userId, isHost, playerReady, type, id, season, episode]);
 
   useEffect(() => {
     if (!playerReady || !pendingInitialSyncRef.current) return;
@@ -967,7 +939,7 @@ function WatchPageContent() {
       }
 
       if (partyFollowEnabled) {
-        applyPartyResyncToCurrentPlayer({
+        applyPartyCommandToCurrentPlayer({
           currentTime: Number(detail.currentTime || 0),
           isPlaying: Boolean(detail.isPlaying),
         });
@@ -985,12 +957,72 @@ function WatchPageContent() {
   }, [router, type, id, season, episode, partyFollowEnabled]);
 
   useEffect(() => {
-    return () => {
-      if (publishIntervalRef.current) {
-        clearInterval(publishIntervalRef.current);
+    if (!partyCode || !userId || isHost || !partyFollowEnabled) return;
+
+    const playbackRef = ref(db, `parties/${partyCode}/playback`);
+
+    const unsubscribe = onValue(playbackRef, (snapshot) => {
+      if (!snapshot.exists()) return;
+
+      const media = snapshot.val() || {};
+      if (media.mediaType === 'live') return;
+
+      const mediaType = media.mediaType ? String(media.mediaType) : '';
+      const mediaId = media.mediaId ? String(media.mediaId) : '';
+      const mediaSeason =
+        media.season !== undefined && media.season !== null ? String(media.season) : '';
+      const mediaEpisode =
+        media.episode !== undefined && media.episode !== null ? String(media.episode) : '';
+      const mediaTime =
+        typeof media.currentTime === 'number' && Number.isFinite(media.currentTime)
+          ? Math.max(0, media.currentTime)
+          : 0;
+      const mediaPlaying = Boolean(media.isPlaying);
+
+      if (!mediaType || !mediaId) return;
+
+      const sameMedia =
+        mediaType === type &&
+        mediaId === String(id) &&
+        (mediaType !== 'tv' ||
+          (mediaSeason === String(season || '') &&
+            mediaEpisode === String(episode || '')));
+
+      if (!sameMedia) return;
+
+      const signature = [
+        mediaType,
+        mediaId,
+        mediaSeason,
+        mediaEpisode,
+        mediaPlaying ? '1' : '0',
+        Math.floor(mediaTime),
+        String(media.updatedAt || ''),
+      ].join('|');
+
+      if (signature === lastHandledRemotePlaybackRef.current) return;
+      lastHandledRemotePlaybackRef.current = signature;
+
+      if (!playerReady) {
+        pendingInitialSyncRef.current = {
+          currentTime: mediaTime,
+          isPlaying: mediaPlaying,
+        };
+
+        reloadPlayerToPosition({
+          currentTime: mediaTime,
+          isPlaying: mediaPlaying,
+        });
+      } else {
+        applyPartyCommandToCurrentPlayer({
+          currentTime: mediaTime,
+          isPlaying: mediaPlaying,
+        });
       }
-    };
-  }, []);
+    });
+
+    return () => unsubscribe();
+  }, [partyCode, userId, isHost, partyFollowEnabled, type, id, season, episode, playerReady]);
 
   useEffect(() => {
     return () => {
