@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import Navbar from '@/components/Navbar';
@@ -176,6 +176,11 @@ function LiveSportsPageContent() {
   const [error, setError] = useState('');
   const [activeSport, setActiveSport] = useState('live');
   const [notice, setNotice] = useState('');
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  const sportsScrollRef = useRef(null);
 
   const activeSportLabel = useMemo(() => {
     if (activeSport === 'live') return 'Live Now';
@@ -183,6 +188,10 @@ function LiveSportsPageContent() {
     const match = sports.find((sport) => sport.slug === activeSport);
     return match?.label || 'Live Now';
   }, [activeSport, sports]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const rawNotice = searchParams.get('notice') || '';
@@ -301,6 +310,39 @@ function LiveSportsPageContent() {
     };
   }, [activeSport]);
 
+  useEffect(() => {
+    const el = sportsScrollRef.current;
+    if (!el) {
+      setCanScrollLeft(false);
+      setCanScrollRight(false);
+      return;
+    }
+
+    const updateScrollButtons = () => {
+      setCanScrollLeft(el.scrollLeft > 4);
+      setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+    };
+
+    updateScrollButtons();
+    el.addEventListener('scroll', updateScrollButtons);
+    window.addEventListener('resize', updateScrollButtons);
+
+    return () => {
+      el.removeEventListener('scroll', updateScrollButtons);
+      window.removeEventListener('resize', updateScrollButtons);
+    };
+  }, [sports, activeSport]);
+
+  const scrollSports = (direction) => {
+    const el = sportsScrollRef.current;
+    if (!el) return;
+
+    el.scrollBy({
+      left: direction === 'left' ? -260 : 260,
+      behavior: 'smooth',
+    });
+  };
+
   return (
     <div className="min-h-screen bg-black text-white">
       <Navbar />
@@ -325,46 +367,91 @@ function LiveSportsPageContent() {
             </h1>
 
             <p className="mt-4 max-w-3xl text-sm leading-7 text-gray-200 md:text-base">
-              Anything from Football to Motor Sports & Fights.
+              Anything from Football to Motor Sports &amp; Fights.
             </p>
 
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setActiveSport('live')}
-                className={`rounded-md border px-4 py-2 text-sm font-semibold transition active:scale-95 ${
-                  activeSport === 'live'
-                    ? 'border-red-400 bg-red-600/15 text-red-300 shadow-[0_0_18px_rgba(239,68,68,0.18)]'
-                    : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
-                }`}
-              >
-                Live Now
-              </button>
-
-              {sports.map((sport) => {
-                const active = activeSport === sport.slug;
-
-                return (
-                  <button
-                    key={sport.id}
-                    type="button"
-                    onClick={() => setActiveSport(sport.slug)}
-                    className={`rounded-md border px-4 py-2 text-sm font-semibold transition active:scale-95 ${
-                      active
-                        ? 'border-red-400 bg-red-600/15 text-red-300 shadow-[0_0_18px_rgba(239,68,68,0.18)]'
-                        : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
-                    }`}
-                  >
-                    {sport.label}
-                  </button>
-                );
-              })}
-
-              {sportsLoading && (
-                <div className="rounded-md border border-white/10 bg-black/20 px-4 py-2 text-sm text-gray-400">
-                  Loading sports...
+            <div className="mt-8">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="text-sm font-semibold uppercase tracking-[0.18em] text-red-300">
+                  Categories
                 </div>
-              )}
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => scrollSports('left')}
+                    disabled={mounted ? !canScrollLeft : false}
+                    className={`flex h-10 w-10 items-center justify-center rounded-full border text-white transition ${
+                      mounted && canScrollLeft
+                        ? 'border-white/10 bg-black/25 hover:border-red-400/60 hover:text-red-300 hover:shadow-inner hover:shadow-red-500/40 active:scale-90'
+                        : 'cursor-not-allowed border-white/10 bg-black/10 text-gray-500 opacity-60'
+                    }`}
+                    aria-label="Scroll categories left"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path d="M15 6l-6 6 6 6" />
+                    </svg>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => scrollSports('right')}
+                    disabled={mounted ? !canScrollRight : false}
+                    className={`flex h-10 w-10 items-center justify-center rounded-full border text-white transition ${
+                      mounted && canScrollRight
+                        ? 'border-white/10 bg-black/25 hover:border-red-400/60 hover:text-red-300 hover:shadow-inner hover:shadow-red-500/40 active:scale-90'
+                        : 'cursor-not-allowed border-white/10 bg-black/10 text-gray-500 opacity-60'
+                    }`}
+                    aria-label="Scroll categories right"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path d="M9 6l6 6-6 6" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div
+                ref={sportsScrollRef}
+                className="flex gap-3 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+              >
+                <button
+                  type="button"
+                  onClick={() => setActiveSport('live')}
+                  className={`shrink-0 rounded-md border px-4 py-2 text-sm font-semibold transition active:scale-95 ${
+                    activeSport === 'live'
+                      ? 'border-red-400 bg-red-600/15 text-red-300 shadow-[0_0_18px_rgba(239,68,68,0.18)]'
+                      : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
+                  }`}
+                >
+                  Live Now
+                </button>
+
+                {sports.map((sport) => {
+                  const active = activeSport === sport.slug;
+
+                  return (
+                    <button
+                      key={sport.id}
+                      type="button"
+                      onClick={() => setActiveSport(sport.slug)}
+                      className={`shrink-0 rounded-md border px-4 py-2 text-sm font-semibold transition active:scale-95 ${
+                        active
+                          ? 'border-red-400 bg-red-600/15 text-red-300 shadow-[0_0_18px_rgba(239,68,68,0.18)]'
+                          : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
+                      }`}
+                    >
+                      {sport.label}
+                    </button>
+                  );
+                })}
+
+                {sportsLoading && (
+                  <div className="shrink-0 rounded-md border border-white/10 bg-black/20 px-4 py-2 text-sm text-gray-400">
+                    Loading sports...
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </section>

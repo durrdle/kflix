@@ -382,6 +382,8 @@ function WatchPageContent() {
 
   const [syncNotice, setSyncNotice] = useState('');
   const [showAutoplayHint, setShowAutoplayHint] = useState(false);
+  const [noticeOpen, setNoticeOpen] = useState(true);
+  const [autoplayUnlocked, setAutoplayUnlocked] = useState(false);
 
   const [userId, setUserId] = useState('');
   const [partyCode, setPartyCode] = useState('');
@@ -391,11 +393,11 @@ function WatchPageContent() {
   const [playerCurrentTime, setPlayerCurrentTime] = useState(
     Number.isFinite(initialStartTime) ? Math.max(0, initialStartTime) : 0
   );
-  const [playerIsPlaying, setPlayerIsPlaying] = useState(initialAutoplay);
+  const [playerIsPlaying, setPlayerIsPlaying] = useState(false);
 
   const [embedState, setEmbedState] = useState({
     startAt: Number.isFinite(initialStartTime) ? Math.max(0, initialStartTime) : 0,
-    autoPlay: initialAutoplay,
+    autoPlay: false,
   });
 
   const [iframeSeed, setIframeSeed] = useState(0);
@@ -665,14 +667,14 @@ function WatchPageContent() {
 
     setEmbedState({
       startAt: normalizedTime,
-      autoPlay: nextAutoplay,
+      autoPlay: false,
     });
 
     setPlayerCurrentTime(normalizedTime);
-    setPlayerIsPlaying(nextAutoplay);
+    setPlayerIsPlaying(false);
     latestPlaybackRef.current = {
       currentTime: normalizedTime,
-      isPlaying: nextAutoplay,
+      isPlaying: false,
     };
     pendingInitialSyncRef.current = {
       currentTime: normalizedTime,
@@ -877,7 +879,7 @@ function WatchPageContent() {
   }, [isHost, userId, type, id, season, episode, heroData, episodeData]);
 
   useEffect(() => {
-    if (!playerReady || !pendingInitialSyncRef.current) return;
+    if (!playerReady || !pendingInitialSyncRef.current || !autoplayUnlocked) return;
 
     const pending = pendingInitialSyncRef.current;
     pendingInitialSyncRef.current = null;
@@ -903,7 +905,7 @@ function WatchPageContent() {
     }, 700);
 
     return () => clearTimeout(timeout);
-  }, [playerReady, iframeKey]);
+  }, [playerReady, iframeKey, autoplayUnlocked]);
 
   useEffect(() => {
     const handlePartyResync = (event) => {
@@ -938,7 +940,7 @@ function WatchPageContent() {
         return;
       }
 
-      if (partyFollowEnabled) {
+      if (partyFollowEnabled && autoplayUnlocked) {
         applyPartyCommandToCurrentPlayer({
           currentTime: Number(detail.currentTime || 0),
           isPlaying: Boolean(detail.isPlaying),
@@ -954,7 +956,7 @@ function WatchPageContent() {
     return () => {
       window.removeEventListener('kflix-party-resync', handlePartyResync);
     };
-  }, [router, type, id, season, episode, partyFollowEnabled]);
+  }, [router, type, id, season, episode, partyFollowEnabled, autoplayUnlocked]);
 
   useEffect(() => {
     if (!partyCode || !userId || isHost || !partyFollowEnabled) return;
@@ -1003,6 +1005,27 @@ function WatchPageContent() {
       if (signature === lastHandledRemotePlaybackRef.current) return;
       lastHandledRemotePlaybackRef.current = signature;
 
+      if (!autoplayUnlocked) {
+        pendingInitialSyncRef.current = {
+          currentTime: mediaTime,
+          isPlaying: mediaPlaying,
+        };
+
+        setEmbedState({
+          startAt: Math.max(0, Math.floor(mediaTime)),
+          autoPlay: false,
+        });
+        setPlayerCurrentTime(Math.max(0, mediaTime));
+        setPlayerIsPlaying(false);
+        latestPlaybackRef.current = {
+          currentTime: Math.max(0, mediaTime),
+          isPlaying: false,
+        };
+        setPlayerReady(false);
+        setIframeSeed((prev) => prev + 1);
+        return;
+      }
+
       if (!playerReady) {
         pendingInitialSyncRef.current = {
           currentTime: mediaTime,
@@ -1022,7 +1045,7 @@ function WatchPageContent() {
     });
 
     return () => unsubscribe();
-  }, [partyCode, userId, isHost, partyFollowEnabled, type, id, season, episode, playerReady]);
+  }, [partyCode, userId, isHost, partyFollowEnabled, type, id, season, episode, playerReady, autoplayUnlocked]);
 
   useEffect(() => {
     return () => {
@@ -1032,10 +1055,51 @@ function WatchPageContent() {
     };
   }, []);
 
-  const handleCastHelp = () => {
-    window.alert(
-      'To cast to your TV, use the Chromecast icon inside the player when available. If you do not see it, use your browser’s Cast / Cast tab feature.'
-    );
+  useEffect(() => {
+    const handleEscape = (event) => {
+      if (event.key === 'Escape' && noticeOpen) {
+        setNoticeOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [noticeOpen]);
+
+  const handleNoticeUnderstood = () => {
+    setNoticeOpen(false);
+    setAutoplayUnlocked(true);
+
+    const shouldAutoplay = initialAutoplayParam ? initialAutoplayParam === '1' : true;
+    const targetTime = latestPlaybackRef.current.currentTime || 0;
+
+    const didPlay = sendPlayerCommand({
+      command: shouldAutoplay ? 'play' : 'pause',
+      time: targetTime,
+    });
+
+    if (!didPlay) {
+      setEmbedState({
+        startAt: targetTime,
+        autoPlay: shouldAutoplay,
+      });
+      setIframeSeed((prev) => prev + 1);
+    }
+
+    setPlayerIsPlaying(shouldAutoplay);
+    latestPlaybackRef.current = {
+      currentTime: targetTime,
+      isPlaying: shouldAutoplay,
+    };
+  };
+
+  const handleNoticeNotUnderstood = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push('/');
   };
 
   if (loading) {
@@ -1128,106 +1192,166 @@ function WatchPageContent() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-black text-white">
-      <Navbar />
+    <>
+      <div className="flex min-h-screen flex-col bg-black text-white">
+        <Navbar />
 
-      <main className="flex flex-1 items-center justify-center px-8 pb-4 pt-24">
-        <section className="w-full max-w-6xl">
-          {syncNotice && (
-            <div className="mb-4 rounded-xl border border-green-500/25 bg-green-500/10 px-4 py-3 text-sm text-green-200">
-              {syncNotice}
+        <main className="flex flex-1 items-center justify-center px-8 pb-4 pt-24">
+          <section className="w-full max-w-6xl">
+            {syncNotice && (
+              <div className="mb-4 rounded-xl border border-green-500/25 bg-green-500/10 px-4 py-3 text-sm text-green-200">
+                {syncNotice}
+              </div>
+            )}
+
+            {showAutoplayHint && (
+              <div className="mb-4 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-100">
+                Autoplay was requested. Playback will start after you confirm the notice.
+              </div>
+            )}
+
+            <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-3 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
+              <div className="overflow-hidden rounded-xl border-[1.5px] border-white/10 bg-black/20 shadow-[0_0_30px_rgba(239,68,68,0.16)]">
+                <div className="aspect-video w-full bg-black">
+                  {embedUrl ? (
+                    <iframe
+                      key={iframeKey}
+                      ref={playerFrameRef}
+                      src={embedUrl}
+                      title="KFlix Player"
+                      className="h-full w-full"
+                      allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write; web-share"
+                      allowFullScreen
+                      referrerPolicy="no-referrer"
+                      onLoad={() => {
+                        setPlayerReady(true);
+
+                        setTimeout(() => {
+                          requestPlayerStatus();
+
+                          if (isHost && partyCode) {
+                            publishPlaybackState(
+                              latestPlaybackRef.current.currentTime,
+                              latestPlaybackRef.current.isPlaying,
+                              {
+                                season: liveTvProgressRef.current.season || season,
+                                episode: liveTvProgressRef.current.episode || episode,
+                              }
+                            );
+                          }
+                        }, 700);
+                      }}
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center px-6 text-center text-sm text-gray-400">
+                      Unable to build a valid player URL for this media.
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          )}
+          </section>
+        </main>
 
-          {showAutoplayHint && (
-            <div className="mb-4 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-100">
-              Autoplay was requested. Some browsers may still require one click to start playback.
-            </div>
-          )}
+        <footer className="px-8 pb-8 pt-2 text-center text-sm text-gray-400">
+          <p>This website does not host or store any media on its servers.</p>
 
-          <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="rounded-xl border border-red-500/25 bg-red-600/10 px-4 py-3 text-sm text-red-100">
-              Chromecast is available through the player when supported. If you do not see the cast icon, use your browser’s Cast feature.
-            </div>
-
-            <button
-              type="button"
-              onClick={handleCastHelp}
-              className="flex h-10 items-center justify-center rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60"
-            >
-              Cast Help
-            </button>
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
+            <Link href="/Terms-and-Conditions" className="transition hover:text-red-400">
+              Terms and Conditions
+            </Link>
+            <span>•</span>
+            <Link href="/Privacy-Policy" className="transition hover:text-red-400">
+              Privacy Policy
+            </Link>
+            <span>•</span>
+            <Link href="/Feedback" className="transition hover:text-red-400">
+              Feedback
+            </Link>
+            <span>•</span>
+            <Link href="/Contact" className="transition hover:text-red-400">
+              Contact
+            </Link>
+            <span>•</span>
+            <Link href="/Help" className="transition hover:text-red-400">
+              Help
+            </Link>
           </div>
+        </footer>
+      </div>
 
-          <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-3 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <div className="overflow-hidden rounded-xl border-[1.5px] border-white/10 bg-black/20 shadow-[0_0_30px_rgba(239,68,68,0.16)]">
-              <div className="aspect-video w-full bg-black">
-                {embedUrl ? (
-                  <iframe
-                    key={iframeKey}
-                    ref={playerFrameRef}
-                    src={embedUrl}
-                    title="KFlix Player"
-                    className="h-full w-full"
-                    allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write; web-share"
-                    allowFullScreen
-                    referrerPolicy="no-referrer"
-                    onLoad={() => {
-                      setPlayerReady(true);
+      {noticeOpen && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-yellow-500/35 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
+            <div className="flex items-center justify-between border-b border-yellow-500/20 bg-yellow-500/10 px-5 py-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full border border-yellow-400/30 bg-yellow-500/15 text-yellow-200">
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M12 9v4" />
+                    <path d="M12 17h.01" />
+                    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                  </svg>
+                </div>
 
-                      setTimeout(() => {
-                        requestPlayerStatus();
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-yellow-300">
+                  Important Notice
+                </p>
+              </div>
+            </div>
 
-                        if (isHost && partyCode) {
-                          publishPlaybackState(
-                            latestPlaybackRef.current.currentTime,
-                            latestPlaybackRef.current.isPlaying,
-                            {
-                              season: liveTvProgressRef.current.season || season,
-                              episode: liveTvProgressRef.current.episode || episode,
-                            }
-                          );
-                        }
-                      }, 700);
-                    }}
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center px-6 text-center text-sm text-gray-400">
-                    Unable to build a valid player URL for this media.
-                  </div>
-                )}
+            <div className="space-y-5 px-5 py-5">
+              <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
+                <p className="text-sm font-semibold text-yellow-200">
+                  1.) Some servers may not be functioning properly, or may be experiencing issues.
+                </p>
+
+                <p className="mt-2 text-sm leading-7 text-gray-200">
+                  The sources are external (third party) and therefore not affected by KFlix.
+                </p>
+
+                <div className="mt-3 rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm text-gray-300">
+                  • If you receive a playback error, try other servers, or try using a VPN and reload the site.
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
+                <p className="text-sm font-semibold text-yellow-200">
+                  2.) Be aware, using an adblocker like uBlock Origin or similar is highly suggested.
+                </p>
+
+                <p className="mt-2 text-sm leading-7 text-gray-200">
+                  The embedded players might display pop-up ads or take you to a new site. KFlix is not affiliated with those ads.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={handleNoticeNotUnderstood}
+                  className="flex h-10 items-center justify-center rounded-md bg-black/25 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-yellow-400/20"
+                >
+                  I Don’t Understand
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleNoticeUnderstood}
+                  className="flex h-10 items-center justify-center rounded-md bg-yellow-500/80 px-5 text-sm font-semibold text-black transition active:scale-95 hover:bg-yellow-400"
+                >
+                  I Understand
+                </button>
               </div>
             </div>
           </div>
-        </section>
-      </main>
-
-      <footer className="px-8 pb-8 pt-2 text-center text-sm text-gray-400">
-        <p>This website does not host or store any media on its servers.</p>
-
-        <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
-          <Link href="/Terms-and-Conditions" className="transition hover:text-red-400">
-            Terms and Conditions
-          </Link>
-          <span>•</span>
-          <Link href="/Privacy-Policy" className="transition hover:text-red-400">
-            Privacy Policy
-          </Link>
-          <span>•</span>
-          <Link href="/Feedback" className="transition hover:text-red-400">
-            Feedback
-          </Link>
-          <span>•</span>
-          <Link href="/Contact" className="transition hover:text-red-400">
-            Contact
-          </Link>
-          <span>•</span>
-          <Link href="/Help" className="transition hover:text-red-400">
-            Help
-          </Link>
         </div>
-      </footer>
-    </div>
+      )}
+    </>
   );
 }
 

@@ -1,49 +1,90 @@
 import { NextResponse } from 'next/server';
 
-const STREAMED_API_BASE = 'https://streamed.pk/api';
+const STREAMED_BASE_URL = 'https://streamed.pk/api';
 
 export async function GET(request) {
-  const { searchParams } = new URL(request.url);
-
-  const endpoint = searchParams.get('endpoint') || 'matches/live';
-  const popular = searchParams.get('popular') === 'true';
-
-  const normalizedEndpoint = endpoint.replace(/^\/+/, '');
-  const finalUrl = `${STREAMED_API_BASE}/${normalizedEndpoint}${popular ? '/popular' : ''}`;
-
   try {
-    const res = await fetch(finalUrl, {
+    const { searchParams } = new URL(request.url);
+    const endpoint = searchParams.get('endpoint') || 'matches/live';
+
+    const cleanedEndpoint = String(endpoint)
+      .replace(/^\/+/, '')
+      .replace(/\.\./g, '');
+
+    const targetUrl = `${STREAMED_BASE_URL}/${cleanedEndpoint}`;
+
+    const response = await fetch(targetUrl, {
       method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
       cache: 'no-store',
+      headers: {
+        Accept: 'application/json, text/plain, */*',
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        Referer: 'https://streamed.pk/',
+        Origin: 'https://streamed.pk',
+      },
     });
 
-    if (!res.ok) {
+    const rawText = await response.text();
+    const trimmed = rawText.trim();
+
+    if (!trimmed) {
       return NextResponse.json(
         {
           ok: false,
-          error: `Upstream request failed with status ${res.status}`,
+          error: 'Live sports provider returned an empty response.',
         },
-        { status: res.status }
+        { status: 502 }
       );
     }
 
-    const data = await res.json();
+    let data = null;
+
+    try {
+      data = JSON.parse(trimmed);
+    } catch {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'Invalid response from live sports provider.',
+          debug: {
+            status: response.status,
+            contentType: response.headers.get('content-type') || '',
+            preview: trimmed.slice(0, 300),
+            url: targetUrl,
+          },
+        },
+        { status: 502 }
+      );
+    }
+
+    if (!response.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: data?.error || 'Failed to load live sports data.',
+          debug: {
+            status: response.status,
+            contentType: response.headers.get('content-type') || '',
+            url: targetUrl,
+          },
+        },
+        { status: response.status }
+      );
+    }
 
     return NextResponse.json({
       ok: true,
-      endpoint: normalizedEndpoint,
-      popular,
       data,
     });
   } catch (error) {
     return NextResponse.json(
       {
         ok: false,
-        error: 'Failed to fetch live sports data.',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Unable to reach live sports provider.',
       },
       { status: 500 }
     );

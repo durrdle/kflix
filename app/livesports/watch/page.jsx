@@ -1,13 +1,11 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import Navbar from '@/components/Navbar';
 import { setPartyMedia, subscribeToMembers } from '@/lib/firebaseParty';
-
-const FAILOVER_DELAY_MS = 5000;
 
 function normalizeEmbedUrl(url) {
   if (!url || typeof url !== 'string') return '';
@@ -72,34 +70,10 @@ function parseSourcesParam(value) {
   }
 }
 
-function getNextCandidate({
-  currentSourceIndex,
-  currentStreamIndex,
-  streamCount,
-  sourceCount,
-}) {
-  if (streamCount > 0 && currentStreamIndex < streamCount - 1) {
-    return {
-      nextSourceIndex: currentSourceIndex,
-      nextStreamIndex: currentStreamIndex + 1,
-    };
-  }
-
-  if (sourceCount > 0 && currentSourceIndex < sourceCount - 1) {
-    return {
-      nextSourceIndex: currentSourceIndex + 1,
-      nextStreamIndex: 0,
-    };
-  }
-
-  return null;
-}
-
 function LiveSportsWatchContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const titleParam = searchParams.get('title') || '';
   const sourcesParam = searchParams.get('sources') || '';
   const sourceIndexParam = Number(searchParams.get('sourceIndex') || 0);
   const streamIndexParam = Number(searchParams.get('streamIndex') || 0);
@@ -121,12 +95,8 @@ function LiveSportsWatchContent() {
   const [partyCode, setPartyCode] = useState('');
   const [members, setMembers] = useState([]);
   const [syncNotice, setSyncNotice] = useState('');
-  const [failoverNotice, setFailoverNotice] = useState('');
-  const [frameLoaded, setFrameLoaded] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
-
-  const failoverTimerRef = useRef(null);
-  const triedCandidatesRef = useRef(new Set());
+  const [noticeOpen, setNoticeOpen] = useState(true);
 
   const activeSource = useMemo(
     () => availableSources[activeSourceIndex] || null,
@@ -149,11 +119,6 @@ function LiveSportsWatchContent() {
     const normalized = normalizeEmbedUrl(activeStream?.embedUrl || '');
     return withAutoplay(normalized);
   }, [activeStream]);
-
-  const triedKey = useMemo(() => {
-    if (!activeSource) return '';
-    return `${String(activeSource.source)}:${String(activeSource.id)}:${activeStreamIndex}`;
-  }, [activeSource, activeStreamIndex]);
 
   useEffect(() => {
     const auth = getAuth();
@@ -216,7 +181,6 @@ function LiveSportsWatchContent() {
         setLoading(true);
         setError('');
         setStreams([]);
-        setFrameLoaded(false);
 
         const params = new URLSearchParams();
         params.set('source', String(activeSource.source).trim().toLowerCase());
@@ -229,7 +193,12 @@ function LiveSportsWatchContent() {
         const payload = await res.json();
 
         if (!res.ok || !payload?.ok) {
-          throw new Error(payload?.error || 'Failed to load streams for this server.');
+          const debugText = payload?.debug?.preview
+            ? ` (${payload.debug.preview})`
+            : '';
+          throw new Error(
+            (payload?.error || 'Failed to load streams for this server.') + debugText
+          );
         }
 
         const nextStreams = Array.isArray(payload?.data) ? payload.data : [];
@@ -303,8 +272,8 @@ function LiveSportsWatchContent() {
       sourceIndex: activeSourceIndex,
       streamIndex: activeStreamIndex,
       sourcesParam: encodedSources,
-    }).catch((partyError) => {
-      console.error('Failed to publish live sports party state:', partyError);
+    }).catch((error) => {
+      console.error('Failed to publish live sports party state:', error);
     });
   }, [
     partyCode,
@@ -330,79 +299,15 @@ function LiveSportsWatchContent() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!embedUrl || !activeSource || !streams.length) return;
-
-    setFrameLoaded(false);
-
-    if (failoverTimerRef.current) {
-      clearTimeout(failoverTimerRef.current);
-      failoverTimerRef.current = null;
-    }
-
-    failoverTimerRef.current = setTimeout(() => {
-      if (frameLoaded) return;
-
-      if (triedKey) {
-        triedCandidatesRef.current.add(triedKey);
-      }
-
-      const nextCandidate = getNextCandidate({
-        currentSourceIndex: activeSourceIndex,
-        currentStreamIndex: activeStreamIndex,
-        streamCount: streams.length,
-        sourceCount: availableSources.length,
-      });
-
-      if (!nextCandidate) {
-        const params = new URLSearchParams();
-        params.set('notice', 'no-working-server');
-        if (titleParam) {
-          params.set('title', titleParam);
-        }
-        router.replace(`/livesports?${params.toString()}`);
-        return;
-      }
-
-      setFailoverNotice(
-        `Trying ${buildSourceLabel(availableSources[nextCandidate.nextSourceIndex], nextCandidate.nextSourceIndex)} / Stream ${nextCandidate.nextStreamIndex + 1}...`
-      );
-
-      const params = new URLSearchParams(searchParams.toString());
-      params.set('sourceIndex', String(nextCandidate.nextSourceIndex));
-      params.set('streamIndex', String(nextCandidate.nextStreamIndex));
-
-      router.replace(`/livesports/watch?${params.toString()}`);
-    }, FAILOVER_DELAY_MS);
-
-    return () => {
-      if (failoverTimerRef.current) {
-        clearTimeout(failoverTimerRef.current);
-        failoverTimerRef.current = null;
+    const handleEscape = (event) => {
+      if (event.key === 'Escape' && noticeOpen) {
+        setNoticeOpen(false);
       }
     };
-  }, [
-    embedUrl,
-    frameLoaded,
-    activeSource,
-    activeSourceIndex,
-    activeStreamIndex,
-    streams,
-    availableSources,
-    router,
-    searchParams,
-    titleParam,
-    triedKey,
-  ]);
 
-  useEffect(() => {
-    if (!failoverNotice) return;
-
-    const timeout = setTimeout(() => {
-      setFailoverNotice('');
-    }, 3000);
-
-    return () => clearTimeout(timeout);
-  }, [failoverNotice]);
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [noticeOpen]);
 
   const handleSourceSelect = (index) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -417,10 +322,17 @@ function LiveSportsWatchContent() {
     router.replace(`/livesports/watch?${params.toString()}`);
   };
 
-  const handleCastHelp = () => {
-    window.alert(
-      'To cast to your TV, use your browser’s Cast / Cast tab feature if supported.'
-    );
+  const handleNoticeUnderstood = () => {
+    setNoticeOpen(false);
+  };
+
+  const handleNoticeNotUnderstood = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push('/livesports');
   };
 
   if (loading && !streams.length) {
@@ -463,83 +375,67 @@ function LiveSportsWatchContent() {
   }
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-black text-white">
-      <Navbar />
+    <>
+      <div className="flex h-screen flex-col overflow-hidden bg-black text-white">
+        <Navbar />
 
-      <main className="flex min-h-0 flex-1 flex-col px-6 pb-2 pt-24">
-        <section className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col">
-          {syncNotice && (
-            <div className="mb-3 rounded-xl border border-green-500/25 bg-green-500/10 px-4 py-3 text-sm text-green-200">
-              {syncNotice}
-            </div>
-          )}
-
-          {failoverNotice && (
-            <div className="mb-3 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-100">
-              {failoverNotice}
-            </div>
-          )}
-
-          <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-            <div className="flex-1">
-              <div className="mb-2 flex flex-wrap gap-2">
-                {availableSources.map((source, index) => {
-                  const active = index === activeSourceIndex;
-
-                  return (
-                    <button
-                      key={`${source.source || 'source'}-${source.id || index}`}
-                      type="button"
-                      onClick={() => handleSourceSelect(index)}
-                      className={`rounded-md border px-3 py-2 text-xs font-semibold transition active:scale-95 ${
-                        active
-                          ? 'border-red-400 bg-red-600/15 text-red-300 shadow-[0_0_18px_rgba(239,68,68,0.18)]'
-                          : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
-                      }`}
-                    >
-                      {buildSourceLabel(source, index)}
-                    </button>
-                  );
-                })}
+        <main className="flex min-h-0 flex-1 flex-col px-6 pb-2 pt-24">
+          <section className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col">
+            {syncNotice && (
+              <div className="mb-3 rounded-xl border border-green-500/25 bg-green-500/10 px-4 py-3 text-sm text-green-200">
+                {syncNotice}
               </div>
+            )}
 
-              <div className="flex flex-wrap gap-2">
-                {streams.map((stream, index) => {
-                  const active = index === activeStreamIndex;
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+              <div className="flex-1">
+                <div className="mb-2 flex flex-wrap gap-2">
+                  {availableSources.map((source, index) => {
+                    const active = index === activeSourceIndex;
 
-                  return (
-                    <button
-                      key={`${stream.id || index}-${stream.streamNo || index}`}
-                      type="button"
-                      onClick={() => handleStreamSelect(index)}
-                      className={`rounded-md border px-3 py-2 text-xs font-semibold transition active:scale-95 ${
-                        active
-                          ? 'border-red-400 bg-red-600/15 text-red-300 shadow-[0_0_18px_rgba(239,68,68,0.18)]'
-                          : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
-                      }`}
-                    >
-                      {buildStreamLabel(stream, index)}
-                    </button>
-                  );
-                })}
+                    return (
+                      <button
+                        key={`${source.source || 'source'}-${source.id || index}`}
+                        type="button"
+                        onClick={() => handleSourceSelect(index)}
+                        className={`rounded-md border px-3 py-2 text-xs font-semibold transition active:scale-95 ${
+                          active
+                            ? 'border-red-400 bg-red-600/15 text-red-300 shadow-[0_0_18px_rgba(239,68,68,0.18)]'
+                            : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
+                        }`}
+                      >
+                        {buildSourceLabel(source, index)}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {streams.map((stream, index) => {
+                    const active = index === activeStreamIndex;
+
+                    return (
+                      <button
+                        key={`${stream.id || index}-${stream.streamNo || index}`}
+                        type="button"
+                        onClick={() => handleStreamSelect(index)}
+                        className={`rounded-md border px-3 py-2 text-xs font-semibold transition active:scale-95 ${
+                          active
+                            ? 'border-red-400 bg-red-600/15 text-red-300 shadow-[0_0_18px_rgba(239,68,68,0.18)]'
+                            : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
+                        }`}
+                      >
+                        {buildStreamLabel(stream, index)}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleCastHelp}
-                className="flex h-10 items-center justify-center rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60"
-              >
-                Cast Help
-              </button>
-            </div>
-          </div>
-
-          <div className="flex min-h-0 flex-1 overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-3 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border-[1.5px] border-white/10 bg-black/20 shadow-[0_0_30px_rgba(239,68,68,0.16)]">
-              <div className="aspect-video w-full self-center bg-black">
-                {embedUrl ? (
+            <div className="relative flex min-h-0 flex-1 overflow-visible rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-3 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
+              <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border-[1.5px] border-white/10 bg-black/20 shadow-[0_0_30px_rgba(239,68,68,0.16)]">
+                <div className="relative z-10 aspect-video w-full self-center bg-black">
                   <iframe
                     key={`${embedUrl}-${iframeKey}`}
                     src={embedUrl}
@@ -547,24 +443,88 @@ function LiveSportsWatchContent() {
                     className="h-full w-full"
                     allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write; web-share"
                     allowFullScreen
-                    onLoad={() => {
-                      setFrameLoaded(true);
-                      setFailoverNotice('');
-                    }}
                   />
-                ) : (
-                  <div className="flex h-full items-center justify-center px-6 text-center text-sm text-gray-400">
-                    No active embedded stream available.
-                  </div>
-                )}
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+
+        <Footer />
+      </div>
+
+      {noticeOpen && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-yellow-500/35 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
+            <div className="flex items-center justify-between border-b border-yellow-500/20 bg-yellow-500/10 px-5 py-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full border border-yellow-400/30 bg-yellow-500/15 text-yellow-200">
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M12 9v4" />
+                    <path d="M12 17h.01" />
+                    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                  </svg>
+                </div>
+
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-yellow-300">
+                  Important Notice
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-5 px-5 py-5">
+              <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
+                <p className="text-sm font-semibold text-yellow-200">
+                  1.) Some servers may not be functioning properly, or may be experiencing issues.
+                </p>
+
+                <p className="mt-2 text-sm leading-7 text-gray-200">
+                  The sources are external (third party) and therefore not affected by KFlix.
+                </p>
+
+                <div className="mt-3 rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm text-gray-300">
+                  • If you receive a playback error, try other servers, or try using a VPN and reload the site.
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
+                <p className="text-sm font-semibold text-yellow-200">
+                  2.) Be aware, using an adblocker like uBlock Origin or similar is highly suggested.
+                </p>
+
+                <p className="mt-2 text-sm leading-7 text-gray-200">
+                  The embedded players might display pop-up ads or take you to a new site. KFlix is not affiliated with those ads.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={handleNoticeNotUnderstood}
+                  className="flex h-10 items-center justify-center rounded-md bg-black/25 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-yellow-400/20"
+                >
+                  I Don’t Understand
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleNoticeUnderstood}
+                  className="flex h-10 items-center justify-center rounded-md bg-yellow-500/80 px-5 text-sm font-semibold text-black transition active:scale-95 hover:bg-yellow-400"
+                >
+                  I Understand
+                </button>
               </div>
             </div>
           </div>
-        </section>
-      </main>
-
-      <Footer />
-    </div>
+        </div>
+      )}
+    </>
   );
 }
 
