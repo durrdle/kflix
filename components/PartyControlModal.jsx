@@ -102,15 +102,11 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
         params.set('sources', playbackState.sourcesParam);
       }
 
-      if (Number.isFinite(Number(playbackState.sourceIndex))) {
-        params.set('sourceIndex', String(playbackState.sourceIndex));
-      }
+      params.set('sourceIndex', String(playbackState.sourceIndex ?? 0));
+      params.set('streamIndex', String(playbackState.streamIndex ?? 0));
+      params.set('partyFollow', '1');
 
-      if (Number.isFinite(Number(playbackState.streamIndex))) {
-        params.set('streamIndex', String(playbackState.streamIndex));
-      }
-
-      return `/livesports/watch${params.toString() ? `?${params.toString()}` : ''}`;
+      return `/livesports/watch?${params.toString()}`;
     }
 
     if (!playbackState?.mediaId) return null;
@@ -128,6 +124,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
     params.set('id', mediaId);
     params.set('t', String(currentTime));
     params.set('autoplay', autoplay);
+    params.set('partyFollow', '1');
 
     if (mediaType === 'tv') {
       if (playbackState.season != null && playbackState.season !== '') {
@@ -214,29 +211,29 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
       return;
     }
 
-    const eventDetail = {
-      mediaType: playbackState.mediaType || '',
-      mediaId: playbackState.mediaId || '',
-      season: playbackState.season ?? '',
-      episode: playbackState.episode ?? '',
-      currentTime:
-        typeof playbackState.currentTime === 'number'
-          ? playbackState.currentTime
-          : 0,
-      isPlaying: Boolean(playbackState.isPlaying),
-      syncRequestedAt: partyState?.syncRequestedAt || Date.now(),
-    };
+    const currentUrl = `${window.location.pathname}${window.location.search}`;
+
+    if (currentUrl !== targetUrl) {
+      router.replace(targetUrl);
+      return;
+    }
 
     window.dispatchEvent(
       new CustomEvent('kflix-party-resync', {
-        detail: eventDetail,
+        detail: {
+          mediaType: playbackState.mediaType || '',
+          mediaId: playbackState.mediaId || '',
+          season: playbackState.season ?? '',
+          episode: playbackState.episode ?? '',
+          currentTime:
+            typeof playbackState.currentTime === 'number'
+              ? playbackState.currentTime
+              : 0,
+          isPlaying: Boolean(playbackState.isPlaying),
+          syncRequestedAt: Date.now(),
+        },
       })
     );
-
-    const currentUrl = `${window.location.pathname}${window.location.search}`;
-    if (currentUrl !== targetUrl) {
-      router.replace(targetUrl);
-    }
   };
 
   useEffect(() => {
@@ -296,6 +293,18 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
       unsubPlayback?.();
     };
   }, [code]);
+
+  useEffect(() => {
+    const hostId = String(partyState?.hostId || '');
+    if (!hostId) return;
+
+    setMembers((prev) =>
+      prev.map((member) => ({
+        ...member,
+        isHost: String(member.id) === hostId,
+      }))
+    );
+  }, [partyState?.hostId]);
 
   useEffect(() => {
     if (!code || !userId) return;
@@ -363,9 +372,10 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
 
     try {
       setResyncing(true);
-      await requestResync(code, userId);
       applyHostPlaybackNow();
       setSyncStatus('Recently Resynced');
+
+      await requestResync(code, userId);
 
       setTimeout(() => {
         setResyncing(false);

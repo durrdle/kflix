@@ -1,9 +1,12 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { onValue, ref } from 'firebase/database';
 import Navbar from '@/components/Navbar';
+import { db, setPartyMedia, subscribeToMembers } from '@/lib/firebaseParty';
 
 function normalizeEmbedUrl(url) {
   if (!url || typeof url !== 'string') return '';
@@ -52,9 +55,14 @@ function parseSourcesParam(value) {
 }
 
 function LiveSportsWatchContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
 
   const sourcesParam = searchParams.get('sources') || '';
+  const sourceIndexParam = Number(searchParams.get('sourceIndex') || 0);
+  const streamIndexParam = Number(searchParams.get('streamIndex') || 0);
+  const partyFollowParam = searchParams.get('partyFollow') || '';
+  const partyFollowEnabled = partyFollowParam === '1';
 
   const availableSources = useMemo(
     () =>
@@ -69,6 +77,12 @@ function LiveSportsWatchContent() {
   const [activeSourceIndex, setActiveSourceIndex] = useState(0);
   const [streams, setStreams] = useState([]);
   const [activeStreamIndex, setActiveStreamIndex] = useState(0);
+  const [userId, setUserId] = useState('');
+  const [partyCode, setPartyCode] = useState('');
+  const [members, setMembers] = useState([]);
+  const [syncNotice, setSyncNotice] = useState('');
+
+  const lastRemoteSignatureRef = useRef('');
 
   const activeSource = useMemo(
     () => availableSources[activeSourceIndex] || null,
@@ -80,10 +94,58 @@ function LiveSportsWatchContent() {
     [streams, activeStreamIndex]
   );
 
+  const currentMember = useMemo(
+    () => members.find((member) => String(member.id) === String(userId)) || null,
+    [members, userId]
+  );
+
+  const isHost = Boolean(currentMember?.isHost);
+
   const embedUrl = useMemo(
     () => normalizeEmbedUrl(activeStream?.embedUrl || ''),
     [activeStream]
   );
+
+  useEffect(() => {
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUserId(user?.uid || '');
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    try {
+      const storedCode = localStorage.getItem('kflix_current_party_code') || '';
+      const isActive = localStorage.getItem('kflix_in_party') === 'true';
+      setPartyCode(isActive ? storedCode : '');
+    } catch {
+      setPartyCode('');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!partyCode) {
+      setMembers([]);
+      return;
+    }
+
+    const unsubscribe = subscribeToMembers(partyCode, (nextMembers) => {
+      setMembers(nextMembers || []);
+    });
+
+    return () => unsubscribe?.();
+  }, [partyCode]);
+
+  useEffect(() => {
+    if (availableSources.length) {
+      const safeSourceIndex =
+        sourceIndexParam >= 0 && sourceIndexParam < availableSources.length
+          ? sourceIndexParam
+          : 0;
+      setActiveSourceIndex(safeSourceIndex);
+    }
+  }, [availableSources, sourceIndexParam]);
 
   useEffect(() => {
     if (!availableSources.length) {
@@ -135,7 +197,6 @@ function LiveSportsWatchContent() {
 
         if (!cancelled) {
           setStreams(normalizedStreams);
-          setActiveStreamIndex(0);
         }
       } catch (err) {
         if (!cancelled) {
@@ -157,6 +218,91 @@ function LiveSportsWatchContent() {
       cancelled = true;
     };
   }, [availableSources, activeSource]);
+
+  useEffect(() => {
+    if (streams.length) {
+      const safeStreamIndex =
+        streamIndexParam >= 0 && streamIndexParam < streams.length
+          ? streamIndexParam
+          : 0;
+      setActiveStreamIndex(safeStreamIndex);
+    }
+  }, [streams, streamIndexParam]);
+
+  useEffect(() => {
+    if (!partyCode || !userId || !isHost || !activeSource || !activeStream) return;
+
+    const encodedSources = encodeURIComponent(JSON.stringify(availableSources));
+
+    setPartyMedia(partyCode, {
+      mediaType: 'live',
+      mediaId: `${activeSource.source}:${activeSource.id}`,
+      currentTime: 0,
+      isPlaying: true,
+      updatedBy: userId,
+      route: '/livesports/watch',
+      sourceIndex: activeSourceIndex,
+      streamIndex: activeStreamIndex,
+      sourcesParam: encodedSources,
+    }).catch((error) => {
+      console.error('Failed to publish live sports party state:', error);
+    });
+  }, [
+    partyCode,
+    userId,
+    isHost,
+    activeSource,
+    activeStream,
+    availableSources,
+    activeSourceIndex,
+    activeStreamIndex,
+  ]);
+
+  useEffect(() => {
+    if (!partyCode || !userId || isHost || !partyFollowEnabled) return;
+
+    const playbackRef = ref(db, `parties/${partyCode}/playback`);
+
+    const unsubscribe = onValue(playbackRef, (snapshot) => {
+      if (!snapshot.exists()) return;
+
+      const playback = snapshot.val() || {};
+      if (playback.mediaType !== 'live') return;
+
+      const signature = [
+        String(playback.mediaType || ''),
+        String(playback.mediaId || ''),
+        String(playback.sourceIndex ?? 0),
+        String(playback.streamIndex ?? 0),
+        String(playback.updatedAt || ''),
+      ].join('|');
+
+      if (signature === lastRemoteSignatureRef.current) return;
+      lastRemoteSignatureRef.current = signature;
+
+      const params = new URLSearchParams();
+      if (playback.sourcesParam) {
+        params.set('sources', playback.sourcesParam);
+      }
+      params.set('sourceIndex', String(playback.sourceIndex ?? 0));
+      params.set('streamIndex', String(playback.streamIndex ?? 0));
+      params.set('partyFollow', '1');
+
+      const targetUrl = `/livesports/watch?${params.toString()}`;
+      const currentUrl = `${window.location.pathname}${window.location.search}`;
+
+      if (currentUrl !== targetUrl) {
+        router.replace(targetUrl);
+      }
+
+      setSyncNotice('Synced to host live event.');
+      setTimeout(() => {
+        setSyncNotice('');
+      }, 2500);
+    });
+
+    return () => unsubscribe();
+  }, [partyCode, userId, isHost, partyFollowEnabled, router]);
 
   const handleCastHelp = () => {
     window.alert(
@@ -209,6 +355,12 @@ function LiveSportsWatchContent() {
 
       <main className="flex min-h-0 flex-1 flex-col px-6 pt-24 pb-2">
         <section className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col">
+          {syncNotice && (
+            <div className="mb-3 rounded-xl border border-green-500/25 bg-green-500/10 px-4 py-3 text-sm text-green-200">
+              {syncNotice}
+            </div>
+          )}
+
           <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
             <div className="flex-1">
               <div className="mb-2 flex flex-wrap gap-2">

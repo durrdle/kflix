@@ -15,7 +15,6 @@ import {
   getPartyStayPromptAt,
   joinParty,
   leaveParty,
-  leavePartyOnUnload,
   schedulePartyStayPrompt,
   touchPartyMember,
 } from '@/lib/firebaseParty';
@@ -69,6 +68,22 @@ export default function Navbar() {
   const isHomePage = pathname === '/';
   const isWatchPage = pathname === '/watch';
 
+  const armInitialPartyFollow = () => {
+    localStorage.setItem('kflix_party_auto_follow_armed', 'true');
+  };
+
+  const consumeInitialPartyFollow = () => {
+    const armed = localStorage.getItem('kflix_party_auto_follow_armed') === 'true';
+    if (armed) {
+      localStorage.setItem('kflix_party_auto_follow_armed', 'false');
+    }
+    return armed;
+  };
+
+  const resetInitialPartyFollow = () => {
+    localStorage.setItem('kflix_party_auto_follow_armed', 'false');
+  };
+
   const syncPartyStateFromStorage = () => {
     const savedCode = localStorage.getItem('kflix_current_party_code') || '';
     const savedInParty = localStorage.getItem('kflix_in_party') === 'true';
@@ -96,6 +111,7 @@ export default function Navbar() {
       clearPartyStayPrompt();
       setStayPromptOpen(false);
       hostIdRef.current = '';
+      resetInitialPartyFollow();
     }
 
     setPartyCode(code || '');
@@ -229,44 +245,6 @@ export default function Navbar() {
   }, [inParty, partyCode]);
 
   useEffect(() => {
-    const auth = getAuth(app);
-
-    const handleBeforeUnload = () => {
-      const currentUserId = auth.currentUser?.uid;
-      if (!currentUserId || !inPartyRef.current || !partyCodeRef.current) return;
-
-      const isHost = hostIdRef.current === currentUserId;
-
-      try {
-        leavePartyOnUnload(partyCodeRef.current, currentUserId, isHost);
-      } catch {
-        // best effort
-      }
-
-      try {
-        localStorage.removeItem('kflix_current_party_code');
-        localStorage.removeItem('kflix_in_party');
-        localStorage.removeItem('kflix_party_joined_at');
-        clearPartyStayPrompt();
-      } catch {
-        // ignore
-      }
-
-      try {
-        signOut(auth);
-      } catch {
-        // best effort
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, []);
-
-  useEffect(() => {
     const auth = getAuth();
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -299,6 +277,60 @@ export default function Navbar() {
 
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!partyCode || !inParty) return;
+
+    const currentUserId = getAuth().currentUser?.uid;
+    if (!currentUserId) return;
+    if (String(hostIdRef.current || '') === String(currentUserId)) return;
+
+    if (!consumeInitialPartyFollow()) return;
+
+    const playbackRef = ref(db, `parties/${partyCode}/playback`);
+
+    const unsubscribe = onValue(playbackRef, (snapshot) => {
+      if (!snapshot.exists()) return;
+
+      const playback = snapshot.val() || {};
+      const mediaType = String(playback.mediaType || '');
+      if (!mediaType) return;
+
+      if (mediaType === 'live') {
+        const params = new URLSearchParams();
+        if (playback.sourcesParam) params.set('sources', playback.sourcesParam);
+        params.set('sourceIndex', String(playback.sourceIndex ?? 0));
+        params.set('streamIndex', String(playback.streamIndex ?? 0));
+        params.set('partyFollow', '1');
+
+        router.replace(`/livesports/watch?${params.toString()}`);
+        return;
+      }
+
+      const mediaId = String(playback.mediaId || '');
+      if (!mediaId) return;
+
+      const params = new URLSearchParams();
+      params.set('type', mediaType);
+      params.set('id', mediaId);
+      params.set('t', String(Math.max(0, Math.floor(Number(playback.currentTime || 0)))));
+      params.set('autoplay', playback.isPlaying ? '1' : '0');
+      params.set('partyFollow', '1');
+
+      if (mediaType === 'tv') {
+        if (playback.season !== undefined && playback.season !== null && String(playback.season) !== '') {
+          params.set('season', String(playback.season));
+        }
+        if (playback.episode !== undefined && playback.episode !== null && String(playback.episode) !== '') {
+          params.set('episode', String(playback.episode));
+        }
+      }
+
+      router.replace(`/watch?${params.toString()}`);
+    });
+
+    return () => unsubscribe();
+  }, [partyCode, inParty, router]);
 
   useEffect(() => {
     if (isSearchPage) {
@@ -489,9 +521,10 @@ export default function Navbar() {
     try {
       const currentUserId = getAuth().currentUser?.uid;
       if (!currentUserId) return;
-      await joinParty(code, currentUserId);
 
+      await joinParty(code, currentUserId);
       schedulePartyStayPrompt();
+      armInitialPartyFollow();
       persistCurrentPartyState(code, true);
       setPartyOpen(false);
     } catch (err) {
@@ -501,6 +534,7 @@ export default function Navbar() {
 
   const handleCreateParty = async (code) => {
     schedulePartyStayPrompt();
+    resetInitialPartyFollow();
     persistCurrentPartyState(code, true);
     setPartyOpen(false);
   };
@@ -511,13 +545,14 @@ export default function Navbar() {
       if (!currentUserId || !partyCode) return;
 
       await leaveParty(partyCode, currentUserId);
-
       clearPartyStayPrompt();
+      resetInitialPartyFollow();
       persistCurrentPartyState('', false);
       setPartyControlsOpen(false);
     } catch (error) {
       console.error('Failed to leave party:', error);
       clearPartyStayPrompt();
+      resetInitialPartyFollow();
       persistCurrentPartyState('', false);
       setPartyControlsOpen(false);
     }
@@ -541,6 +576,7 @@ export default function Navbar() {
   const handleSignOut = async () => {
     try {
       setSigningOut(true);
+
       const auth = getAuth(app);
       const currentUserId = auth.currentUser?.uid;
 
@@ -549,6 +585,7 @@ export default function Navbar() {
       }
 
       clearPartyStayPrompt();
+      resetInitialPartyFollow();
       persistCurrentPartyState('', false);
 
       await signOut(auth);
@@ -941,6 +978,7 @@ export default function Navbar() {
               <button
                 onClick={() => setBrowseOpen(!browseOpen)}
                 className="flex h-9 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60"
+                type="button"
               >
                 Browse
                 <svg className={`h-4 w-4 transition ${browseOpen ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -1019,6 +1057,7 @@ export default function Navbar() {
                 ? 'bg-red-600 shadow-[0_0_14px_rgba(255,0,0,0.8)] hover:shadow-[0_0_18px_rgba(255,0,0,0.95)]'
                 : 'bg-red-600 hover:shadow-inner hover:shadow-red-500/60'
             }`}
+            type="button"
           >
             Party
             <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -1036,6 +1075,7 @@ export default function Navbar() {
               className={`flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition active:scale-95 ${
                 signingOut ? 'cursor-not-allowed bg-red-600/70' : 'bg-red-600 hover:shadow-inner hover:shadow-red-500/60'
               }`}
+              type="button"
             >
               {signingOut ? 'Signing Out...' : 'Sign Out'}
               <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -1090,6 +1130,7 @@ export default function Navbar() {
                 <button
                   onClick={handleStayInParty}
                   className="flex h-10 flex-1 items-center justify-center rounded-lg bg-red-600 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60"
+                  type="button"
                 >
                   Stay
                 </button>
@@ -1097,6 +1138,7 @@ export default function Navbar() {
                 <button
                   onClick={handleLeaveFromPrompt}
                   className="flex h-10 flex-1 items-center justify-center rounded-lg bg-black/25 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
+                  type="button"
                 >
                   Leave Party
                 </button>

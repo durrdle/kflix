@@ -340,7 +340,7 @@ async function saveContinueWatchingItem({
         [firebaseKey]: item,
       });
     } catch (firebaseError) {
-        console.error('Failed to sync continue watching to Firebase:', firebaseError);
+      console.error('Failed to sync continue watching to Firebase:', firebaseError);
     }
   } catch (error) {
     console.error('Failed to save continue watching:', error);
@@ -369,6 +369,8 @@ function WatchPageContent() {
   const episode = searchParams.get('episode') || '';
   const initialTimeParam = searchParams.get('t') || '';
   const initialAutoplayParam = searchParams.get('autoplay') || '';
+  const partyFollowParam = searchParams.get('partyFollow') || '';
+  const partyFollowEnabled = partyFollowParam === '1';
 
   const initialStartTime = Number(initialTimeParam || 0);
   const initialAutoplay = initialAutoplayParam ? initialAutoplayParam === '1' : true;
@@ -954,6 +956,7 @@ function WatchPageContent() {
         params.set('id', String(detail.mediaId));
         params.set('t', String(Math.max(0, Math.floor(Number(detail.currentTime || 0)))));
         params.set('autoplay', detail.isPlaying ? '1' : '0');
+        params.set('partyFollow', '1');
 
         if (detail.mediaType === 'tv') {
           if (detail.season !== undefined && detail.season !== null && String(detail.season) !== '') {
@@ -985,7 +988,7 @@ function WatchPageContent() {
   }, [router, type, id, season, episode]);
 
   useEffect(() => {
-    if (!partyCode || !userId || isHost) return;
+    if (!partyCode || !userId || isHost || !partyFollowEnabled) return;
 
     const playbackRef = ref(db, `parties/${partyCode}/playback`);
 
@@ -1035,6 +1038,7 @@ function WatchPageContent() {
         params.set('id', mediaId);
         params.set('t', String(Math.floor(mediaTime)));
         params.set('autoplay', mediaPlaying ? '1' : '0');
+        params.set('partyFollow', '1');
 
         if (mediaType === 'tv') {
           if (mediaSeason) params.set('season', mediaSeason);
@@ -1069,7 +1073,7 @@ function WatchPageContent() {
     });
 
     return () => unsubscribe();
-  }, [partyCode, userId, isHost, router, type, id, season, episode, playerReady]);
+  }, [partyCode, userId, isHost, partyFollowEnabled, router, type, id, season, episode, playerReady]);
 
   useEffect(() => {
     return () => {
