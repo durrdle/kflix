@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 
 const LIVE_SPORTS_PLACEHOLDER = '/images/livesports-placeholder.webp';
@@ -166,12 +167,15 @@ function normalizeSportItem(item, index) {
 }
 
 function LiveSportsPageContent() {
+  const searchParams = useSearchParams();
+
   const [loading, setLoading] = useState(true);
   const [sportsLoading, setSportsLoading] = useState(true);
   const [matches, setMatches] = useState([]);
   const [sports, setSports] = useState([]);
   const [error, setError] = useState('');
   const [activeSport, setActiveSport] = useState('live');
+  const [notice, setNotice] = useState('');
 
   const activeSportLabel = useMemo(() => {
     if (activeSport === 'live') return 'Live Now';
@@ -179,6 +183,32 @@ function LiveSportsPageContent() {
     const match = sports.find((sport) => sport.slug === activeSport);
     return match?.label || 'Live Now';
   }, [activeSport, sports]);
+
+  useEffect(() => {
+    const rawNotice = searchParams.get('notice') || '';
+    const title = searchParams.get('title') || '';
+
+    if (rawNotice === 'no-working-server') {
+      setNotice(
+        title
+          ? `No working server was found for "${title}".`
+          : 'No working server was found for that live event.'
+      );
+      return;
+    }
+
+    setNotice('');
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!notice) return;
+
+    const timeout = setTimeout(() => {
+      setNotice('');
+    }, 5000);
+
+    return () => clearTimeout(timeout);
+  }, [notice]);
 
   useEffect(() => {
     let cancelled = false;
@@ -276,6 +306,12 @@ function LiveSportsPageContent() {
       <Navbar />
 
       <main className="px-8 pb-10 pt-24">
+        {notice && (
+          <div className="mb-6 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-100">
+            {notice}
+          </div>
+        )}
+
         <section className="relative overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(239,68,68,0.16),transparent_36%)]" />
 

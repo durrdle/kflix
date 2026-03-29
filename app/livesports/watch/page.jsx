@@ -1,11 +1,13 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import Navbar from '@/components/Navbar';
 import { setPartyMedia, subscribeToMembers } from '@/lib/firebaseParty';
+
+const FAILOVER_DELAY_MS = 5000;
 
 function normalizeEmbedUrl(url) {
   if (!url || typeof url !== 'string') return '';
@@ -19,6 +21,23 @@ function normalizeEmbedUrl(url) {
   }
 
   return url;
+}
+
+function withAutoplay(url) {
+  if (!url) return '';
+
+  try {
+    const parsed = new URL(url);
+    if (!parsed.searchParams.has('autoplay')) {
+      parsed.searchParams.set('autoplay', '1');
+    }
+    if (!parsed.searchParams.has('autoPlay')) {
+      parsed.searchParams.set('autoPlay', 'true');
+    }
+    return parsed.toString();
+  } catch {
+    return url;
+  }
 }
 
 function buildSourceLabel(source, index) {
@@ -53,10 +72,34 @@ function parseSourcesParam(value) {
   }
 }
 
+function getNextCandidate({
+  currentSourceIndex,
+  currentStreamIndex,
+  streamCount,
+  sourceCount,
+}) {
+  if (streamCount > 0 && currentStreamIndex < streamCount - 1) {
+    return {
+      nextSourceIndex: currentSourceIndex,
+      nextStreamIndex: currentStreamIndex + 1,
+    };
+  }
+
+  if (sourceCount > 0 && currentSourceIndex < sourceCount - 1) {
+    return {
+      nextSourceIndex: currentSourceIndex + 1,
+      nextStreamIndex: 0,
+    };
+  }
+
+  return null;
+}
+
 function LiveSportsWatchContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const titleParam = searchParams.get('title') || '';
   const sourcesParam = searchParams.get('sources') || '';
   const sourceIndexParam = Number(searchParams.get('sourceIndex') || 0);
   const streamIndexParam = Number(searchParams.get('streamIndex') || 0);
@@ -78,6 +121,12 @@ function LiveSportsWatchContent() {
   const [partyCode, setPartyCode] = useState('');
   const [members, setMembers] = useState([]);
   const [syncNotice, setSyncNotice] = useState('');
+  const [failoverNotice, setFailoverNotice] = useState('');
+  const [frameLoaded, setFrameLoaded] = useState(false);
+  const [iframeKey, setIframeKey] = useState(0);
+
+  const failoverTimerRef = useRef(null);
+  const triedCandidatesRef = useRef(new Set());
 
   const activeSource = useMemo(
     () => availableSources[activeSourceIndex] || null,
@@ -96,10 +145,15 @@ function LiveSportsWatchContent() {
 
   const isHost = Boolean(currentMember?.isHost);
 
-  const embedUrl = useMemo(
-    () => normalizeEmbedUrl(activeStream?.embedUrl || ''),
-    [activeStream]
-  );
+  const embedUrl = useMemo(() => {
+    const normalized = normalizeEmbedUrl(activeStream?.embedUrl || '');
+    return withAutoplay(normalized);
+  }, [activeStream]);
+
+  const triedKey = useMemo(() => {
+    if (!activeSource) return '';
+    return `${String(activeSource.source)}:${String(activeSource.id)}:${activeStreamIndex}`;
+  }, [activeSource, activeStreamIndex]);
 
   useEffect(() => {
     const auth = getAuth();
@@ -162,7 +216,7 @@ function LiveSportsWatchContent() {
         setLoading(true);
         setError('');
         setStreams([]);
-        setActiveStreamIndex(0);
+        setFrameLoaded(false);
 
         const params = new URLSearchParams();
         params.set('source', String(activeSource.source).trim().toLowerCase());
@@ -182,7 +236,7 @@ function LiveSportsWatchContent() {
         const normalizedStreams = nextStreams
           .map((stream) => ({
             ...stream,
-            embedUrl: normalizeEmbedUrl(stream?.embedUrl || ''),
+            embedUrl: withAutoplay(normalizeEmbedUrl(stream?.embedUrl || '')),
           }))
           .filter((stream) => Boolean(stream.embedUrl));
 
@@ -192,6 +246,16 @@ function LiveSportsWatchContent() {
 
         if (!cancelled) {
           setStreams(normalizedStreams);
+
+          const safeStreamIndex =
+            activeSourceIndex === sourceIndexParam &&
+            streamIndexParam >= 0 &&
+            streamIndexParam < normalizedStreams.length
+              ? streamIndexParam
+              : 0;
+
+          setActiveStreamIndex(safeStreamIndex);
+          setIframeKey((prev) => prev + 1);
         }
       } catch (err) {
         if (!cancelled) {
@@ -212,7 +276,7 @@ function LiveSportsWatchContent() {
     return () => {
       cancelled = true;
     };
-  }, [availableSources, activeSource]);
+  }, [availableSources, activeSource, activeSourceIndex, sourceIndexParam, streamIndexParam]);
 
   useEffect(() => {
     if (streams.length) {
@@ -239,8 +303,8 @@ function LiveSportsWatchContent() {
       sourceIndex: activeSourceIndex,
       streamIndex: activeStreamIndex,
       sourcesParam: encodedSources,
-    }).catch((error) => {
-      console.error('Failed to publish live sports party state:', error);
+    }).catch((partyError) => {
+      console.error('Failed to publish live sports party state:', partyError);
     });
   }, [
     partyCode,
@@ -264,6 +328,94 @@ function LiveSportsWatchContent() {
 
     return () => clearTimeout(timeout);
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!embedUrl || !activeSource || !streams.length) return;
+
+    setFrameLoaded(false);
+
+    if (failoverTimerRef.current) {
+      clearTimeout(failoverTimerRef.current);
+      failoverTimerRef.current = null;
+    }
+
+    failoverTimerRef.current = setTimeout(() => {
+      if (frameLoaded) return;
+
+      if (triedKey) {
+        triedCandidatesRef.current.add(triedKey);
+      }
+
+      const nextCandidate = getNextCandidate({
+        currentSourceIndex: activeSourceIndex,
+        currentStreamIndex: activeStreamIndex,
+        streamCount: streams.length,
+        sourceCount: availableSources.length,
+      });
+
+      if (!nextCandidate) {
+        const params = new URLSearchParams();
+        params.set('notice', 'no-working-server');
+        if (titleParam) {
+          params.set('title', titleParam);
+        }
+        router.replace(`/livesports?${params.toString()}`);
+        return;
+      }
+
+      setFailoverNotice(
+        `Trying ${buildSourceLabel(availableSources[nextCandidate.nextSourceIndex], nextCandidate.nextSourceIndex)} / Stream ${nextCandidate.nextStreamIndex + 1}...`
+      );
+
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('sourceIndex', String(nextCandidate.nextSourceIndex));
+      params.set('streamIndex', String(nextCandidate.nextStreamIndex));
+
+      router.replace(`/livesports/watch?${params.toString()}`);
+    }, FAILOVER_DELAY_MS);
+
+    return () => {
+      if (failoverTimerRef.current) {
+        clearTimeout(failoverTimerRef.current);
+        failoverTimerRef.current = null;
+      }
+    };
+  }, [
+    embedUrl,
+    frameLoaded,
+    activeSource,
+    activeSourceIndex,
+    activeStreamIndex,
+    streams,
+    availableSources,
+    router,
+    searchParams,
+    titleParam,
+    triedKey,
+  ]);
+
+  useEffect(() => {
+    if (!failoverNotice) return;
+
+    const timeout = setTimeout(() => {
+      setFailoverNotice('');
+    }, 3000);
+
+    return () => clearTimeout(timeout);
+  }, [failoverNotice]);
+
+  const handleSourceSelect = (index) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('sourceIndex', String(index));
+    params.set('streamIndex', '0');
+    router.replace(`/livesports/watch?${params.toString()}`);
+  };
+
+  const handleStreamSelect = (index) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('streamIndex', String(index));
+    router.replace(`/livesports/watch?${params.toString()}`);
+  };
 
   const handleCastHelp = () => {
     window.alert(
@@ -314,11 +466,17 @@ function LiveSportsWatchContent() {
     <div className="flex h-screen flex-col overflow-hidden bg-black text-white">
       <Navbar />
 
-      <main className="flex min-h-0 flex-1 flex-col px-6 pt-24 pb-2">
+      <main className="flex min-h-0 flex-1 flex-col px-6 pb-2 pt-24">
         <section className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col">
           {syncNotice && (
             <div className="mb-3 rounded-xl border border-green-500/25 bg-green-500/10 px-4 py-3 text-sm text-green-200">
               {syncNotice}
+            </div>
+          )}
+
+          {failoverNotice && (
+            <div className="mb-3 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-100">
+              {failoverNotice}
             </div>
           )}
 
@@ -332,7 +490,7 @@ function LiveSportsWatchContent() {
                     <button
                       key={`${source.source || 'source'}-${source.id || index}`}
                       type="button"
-                      onClick={() => setActiveSourceIndex(index)}
+                      onClick={() => handleSourceSelect(index)}
                       className={`rounded-md border px-3 py-2 text-xs font-semibold transition active:scale-95 ${
                         active
                           ? 'border-red-400 bg-red-600/15 text-red-300 shadow-[0_0_18px_rgba(239,68,68,0.18)]'
@@ -353,7 +511,7 @@ function LiveSportsWatchContent() {
                     <button
                       key={`${stream.id || index}-${stream.streamNo || index}`}
                       type="button"
-                      onClick={() => setActiveStreamIndex(index)}
+                      onClick={() => handleStreamSelect(index)}
                       className={`rounded-md border px-3 py-2 text-xs font-semibold transition active:scale-95 ${
                         active
                           ? 'border-red-400 bg-red-600/15 text-red-300 shadow-[0_0_18px_rgba(239,68,68,0.18)]'
@@ -383,12 +541,16 @@ function LiveSportsWatchContent() {
               <div className="aspect-video w-full self-center bg-black">
                 {embedUrl ? (
                   <iframe
-                    key={embedUrl}
+                    key={`${embedUrl}-${iframeKey}`}
                     src={embedUrl}
                     title="Live Sports Player"
                     className="h-full w-full"
                     allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write; web-share"
                     allowFullScreen
+                    onLoad={() => {
+                      setFrameLoaded(true);
+                      setFailoverNotice('');
+                    }}
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center px-6 text-center text-sm text-gray-400">
