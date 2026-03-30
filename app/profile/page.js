@@ -124,10 +124,10 @@ function AvatarBubble({ avatarId, size = 'large' }) {
   const avatar = AVATAR_PRESETS.find((item) => item.id === avatarId) || AVATAR_PRESETS[0];
   const sizeClass =
     size === 'small'
-      ? 'h-20 w-20'
+      ? 'h-16 w-16 sm:h-20 sm:w-20'
       : size === 'card'
-      ? 'h-24 w-24'
-      : 'h-28 w-28';
+        ? 'h-20 w-20 sm:h-24 sm:w-24'
+        : 'h-24 w-24 sm:h-28 sm:w-28';
 
   return (
     <div
@@ -215,8 +215,8 @@ function BookmarkedSection({ items, onRemoveBookmark }) {
 
   return (
     <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)] lg:col-span-2">
-      <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-6 py-4">
-        <h3 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400">
+      <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-4 py-3 sm:px-6 sm:py-4">
+        <h3 className="pr-3 text-base font-semibold uppercase tracking-[0.16em] text-red-400 sm:text-lg sm:tracking-[0.18em]">
           Bookmarked Movies / Shows
         </h3>
 
@@ -255,7 +255,7 @@ function BookmarkedSection({ items, onRemoveBookmark }) {
         )}
       </div>
 
-      <div className="min-h-[380px] px-6 py-8">
+      <div className="min-h-[280px] px-4 py-5 sm:min-h-[380px] sm:px-6 sm:py-8">
         {items.length > 0 ? (
           <div
             ref={scrollRef}
@@ -271,7 +271,7 @@ function BookmarkedSection({ items, onRemoveBookmark }) {
                 return (
                   <div
                     key={pageIndex}
-                    className="grid min-w-full grid-cols-6 gap-5"
+                    className="grid min-w-full grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6 lg:gap-5"
                   >
                     {pageItems.map((item, index) => (
                       <a
@@ -280,11 +280,9 @@ function BookmarkedSection({ items, onRemoveBookmark }) {
                         className="group min-w-0"
                       >
                         <div className="relative overflow-hidden rounded-lg border-[1.5px] border-white/10 bg-black/20 transition duration-300 group-hover:border-red-400/90 group-hover:shadow-[0_0_30px_rgba(239,68,68,0.45)]">
-                          <SavedBadgeButton
-                            onClick={() => onRemoveBookmark?.(item)}
-                          />
+                          <SavedBadgeButton onClick={() => onRemoveBookmark?.(item)} />
 
-                          <div className="absolute inset-0 opacity-0 transition duration-300 group-hover:opacity-100 bg-red-500/10 blur-xl" />
+                          <div className="absolute inset-0 bg-red-500/10 opacity-0 blur-xl transition duration-300 group-hover:opacity-100" />
 
                           <div className="relative aspect-[2/3] w-full bg-gray-800">
                             {item.poster_path ? (
@@ -301,11 +299,11 @@ function BookmarkedSection({ items, onRemoveBookmark }) {
                           </div>
                         </div>
 
-                        <div className="mt-3">
-                          <div className="line-clamp-1 text-sm font-medium text-white transition group-hover:text-red-300">
+                        <div className="mt-2 sm:mt-3">
+                          <div className="line-clamp-1 text-xs font-medium text-white transition group-hover:text-red-300 sm:text-sm">
                             {item.title || item.name || 'Untitled'}
                           </div>
-                          <div className="mt-1 text-xs text-gray-400">
+                          <div className="mt-1 text-[11px] text-gray-400 sm:text-xs">
                             {item.type === 'tv' ? 'TV Show' : 'Movie'}
                           </div>
                         </div>
@@ -322,7 +320,7 @@ function BookmarkedSection({ items, onRemoveBookmark }) {
             </div>
           </div>
         ) : (
-          <div className="flex min-h-[300px] items-center">
+          <div className="flex min-h-[220px] items-center sm:min-h-[300px]">
             <p className="text-sm text-gray-400">
               No bookmarked titles yet. Add movies or shows to your watchlist and they will appear here.
             </p>
@@ -674,9 +672,9 @@ function ProfilePageContent() {
         <Suspense fallback={<div className="h-20" />}>
           <Navbar />
         </Suspense>
-        <div className="px-8 pb-10 pt-28">
-          <div className="mx-auto w-full rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-10 text-center shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <p className="text-lg text-gray-300">Loading profile...</p>
+        <div className="px-3 pb-8 pt-20 sm:px-6 sm:pb-10 sm:pt-28 lg:px-8">
+          <div className="mx-auto w-full rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-6 text-center shadow-[0_12px_35px_rgba(0,0,0,0.55)] sm:p-10">
+            <p className="text-base text-gray-300 sm:text-lg">Loading profile...</p>
           </div>
         </div>
       </div>
@@ -689,17 +687,17 @@ function ProfilePageContent() {
         <Navbar />
       </Suspense>
 
-      <main className="px-8 pb-10 pt-24">
-        <div className="space-y-8">
+      <main className="px-3 pb-8 pt-20 sm:px-6 sm:pb-10 sm:pt-24 lg:px-8">
+        <div className="space-y-6 sm:space-y-8">
           <section className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <div className="border-b border-red-500/25 bg-red-600/10 px-6 py-4">
-              <h1 className="text-xl font-semibold uppercase tracking-[0.18em] text-red-400 md:text-2xl">
+            <div className="border-b border-red-500/25 bg-red-600/10 px-4 py-3 sm:px-6 sm:py-4">
+              <h1 className="text-lg font-semibold uppercase tracking-[0.16em] text-red-400 sm:text-xl md:text-2xl">
                 Profile
               </h1>
             </div>
 
-            <div className="grid gap-6 px-6 py-6 md:grid-cols-[120px_1fr] md:items-center">
-              <div className="relative w-fit">
+            <div className="grid gap-5 px-4 py-5 sm:gap-6 sm:px-6 sm:py-6 md:grid-cols-[120px_1fr] md:items-center">
+              <div className="relative mx-auto w-fit md:mx-0">
                 <AvatarBubble avatarId={selectedAvatar} size="large" />
 
                 <button
@@ -716,37 +714,41 @@ function ProfilePageContent() {
                 </button>
               </div>
 
-              <div>
+              <div className="text-center md:text-left">
                 {editingName ? (
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                     <input
                       type="text"
                       value={draftName}
                       onChange={(e) => setDraftName(e.target.value)}
-                      className="h-11 min-w-[220px] rounded-md border border-white/10 bg-black/20 px-4 text-xl font-bold text-white focus:border-red-500/50 focus:outline-none focus:shadow-[0_0_10px_rgba(255,0,0,0.25)] md:text-2xl"
+                      className="h-11 w-full rounded-md border border-white/10 bg-black/20 px-4 text-lg font-bold text-white focus:border-red-500/50 focus:outline-none focus:shadow-[0_0_10px_rgba(255,0,0,0.25)] sm:min-w-[220px] sm:w-auto sm:text-xl md:text-2xl"
                       maxLength={24}
                       autoFocus
                     />
 
-                    <button
-                      type="button"
-                      onClick={handleSaveName}
-                      className="flex h-10 items-center justify-center rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60"
-                    >
-                      Save
-                    </button>
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={handleSaveName}
+                        className="flex h-10 flex-1 items-center justify-center rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60 sm:flex-none"
+                      >
+                        Save
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={handleCancelNameEdit}
-                      className="flex h-10 items-center justify-center rounded-md bg-black/20 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/30 hover:shadow-inner hover:shadow-red-500/40"
-                    >
-                      Cancel
-                    </button>
+                      <button
+                        type="button"
+                        onClick={handleCancelNameEdit}
+                        className="flex h-10 flex-1 items-center justify-center rounded-md bg-black/20 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/30 hover:shadow-inner hover:shadow-red-500/40 sm:flex-none"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
                 ) : (
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h2 className="text-2xl font-bold text-white md:text-3xl">{profileName}</h2>
+                  <div className="flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap md:items-center md:justify-start">
+                    <h2 className="break-words text-2xl font-bold text-white sm:text-3xl">
+                      {profileName}
+                    </h2>
 
                     <button
                       type="button"
@@ -771,15 +773,15 @@ function ProfilePageContent() {
             </div>
           </section>
 
-          <section className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+          <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:gap-8">
             <div className="h-full overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-              <div className="border-b border-red-500/25 bg-red-600/10 px-6 py-4">
-                <h3 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400">
+              <div className="border-b border-red-500/25 bg-red-600/10 px-4 py-3 sm:px-6 sm:py-4">
+                <h3 className="text-base font-semibold uppercase tracking-[0.16em] text-red-400 sm:text-lg sm:tracking-[0.18em]">
                   Account Details
                 </h3>
               </div>
 
-              <div className="grid gap-4 px-6 py-6 md:grid-cols-2">
+              <div className="grid gap-4 px-4 py-5 sm:px-6 sm:py-6 md:grid-cols-2">
                 <div className="rounded-xl border border-white/10 bg-black/20 p-4 md:col-span-2">
                   <p className="text-xs uppercase tracking-[0.18em] text-red-400">Change Password</p>
 
@@ -823,7 +825,7 @@ function ProfilePageContent() {
                     <button
                       type="submit"
                       disabled={passwordLoading}
-                      className={`inline-flex h-11 items-center justify-center rounded-xl px-5 text-sm font-semibold text-white transition active:scale-95 ${
+                      className={`inline-flex h-11 w-full items-center justify-center rounded-xl px-5 text-sm font-semibold text-white transition active:scale-95 sm:w-auto ${
                         passwordLoading
                           ? 'cursor-not-allowed bg-red-900/50 opacity-70'
                           : 'bg-red-600 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60'
@@ -838,7 +840,7 @@ function ProfilePageContent() {
                   <p className="text-xs uppercase tracking-[0.18em] text-red-400">Email</p>
 
                   <div className="mt-2 flex items-center justify-between gap-3">
-                    <p className="min-w-0 break-all text-base text-white">
+                    <p className="min-w-0 break-all text-sm text-white sm:text-base">
                       {showEmail ? user?.email || 'Not available' : censoredEmail}
                     </p>
 
@@ -872,7 +874,7 @@ function ProfilePageContent() {
                   <p className="text-xs uppercase tracking-[0.18em] text-red-400">Unique User ID</p>
 
                   <div className="mt-2 flex items-center justify-between gap-3">
-                    <p className="min-w-0 break-all text-base text-white">
+                    <p className="min-w-0 break-all text-sm text-white sm:text-base">
                       {showUserId ? user?.uid || 'Not available' : censoredUserId}
                     </p>
 
@@ -904,15 +906,15 @@ function ProfilePageContent() {
               </div>
             </div>
 
-            <div className="flex min-h-full flex-col">
+            <div className="flex min-h-full flex-col gap-6">
               <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-                <div className="border-b border-red-500/25 bg-red-600/10 px-6 py-4">
-                  <h3 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400">
+                <div className="border-b border-red-500/25 bg-red-600/10 px-4 py-3 sm:px-6 sm:py-4">
+                  <h3 className="text-base font-semibold uppercase tracking-[0.16em] text-red-400 sm:text-lg sm:tracking-[0.18em]">
                     Party Status
                   </h3>
                 </div>
 
-                <div className="space-y-4 px-6 py-5">
+                <div className="space-y-4 px-4 py-5 sm:px-6">
                   <div className="rounded-xl border border-white/10 bg-black/20 p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-red-400">Current Status</p>
                     <p className="mt-2 text-base text-white">{inParty ? 'In a party' : 'Not in a party'}</p>
@@ -920,39 +922,37 @@ function ProfilePageContent() {
 
                   <div className="rounded-xl border border-white/10 bg-black/20 p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-red-400">Current Party Code</p>
-                    <p className="mt-2 text-base text-white">{partyCode || 'None'}</p>
+                    <p className="mt-2 break-all text-base text-white">{partyCode || 'None'}</p>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-auto pt-8">
-                <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-                  <div className="border-b border-red-500/25 bg-red-600/10 px-6 py-4">
-                    <h3 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400">
-                      Preferences
-                    </h3>
-                  </div>
+              <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
+                <div className="border-b border-red-500/25 bg-red-600/10 px-4 py-3 sm:px-6 sm:py-4">
+                  <h3 className="text-base font-semibold uppercase tracking-[0.16em] text-red-400 sm:text-lg sm:tracking-[0.18em]">
+                    Preferences
+                  </h3>
+                </div>
 
-                  <div className="space-y-4 px-6 py-6">
-                    <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-red-400">Theme</p>
+                <div className="space-y-4 px-4 py-5 sm:px-6 sm:py-6">
+                  <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-red-400">Theme</p>
 
-                      <div className="mt-3">
-                        <select
-                          value={selectedTheme}
-                          onChange={handleThemeChange}
-                          className="w-full rounded-xl border border-white/10 bg-gray-900 px-4 py-3 text-sm text-white outline-none transition focus:border-red-500/60 focus:ring-2 focus:ring-red-500/20"
-                        >
-                          {THEME_OPTIONS.map((theme) => (
-                            <option key={theme.id} value={theme.id}>
-                              {theme.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <p className="mt-3 text-sm text-gray-400">Current theme: {currentThemeLabel}</p>
+                    <div className="mt-3">
+                      <select
+                        value={selectedTheme}
+                        onChange={handleThemeChange}
+                        className="w-full rounded-xl border border-white/10 bg-gray-900 px-4 py-3 text-sm text-white outline-none transition focus:border-red-500/60 focus:ring-2 focus:ring-red-500/20"
+                      >
+                        {THEME_OPTIONS.map((theme) => (
+                          <option key={theme.id} value={theme.id}>
+                            {theme.label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
+
+                    <p className="mt-3 text-sm text-gray-400">Current theme: {currentThemeLabel}</p>
                   </div>
                 </div>
               </div>
@@ -966,14 +966,14 @@ function ProfilePageContent() {
       {avatarModalOpen && (
         <div
           onClick={() => setAvatarModalOpen(false)}
-          className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 px-3 backdrop-blur-sm sm:px-4"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-[780px] max-w-[calc(100vw-4rem)] overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]"
+            className="w-full max-w-[780px] overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]"
           >
-            <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-6 py-4">
-              <h3 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400">
+            <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-4 py-3 sm:px-6 sm:py-4">
+              <h3 className="text-base font-semibold uppercase tracking-[0.16em] text-red-400 sm:text-lg sm:tracking-[0.18em]">
                 Choose Avatar
               </h3>
 
@@ -988,11 +988,11 @@ function ProfilePageContent() {
               </button>
             </div>
 
-            <div className="px-6 py-6">
-              <div className="mb-5 flex items-center justify-between">
+            <div className="px-4 py-5 sm:px-6 sm:py-6">
+              <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-gray-300">Pick one of the preset avatars for your profile.</p>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 self-end sm:self-auto">
                   <button
                     type="button"
                     onClick={() => scrollAvatars('left')}
@@ -1029,7 +1029,7 @@ function ProfilePageContent() {
                 ref={avatarScrollRef}
                 className="overflow-x-auto scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
               >
-                <div className="flex gap-4 pb-2">
+                <div className="flex gap-3 pb-2 sm:gap-4">
                   {AVATAR_PRESETS.map((avatar) => {
                     const active = avatar.id === selectedAvatar;
 
@@ -1038,7 +1038,7 @@ function ProfilePageContent() {
                         key={avatar.id}
                         type="button"
                         onClick={() => chooseAvatar(avatar.id)}
-                        className={`group min-w-[150px] rounded-2xl border-[1.5px] bg-black/20 p-4 text-center transition duration-300 ${
+                        className={`group min-w-[130px] rounded-2xl border-[1.5px] bg-black/20 p-3 text-center transition duration-300 sm:min-w-[150px] sm:p-4 ${
                           active
                             ? 'border-red-400/90 shadow-[0_0_24px_rgba(239,68,68,0.32)]'
                             : 'border-white/10 hover:border-red-400/70 hover:shadow-[0_0_22px_rgba(239,68,68,0.18)]'
@@ -1048,7 +1048,7 @@ function ProfilePageContent() {
                           <AvatarBubble avatarId={avatar.id} size="card" />
                         </div>
 
-                        <p className="mt-4 text-sm font-medium text-white transition group-hover:text-red-300">
+                        <p className="mt-3 text-sm font-medium text-white transition group-hover:text-red-300 sm:mt-4">
                           {avatar.name}
                         </p>
                       </button>
@@ -1061,7 +1061,7 @@ function ProfilePageContent() {
         </div>
       )}
 
-      <footer className="px-8 pb-8 pt-2 text-center text-sm text-gray-400">
+      <footer className="px-4 pb-8 pt-2 text-center text-sm text-gray-400 sm:px-6 lg:px-8">
         <p>This site does not host or store any media.</p>
 
         <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">

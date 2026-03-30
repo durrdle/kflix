@@ -41,6 +41,7 @@ export default function Navbar() {
   const [navVisible, setNavVisible] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
   const [stayPromptOpen, setStayPromptOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [draftType, setDraftType] = useState('all');
   const [draftSort, setDraftSort] = useState('newest');
@@ -456,6 +457,25 @@ export default function Navbar() {
     };
   }, [results, searchOpen]);
 
+  useEffect(() => {
+    const handleBodyLock = () => {
+      document.body.style.overflow = mobileMenuOpen ? 'hidden' : '';
+    };
+
+    handleBodyLock();
+
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setBrowseOpen(false);
+    setFilterOpen(false);
+    setSearchOpen(false);
+  }, [pathname]);
+
   const scrollResults = (direction) => {
     const el = resultsScrollRef.current;
     if (!el) return;
@@ -481,6 +501,7 @@ export default function Navbar() {
 
     setSearchOpen(false);
     setFocused(false);
+    setMobileMenuOpen(false);
   };
 
   const applyFilters = () => {
@@ -503,6 +524,7 @@ export default function Navbar() {
 
     router.push(`/search${params.toString() ? `?${params.toString()}` : ''}`);
     setFilterOpen(false);
+    setMobileMenuOpen(false);
   };
 
   const resetFilters = () => {
@@ -542,6 +564,7 @@ export default function Navbar() {
       armInitialPartyFollow();
       persistCurrentPartyState(code, true);
       setPartyOpen(false);
+      setMobileMenuOpen(false);
     } catch (err) {
       console.error('Join failed:', err);
     }
@@ -552,6 +575,7 @@ export default function Navbar() {
     resetInitialPartyFollow();
     persistCurrentPartyState(code, true);
     setPartyOpen(false);
+    setMobileMenuOpen(false);
   };
 
   const handleLeaveParty = async () => {
@@ -604,6 +628,7 @@ export default function Navbar() {
       persistCurrentPartyState('', false);
 
       await signOut(auth);
+      setMobileMenuOpen(false);
       router.push('/login');
     } catch (error) {
       console.error('Sign out failed:', error);
@@ -612,6 +637,8 @@ export default function Navbar() {
   };
 
   const handleBackClick = () => {
+    setMobileMenuOpen(false);
+
     if (isWatchPage) {
       const watchType = searchParams.get('type') || '';
       const watchId = searchParams.get('id') || '';
@@ -644,7 +671,7 @@ export default function Navbar() {
 
   const logoNode = (
     <div
-      className={`relative h-12 w-[160px] transition ${
+      className={`relative h-10 w-[130px] transition sm:h-12 sm:w-[160px] ${
         logoClick ? 'scale-110 brightness-125' : 'hover:scale-105'
       }`}
     >
@@ -654,7 +681,7 @@ export default function Navbar() {
         fill
         priority
         className="object-contain object-left"
-        sizes="160px"
+        sizes="(max-width: 640px) 130px, 160px"
       />
     </div>
   );
@@ -662,7 +689,7 @@ export default function Navbar() {
   return (
     <>
       <nav
-        className={`fixed left-0 top-0 z-50 flex h-20 w-full items-center px-8 transition-all duration-300 ${
+        className={`fixed left-0 top-0 z-50 flex h-16 w-full items-center px-4 transition-all duration-300 sm:h-20 sm:px-8 ${
           navVisible
             ? 'translate-y-0 opacity-100'
             : 'pointer-events-none -translate-y-full opacity-0'
@@ -685,7 +712,21 @@ export default function Navbar() {
           )}
         </div>
 
-        <div className="absolute left-1/2 flex w-full max-w-[720px] -translate-x-1/2 items-center gap-2 px-4">
+        <div className="ml-2 md:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            className="flex h-10 w-10 items-center justify-center rounded-md bg-black/25 text-white backdrop-blur-md transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
+            aria-label="Open menu"
+            title="Open menu"
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="absolute left-1/2 hidden w-full max-w-[720px] -translate-x-1/2 items-center gap-2 px-4 md:flex">
           {isSearchPage && (
             <div ref={filterRef} className="relative">
               <button
@@ -974,7 +1015,7 @@ export default function Navbar() {
           </div>
         </div>
 
-        <div className="ml-auto flex items-center space-x-2">
+        <div className="ml-auto hidden items-center space-x-2 md:flex">
           {!isHomePage && (
             <button
               type="button"
@@ -1112,6 +1153,339 @@ export default function Navbar() {
           )}
         </div>
       </nav>
+
+      <div
+        className={`fixed inset-0 z-[70] md:hidden ${
+          mobileMenuOpen ? 'pointer-events-auto' : 'pointer-events-none'
+        }`}
+      >
+        <div
+          onClick={() => setMobileMenuOpen(false)}
+          className={`absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-300 ${
+            mobileMenuOpen ? 'opacity-100' : 'opacity-0'
+          }`}
+        />
+
+        <div
+          className={`absolute right-0 top-0 flex h-full w-[88vw] max-w-[380px] flex-col border-l border-red-500/30 bg-gradient-to-b from-gray-900 to-black shadow-[-10px_0_35px_rgba(0,0,0,0.55)] transition-transform duration-300 ${
+            mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
+        >
+          <div className="flex items-center justify-between border-b border-red-500/20 bg-red-600/10 px-4 py-4">
+            <span className="text-sm font-semibold uppercase tracking-[0.18em] text-red-400">
+              Menu
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex h-10 w-10 items-center justify-center rounded-md bg-black/25 text-white backdrop-blur-md transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
+              aria-label="Close menu"
+              title="Close menu"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-4 py-4">
+            <div className="space-y-6">
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                  Search
+                </p>
+
+                <div className="space-y-2">
+                  <form onSubmit={handleSearch} className="flex">
+                    <input
+                      type="text"
+                      placeholder="Search..."
+                      className="h-11 flex-1 rounded-l-md bg-white px-4 text-sm text-black focus:outline-none"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+
+                    <button className="h-11 rounded-r-md bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700">
+                      Search
+                    </button>
+                  </form>
+
+                  {results.length > 0 && (
+                    <div className="overflow-hidden rounded-lg border border-red-500/25 bg-gradient-to-b from-gray-800 to-gray-900">
+                      <div className="border-b border-red-500/20 bg-red-600/10 px-3 py-2">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-red-400">
+                          Top Results
+                        </span>
+                      </div>
+
+                      <div className="max-h-[280px] overflow-y-auto">
+                        {results.map((item, index) => (
+                          <Link
+                            key={`${item.media_type}-${item.id}`}
+                            href={item.media_type === 'movie' ? `/movie/${item.id}` : `/tv/${item.id}`}
+                            onClick={() => setMobileMenuOpen(false)}
+                          >
+                            <div
+                              className={`group flex items-center gap-3 px-3 py-3 transition hover:bg-red-600/12 ${
+                                index !== results.length - 1 ? 'border-b border-white/5' : ''
+                              }`}
+                            >
+                              <div className="h-14 w-10 flex-shrink-0 overflow-hidden rounded bg-gray-700 ring-1 ring-white/10">
+                                {item.poster_path ? (
+                                  <img
+                                    src={`${IMAGE_BASE}${item.poster_path}`}
+                                    className="h-full w-full object-cover"
+                                    alt={item.title || item.name || 'Poster'}
+                                  />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center text-[10px] text-gray-300">
+                                    N/A
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate text-sm font-medium text-white transition group-hover:text-red-300">
+                                  {item.title || item.name}
+                                </div>
+                                <div className="mt-1 truncate text-xs text-gray-400">
+                                  {item.release_date || item.first_air_date || 'No date available'}
+                                </div>
+                              </div>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {isSearchPage && (
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                    Filters
+                  </p>
+
+                  <div className="space-y-4 rounded-xl border border-white/10 bg-black/20 p-4">
+                    <div>
+                      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                        Content Type
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { value: 'all', label: 'All' },
+                          { value: 'movies', label: 'Movies' },
+                          { value: 'tv', label: 'Shows' },
+                        ].map((option) => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => setDraftType(option.value)}
+                            className={`rounded-md border px-3 py-2 text-sm font-medium transition ${
+                              draftType === option.value
+                                ? 'border-red-400 bg-red-600/15 text-red-300'
+                                : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                        Sort By
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { value: 'newest', label: 'Newest' },
+                          { value: 'oldest', label: 'Oldest' },
+                          { value: 'top', label: 'Top Rated' },
+                        ].map((option) => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => setDraftSort(option.value)}
+                            className={`rounded-md border px-3 py-2 text-sm font-medium transition ${
+                              draftSort === option.value
+                                ? 'border-red-400 bg-red-600/15 text-red-300'
+                                : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                        Minimum TMDB Rating
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {['0', '4', '5', '6', '7', '8', '9'].map((rating) => (
+                          <button
+                            key={rating}
+                            type="button"
+                            onClick={() => setDraftMinRating(rating)}
+                            className={`rounded-md border px-3 py-2 text-sm font-medium transition ${
+                              draftMinRating === rating
+                                ? 'border-red-400 bg-red-600/15 text-red-300'
+                                : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
+                            }`}
+                          >
+                            {rating === '0' ? 'Any' : `${rating}+`}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                        Year Range
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="number"
+                          placeholder="From"
+                          min="1900"
+                          max="2100"
+                          value={draftYearFrom}
+                          onChange={(e) => setDraftYearFrom(e.target.value)}
+                          className="h-10 rounded-md border border-white/10 bg-black/20 px-3 text-sm text-white placeholder:text-gray-400 focus:border-red-500/50 focus:outline-none"
+                        />
+                        <input
+                          type="number"
+                          placeholder="To"
+                          min="1900"
+                          max="2100"
+                          value={draftYearTo}
+                          onChange={(e) => setDraftYearTo(e.target.value)}
+                          className="h-10 rounded-md border border-white/10 bg-black/20 px-3 text-sm text-white placeholder:text-gray-400 focus:border-red-500/50 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={applyFilters}
+                        className="flex h-10 flex-1 items-center justify-center rounded-md bg-red-600 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700"
+                      >
+                        Apply
+                      </button>
+                      <button
+                        type="button"
+                        onClick={resetFilters}
+                        className="flex h-10 items-center justify-center rounded-md bg-black/25 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/35"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                  Browse
+                </p>
+
+                <div className="space-y-2">
+                  <Link href="/search?type=movies" onClick={() => setMobileMenuOpen(false)}>
+                    <div className="rounded-md border border-white/10 bg-black/20 px-4 py-3 text-sm font-medium text-white transition hover:border-red-400/60 hover:text-red-300">
+                      Movies
+                    </div>
+                  </Link>
+
+                  <Link href="/search?type=tv" onClick={() => setMobileMenuOpen(false)}>
+                    <div className="rounded-md border border-white/10 bg-black/20 px-4 py-3 text-sm font-medium text-white transition hover:border-red-400/60 hover:text-red-300">
+                      Shows
+                    </div>
+                  </Link>
+
+                  <Link href="/search?type=tv&tab=anime" onClick={() => setMobileMenuOpen(false)}>
+                    <div className="rounded-md border border-white/10 bg-black/20 px-4 py-3 text-sm font-medium text-white transition hover:border-red-400/60 hover:text-red-300">
+                      Anime
+                    </div>
+                  </Link>
+
+                  <Link href="/livesports" onClick={() => setMobileMenuOpen(false)}>
+                    <div className="rounded-md border border-white/10 bg-black/20 px-4 py-3 text-sm font-medium text-white transition hover:border-red-400/60 hover:text-red-300">
+                      Live Sports
+                    </div>
+                  </Link>
+                </div>
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                  Actions
+                </p>
+
+                <div className="space-y-2">
+                  {!isHomePage && (
+                    <button
+                      type="button"
+                      onClick={handleBackClick}
+                      className="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-black/25 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/35"
+                    >
+                      <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path d="M15 6l-6 6 6 6" />
+                      </svg>
+                      Back
+                    </button>
+                  )}
+
+                  <button
+                    onClick={handlePartyButtonClick}
+                    className={`flex h-11 w-full items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition active:scale-95 ${
+                      inParty
+                        ? 'bg-red-600 shadow-[0_0_14px_rgba(255,0,0,0.8)]'
+                        : 'bg-red-600 hover:bg-red-700'
+                    }`}
+                    type="button"
+                  >
+                    Party
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <circle cx="9" cy="7" r="3" />
+                      <circle cx="15" cy="7" r="3" />
+                      <path d="M4 20c0-3 3-5 5-5" />
+                      <path d="M20 20c0-3-3-5-5-5" />
+                    </svg>
+                  </button>
+
+                  {isProfilePage ? (
+                    <button
+                      onClick={handleSignOut}
+                      disabled={signingOut}
+                      className={`flex h-11 w-full items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition active:scale-95 ${
+                        signingOut ? 'cursor-not-allowed bg-red-600/70' : 'bg-red-600 hover:bg-red-700'
+                      }`}
+                      type="button"
+                    >
+                      {signingOut ? 'Signing Out...' : 'Sign Out'}
+                    </button>
+                  ) : (
+                    <Link href="/profile" onClick={() => setMobileMenuOpen(false)}>
+                      <div className="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700">
+                        Profile
+                        <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5z" />
+                          <path d="M2 22c0-4 4-7 10-7s10 3 10 7" />
+                        </svg>
+                      </div>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <PartyModal
         open={partyOpen}

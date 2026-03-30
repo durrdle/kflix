@@ -347,7 +347,7 @@ function LiveSportsPageContent() {
     <div className="min-h-screen bg-black text-white">
       <Navbar />
 
-      <main className="px-8 pb-10 pt-24">
+      <main className="px-4 pb-10 pt-20 sm:px-6 sm:pt-24 lg:px-8">
         {notice && (
           <div className="mb-6 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-100">
             {notice}
@@ -357,22 +357,22 @@ function LiveSportsPageContent() {
         <section className="relative overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(239,68,68,0.16),transparent_36%)]" />
 
-          <div className="relative z-10 px-8 py-10">
+          <div className="relative z-10 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
             <div className="inline-flex w-fit rounded-full border border-red-500/30 bg-red-600/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-red-300">
               Live Sports
             </div>
 
-            <h1 className="mt-4 text-4xl font-bold md:text-6xl">
+            <h1 className="mt-4 text-3xl font-bold sm:text-4xl md:text-5xl lg:text-6xl">
               Watch Live Sports
             </h1>
 
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-gray-200 md:text-base">
+            <p className="mt-4 max-w-3xl text-sm leading-6 text-gray-200 md:text-base md:leading-7">
               Anything from Football to Motor Sports &amp; Fights.
             </p>
 
             <div className="mt-8">
               <div className="mb-3 flex items-center justify-between gap-3">
-                <div className="text-sm font-semibold uppercase tracking-[0.18em] text-red-300">
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-red-300 sm:text-sm">
                   Categories
                 </div>
 
@@ -381,7 +381,7 @@ function LiveSportsPageContent() {
                     type="button"
                     onClick={() => scrollSports('left')}
                     disabled={mounted ? !canScrollLeft : false}
-                    className={`flex h-10 w-10 items-center justify-center rounded-full border text-white transition ${
+                    className={`flex h-9 w-9 items-center justify-center rounded-full border text-white transition sm:h-10 sm:w-10 ${
                       mounted && canScrollLeft
                         ? 'border-white/10 bg-black/25 hover:border-red-400/60 hover:text-red-300 hover:shadow-inner hover:shadow-red-500/40 active:scale-90'
                         : 'cursor-not-allowed border-white/10 bg-black/10 text-gray-500 opacity-60'
@@ -397,7 +397,7 @@ function LiveSportsPageContent() {
                     type="button"
                     onClick={() => scrollSports('right')}
                     disabled={mounted ? !canScrollRight : false}
-                    className={`flex h-10 w-10 items-center justify-center rounded-full border text-white transition ${
+                    className={`flex h-9 w-9 items-center justify-center rounded-full border text-white transition sm:h-10 sm:w-10 ${
                       mounted && canScrollRight
                         ? 'border-white/10 bg-black/25 hover:border-red-400/60 hover:text-red-300 hover:shadow-inner hover:shadow-red-500/40 active:scale-90'
                         : 'cursor-not-allowed border-white/10 bg-black/10 text-gray-500 opacity-60'
@@ -413,12 +413,12 @@ function LiveSportsPageContent() {
 
               <div
                 ref={sportsScrollRef}
-                className="flex gap-3 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                className="flex gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:gap-3"
               >
                 <button
                   type="button"
                   onClick={() => setActiveSport('live')}
-                  className={`shrink-0 rounded-md border px-4 py-2 text-sm font-semibold transition active:scale-95 ${
+                  className={`shrink-0 rounded-md border px-3 py-2 text-sm font-semibold transition active:scale-95 sm:px-4 ${
                     activeSport === 'live'
                       ? 'border-red-400 bg-red-600/15 text-red-300 shadow-[0_0_18px_rgba(239,68,68,0.18)]'
                       : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
@@ -435,7 +435,7 @@ function LiveSportsPageContent() {
                       key={sport.id}
                       type="button"
                       onClick={() => setActiveSport(sport.slug)}
-                      className={`shrink-0 rounded-md border px-4 py-2 text-sm font-semibold transition active:scale-95 ${
+                      className={`shrink-0 rounded-md border px-3 py-2 text-sm font-semibold transition active:scale-95 sm:px-4 ${
                         active
                           ? 'border-red-400 bg-red-600/15 text-red-300 shadow-[0_0_18px_rgba(239,68,68,0.18)]'
                           : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
@@ -458,8 +458,8 @@ function LiveSportsPageContent() {
 
         <section className="mt-8">
           <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-6 py-4">
-              <h2 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400">
+            <div className="flex flex-col gap-2 border-b border-red-500/25 bg-red-600/10 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <h2 className="text-base font-semibold uppercase tracking-[0.18em] text-red-400 sm:text-lg">
                 {activeSport === 'live' ? 'Live Now' : `${activeSportLabel} Live Now`}
               </h2>
 
@@ -469,19 +469,19 @@ function LiveSportsPageContent() {
             </div>
 
             {loading ? (
-              <div className="px-6 py-10">
+              <div className="px-4 py-10 sm:px-6">
                 <p className="text-sm text-gray-400">Loading live sports streams...</p>
               </div>
             ) : error ? (
-              <div className="px-6 py-10">
+              <div className="px-4 py-10 sm:px-6">
                 <p className="text-sm text-red-300">{error}</p>
               </div>
             ) : matches.length === 0 ? (
-              <div className="px-6 py-10">
+              <div className="px-4 py-10 sm:px-6">
                 <p className="text-sm text-gray-400">No live matches found for this sport.</p>
               </div>
             ) : (
-              <div className="grid gap-4 px-6 py-6 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-4 px-4 py-4 sm:px-6 sm:py-6 md:grid-cols-2 xl:grid-cols-3">
                 {matches.map((match, index) => {
                   const title = getMatchTitle(match);
                   const subtitle = getMatchSubtitle(match);
@@ -521,39 +521,39 @@ function LiveSportsPageContent() {
                           }}
                         />
 
-                        <div className="absolute left-3 top-3 flex gap-2">
-                          <span className="rounded-full border border-red-500/30 bg-red-600/85 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white">
+                        <div className="absolute left-2 top-2 flex flex-wrap gap-2 sm:left-3 sm:top-3">
+                          <span className="rounded-full border border-red-500/30 bg-red-600/85 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white sm:px-3">
                             {status}
                           </span>
 
-                          <span className="rounded-full border border-white/10 bg-black/50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-200 backdrop-blur-md">
+                          <span className="rounded-full border border-white/10 bg-black/50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-200 backdrop-blur-md sm:px-3">
                             {subtitle}
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex flex-1 flex-col px-5 py-5">
+                      <div className="flex flex-1 flex-col px-4 py-4 sm:px-5 sm:py-5">
                         <div className="min-h-[56px]">
-                          <h3 className="line-clamp-2 text-lg font-semibold leading-7 text-white">
+                          <h3 className="line-clamp-2 text-base font-semibold leading-6 text-white sm:text-lg sm:leading-7">
                             {title}
                           </h3>
                         </div>
 
                         <div className="mt-4 min-h-[72px]">
                           {hasTeams ? (
-                            <div className="flex h-[72px] items-center justify-center gap-4 rounded-xl border border-white/10 bg-black/20 px-4 py-3">
-                              <div className="flex min-w-0 flex-1 items-center gap-3">
+                            <div className="flex h-[72px] items-center justify-center gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-3 sm:gap-4 sm:px-4">
+                              <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
                                 {homeBadgeUrl ? (
                                   <img
                                     src={homeBadgeUrl}
                                     alt={homeName || 'Home Team'}
                                     width="44"
                                     height="44"
-                                    className="h-11 w-11 flex-shrink-0 object-contain"
+                                    className="h-10 w-10 flex-shrink-0 object-contain sm:h-11 sm:w-11"
                                     loading="lazy"
                                   />
                                 ) : (
-                                  <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-white/5 text-[10px] text-gray-400">
+                                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white/5 text-[10px] text-gray-400 sm:h-11 sm:w-11">
                                     N/A
                                   </div>
                                 )}
@@ -563,11 +563,11 @@ function LiveSportsPageContent() {
                                 </span>
                               </div>
 
-                              <span className="flex-shrink-0 text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                              <span className="flex-shrink-0 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-400 sm:text-xs">
                                 VS
                               </span>
 
-                              <div className="flex min-w-0 flex-1 items-center justify-end gap-3 text-right">
+                              <div className="flex min-w-0 flex-1 items-center justify-end gap-2 text-right sm:gap-3">
                                 <span className="min-w-0 truncate text-sm font-medium text-white">
                                   {awayName || 'Away'}
                                 </span>
@@ -578,11 +578,11 @@ function LiveSportsPageContent() {
                                     alt={awayName || 'Away Team'}
                                     width="44"
                                     height="44"
-                                    className="h-11 w-11 flex-shrink-0 object-contain"
+                                    className="h-10 w-10 flex-shrink-0 object-contain sm:h-11 sm:w-11"
                                     loading="lazy"
                                   />
                                 ) : (
-                                  <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-white/5 text-[10px] text-gray-400">
+                                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white/5 text-[10px] text-gray-400 sm:h-11 sm:w-11">
                                     N/A
                                   </div>
                                 )}
@@ -647,10 +647,10 @@ function LiveSportsPageContent() {
         </section>
       </main>
 
-      <footer className="px-8 pb-8 pt-2 text-center text-sm text-gray-400">
+      <footer className="px-4 pb-8 pt-2 text-center text-sm text-gray-400 sm:px-6 lg:px-8">
         <p>This site does not host or store any media.</p>
 
-        <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-gray-500 sm:text-sm">
           <Link href="/Terms-and-Conditions" className="transition hover:text-red-400">
             Terms and Conditions
           </Link>

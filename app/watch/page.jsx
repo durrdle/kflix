@@ -444,31 +444,31 @@ function WatchPageContent() {
   };
 
   const queueSaveContinueWatching = (timeArg, playingArg) => {
-  if (!autoplayUnlocked) return;
-  if (!userId || !heroData || !type || !id) return;
+    if (!autoplayUnlocked) return;
+    if (!userId || !heroData || !type || !id) return;
 
-  if (saveContinueWatchingTimeoutRef.current) {
-    clearTimeout(saveContinueWatchingTimeoutRef.current);
-  }
+    if (saveContinueWatchingTimeoutRef.current) {
+      clearTimeout(saveContinueWatchingTimeoutRef.current);
+    }
 
-  saveContinueWatchingTimeoutRef.current = setTimeout(() => {
-    saveContinueWatchingItem({
-      uid: userId,
-      type,
-      id,
-      heroData,
-      episodeData,
-      season: type === 'tv' ? liveTvProgressRef.current.season || season : season,
-      episode: type === 'tv' ? liveTvProgressRef.current.episode || episode : episode,
-      episodeName:
-        type === 'tv'
-          ? liveTvProgressRef.current.episodeName || episodeData?.name || ''
-          : '',
-      currentTime: timeArg,
-      isPlaying: playingArg,
-    });
-  }, 250);
-};
+    saveContinueWatchingTimeoutRef.current = setTimeout(() => {
+      saveContinueWatchingItem({
+        uid: userId,
+        type,
+        id,
+        heroData,
+        episodeData,
+        season: type === 'tv' ? liveTvProgressRef.current.season || season : season,
+        episode: type === 'tv' ? liveTvProgressRef.current.episode || episode : episode,
+        episodeName:
+          type === 'tv'
+            ? liveTvProgressRef.current.episodeName || episodeData?.name || ''
+            : '',
+        currentTime: timeArg,
+        isPlaying: playingArg,
+      });
+    }, 250);
+  };
 
   const reloadPlayerToPosition = ({ currentTime, isPlaying }) => {
     const targetTime =
@@ -826,26 +826,26 @@ function WatchPageContent() {
       }
 
       if (playerEvent === 'playerstatus') {
-  setPlayerReady(true);
-  setPlayerCurrentTime(currentTime);
+        setPlayerReady(true);
+        setPlayerCurrentTime(currentTime);
 
-  const playing =
-    typeof payload.playing === 'boolean'
-      ? payload.playing
-      : typeof payload.isPlaying === 'boolean'
-      ? payload.isPlaying
-      : latestPlaybackRef.current.isPlaying;
+        const playing =
+          typeof payload.playing === 'boolean'
+            ? payload.playing
+            : typeof payload.isPlaying === 'boolean'
+            ? payload.isPlaying
+            : latestPlaybackRef.current.isPlaying;
 
-  setPlayerIsPlaying(playing);
-  latestPlaybackRef.current = {
-    currentTime,
-    isPlaying: playing,
-  };
+        setPlayerIsPlaying(playing);
+        latestPlaybackRef.current = {
+          currentTime,
+          isPlaying: playing,
+        };
 
-  if (autoplayUnlocked) {
-    queueSaveContinueWatching(currentTime, playing);
-  }
-}
+        if (autoplayUnlocked) {
+          queueSaveContinueWatching(currentTime, playing);
+        }
+      }
     };
 
     window.addEventListener('message', handleMessage);
@@ -1081,16 +1081,16 @@ function WatchPageContent() {
       <div className="flex min-h-screen flex-col bg-black text-white">
         <Navbar />
 
-        <main className="flex flex-1 items-center justify-center px-8 pb-4 pt-24">
-          <div className="w-full max-w-6xl overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-8 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <p className="text-lg text-gray-300">Loading watch page...</p>
+        <main className="flex flex-1 items-center justify-center px-4 pb-4 pt-20 sm:px-6 sm:pt-24 lg:px-8">
+          <div className="w-full max-w-6xl overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-6 shadow-[0_12px_35px_rgba(0,0,0,0.55)] sm:p-8">
+            <p className="text-base text-gray-300 sm:text-lg">Loading watch page...</p>
           </div>
         </main>
 
-        <footer className="px-8 pb-8 pt-2 text-center text-sm text-gray-400">
+        <footer className="px-4 pb-8 pt-2 text-center text-sm text-gray-400 sm:px-6 lg:px-8">
           <p>This site does not host or store any media.</p>
 
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-gray-500 sm:text-sm">
             <Link href="/Terms-and-Conditions" className="transition hover:text-red-400">
               Terms and Conditions
             </Link>
@@ -1121,9 +1121,9 @@ function WatchPageContent() {
       <div className="flex min-h-screen flex-col bg-black text-white">
         <Navbar />
 
-        <main className="flex flex-1 items-center justify-center px-8 pb-4 pt-24">
-          <div className="w-full max-w-6xl overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-8 text-center shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <p className="text-lg text-red-300">{error || 'Unable to load this page.'}</p>
+        <main className="flex flex-1 items-center justify-center px-4 pb-4 pt-20 sm:px-6 sm:pt-24 lg:px-8">
+          <div className="w-full max-w-6xl overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-6 text-center shadow-[0_12px_35px_rgba(0,0,0,0.55)] sm:p-8">
+            <p className="text-base text-red-300 sm:text-lg">{error || 'Unable to load this page.'}</p>
 
             <div className="mt-6">
               <Link
@@ -1136,10 +1136,10 @@ function WatchPageContent() {
           </div>
         </main>
 
-        <footer className="px-8 pb-8 pt-2 text-center text-sm text-gray-400">
+        <footer className="px-4 pb-8 pt-2 text-center text-sm text-gray-400 sm:px-6 lg:px-8">
           <p>This site does not host or store any media.</p>
 
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-gray-500 sm:text-sm">
             <Link href="/Terms-and-Conditions" className="transition hover:text-red-400">
               Terms and Conditions
             </Link>
@@ -1170,7 +1170,7 @@ function WatchPageContent() {
       <div className="flex min-h-screen flex-col bg-black text-white">
         <Navbar />
 
-        <main className="flex flex-1 items-center justify-center px-8 pb-4 pt-24">
+        <main className="flex flex-1 items-center justify-center px-4 pb-4 pt-20 sm:px-6 sm:pt-24 lg:px-8">
           <section className="w-full max-w-6xl">
             {syncNotice && (
               <div className="mb-4 rounded-xl border border-green-500/25 bg-green-500/10 px-4 py-3 text-sm text-green-200">
@@ -1184,7 +1184,7 @@ function WatchPageContent() {
               </div>
             )}
 
-            <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-3 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
+            <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-2 shadow-[0_12px_35px_rgba(0,0,0,0.55)] sm:p-3">
               <div className="overflow-hidden rounded-xl border-[1.5px] border-white/10 bg-black/20 shadow-[0_0_30px_rgba(239,68,68,0.16)]">
                 <div className="aspect-video w-full bg-black">
                   {embedUrl ? (
@@ -1217,7 +1217,7 @@ function WatchPageContent() {
                       }}
                     />
                   ) : (
-                    <div className="flex h-full items-center justify-center px-6 text-center text-sm text-gray-400">
+                    <div className="flex h-full items-center justify-center px-4 text-center text-sm text-gray-400 sm:px-6">
                       Unable to build a valid player URL for this media.
                     </div>
                   )}
@@ -1227,10 +1227,10 @@ function WatchPageContent() {
           </section>
         </main>
 
-        <footer className="px-8 pb-8 pt-2 text-center text-sm text-gray-400">
+        <footer className="px-4 pb-8 pt-2 text-center text-sm text-gray-400 sm:px-6 lg:px-8">
           <p>This site does not host or store any media.</p>
 
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-gray-500 sm:text-sm">
             <Link href="/Terms-and-Conditions" className="transition hover:text-red-400">
               Terms and Conditions
             </Link>
@@ -1243,9 +1243,9 @@ function WatchPageContent() {
       </div>
 
       {noticeOpen && (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 px-3 backdrop-blur-sm sm:px-4">
           <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-yellow-500/35 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <div className="flex items-center justify-between border-b border-yellow-500/20 bg-yellow-500/10 px-5 py-3">
+            <div className="border-b border-yellow-500/20 bg-yellow-500/10 px-4 py-3 sm:px-5">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-full border border-yellow-400/30 bg-yellow-500/15 text-yellow-200">
                   <svg
@@ -1267,13 +1267,13 @@ function WatchPageContent() {
               </div>
             </div>
 
-            <div className="space-y-5 px-5 py-5">
+            <div className="space-y-4 px-4 py-4 sm:space-y-5 sm:px-5 sm:py-5">
               <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
                 <p className="text-sm font-semibold text-yellow-200">
                   1.) Some servers may not be functioning properly, or may be experiencing issues.
                 </p>
 
-                <p className="mt-2 text-sm leading-7 text-gray-200">
+                <p className="mt-2 text-sm leading-6 text-gray-200 sm:leading-7">
                   The sources are external (third party) and therefore not affected by KFlix.
                 </p>
 
@@ -1287,16 +1287,16 @@ function WatchPageContent() {
                   2.) Be aware, using an adblocker like uBlock Origin or similar is highly suggested.
                 </p>
 
-                <p className="mt-2 text-sm leading-7 text-gray-200">
+                <p className="mt-2 text-sm leading-6 text-gray-200 sm:leading-7">
                   The embedded players might display pop-up ads or take you to a new site. KFlix is not affiliated with those ads.
                 </p>
               </div>
 
-              <div className="flex justify-end gap-3 pt-1">
+              <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
                 <button
                   type="button"
                   onClick={handleNoticeNotUnderstood}
-                  className="flex h-10 items-center justify-center rounded-md bg-black/25 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-yellow-400/20"
+                  className="flex h-10 w-full items-center justify-center rounded-md bg-black/25 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-yellow-400/20 sm:w-auto"
                 >
                   I Don’t Understand
                 </button>
@@ -1304,7 +1304,7 @@ function WatchPageContent() {
                 <button
                   type="button"
                   onClick={handleNoticeUnderstood}
-                  className="flex h-10 items-center justify-center rounded-md bg-yellow-500/80 px-5 text-sm font-semibold text-black transition active:scale-95 hover:bg-yellow-400"
+                  className="flex h-10 w-full items-center justify-center rounded-md bg-yellow-500/80 px-5 text-sm font-semibold text-black transition active:scale-95 hover:bg-yellow-400 sm:w-auto"
                 >
                   I Understand
                 </button>

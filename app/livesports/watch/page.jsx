@@ -337,11 +337,11 @@ function LiveSportsWatchContent() {
 
   if (loading && !streams.length) {
     return (
-      <div className="flex h-screen flex-col overflow-hidden bg-black text-white">
+      <div className="flex min-h-screen flex-col overflow-hidden bg-black text-white">
         <Navbar />
 
-        <main className="flex min-h-0 flex-1 items-center justify-center px-8 pt-24">
-          <p className="text-lg text-gray-300">Loading stream...</p>
+        <main className="flex min-h-0 flex-1 items-center justify-center px-4 pt-20 sm:px-6 sm:pt-24 lg:px-8">
+          <p className="text-base text-gray-300 sm:text-lg">Loading stream...</p>
         </main>
 
         <Footer />
@@ -351,12 +351,12 @@ function LiveSportsWatchContent() {
 
   if (error && !streams.length) {
     return (
-      <div className="flex h-screen flex-col overflow-hidden bg-black text-white">
+      <div className="flex min-h-screen flex-col overflow-hidden bg-black text-white">
         <Navbar />
 
-        <main className="flex min-h-0 flex-1 items-center justify-center px-8 pt-24">
+        <main className="flex min-h-0 flex-1 items-center justify-center px-4 pt-20 sm:px-6 sm:pt-24 lg:px-8">
           <div className="text-center">
-            <p className="text-lg text-red-300">{error}</p>
+            <p className="text-base text-red-300 sm:text-lg">{error}</p>
 
             <div className="mt-6">
               <Link
@@ -376,10 +376,10 @@ function LiveSportsWatchContent() {
 
   return (
     <>
-      <div className="flex h-screen flex-col overflow-hidden bg-black text-white">
+      <div className="flex min-h-screen flex-col overflow-hidden bg-black text-white">
         <Navbar />
 
-        <main className="flex min-h-0 flex-1 flex-col px-6 pb-2 pt-24">
+        <main className="flex min-h-0 flex-1 flex-col px-4 pb-3 pt-20 sm:px-6 sm:pb-2 sm:pt-24 lg:px-8">
           <section className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col">
             {syncNotice && (
               <div className="mb-3 rounded-xl border border-green-500/25 bg-green-500/10 px-4 py-3 text-sm text-green-200">
@@ -433,7 +433,7 @@ function LiveSportsWatchContent() {
               </div>
             </div>
 
-            <div className="relative flex min-h-0 flex-1 overflow-visible rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-3 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
+            <div className="relative flex min-h-0 flex-1 overflow-visible rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-2 shadow-[0_12px_35px_rgba(0,0,0,0.55)] sm:p-3">
               <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border-[1.5px] border-white/10 bg-black/20 shadow-[0_0_30px_rgba(239,68,68,0.16)]">
                 <div className="relative z-10 aspect-video w-full self-center bg-black">
                   <iframe
@@ -454,9 +454,9 @@ function LiveSportsWatchContent() {
       </div>
 
       {noticeOpen && (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 px-3 backdrop-blur-sm sm:px-4">
           <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-yellow-500/35 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <div className="flex items-center justify-between border-b border-yellow-500/20 bg-yellow-500/10 px-5 py-3">
+            <div className="border-b border-yellow-500/20 bg-yellow-500/10 px-4 py-3 sm:px-5">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-full border border-yellow-400/30 bg-yellow-500/15 text-yellow-200">
                   <svg
@@ -478,13 +478,13 @@ function LiveSportsWatchContent() {
               </div>
             </div>
 
-            <div className="space-y-5 px-5 py-5">
+            <div className="space-y-4 px-4 py-4 sm:space-y-5 sm:px-5 sm:py-5">
               <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
                 <p className="text-sm font-semibold text-yellow-200">
                   1.) Some servers may not be functioning properly, or may be experiencing issues.
                 </p>
 
-                <p className="mt-2 text-sm leading-7 text-gray-200">
+                <p className="mt-2 text-sm leading-6 text-gray-200 sm:leading-7">
                   The sources are external (third party) and therefore not affected by KFlix.
                 </p>
 
@@ -498,16 +498,16 @@ function LiveSportsWatchContent() {
                   2.) Be aware, using an adblocker like uBlock Origin or similar is highly suggested.
                 </p>
 
-                <p className="mt-2 text-sm leading-7 text-gray-200">
+                <p className="mt-2 text-sm leading-6 text-gray-200 sm:leading-7">
                   The embedded players might display pop-up ads or take you to a new site. KFlix is not affiliated with those ads.
                 </p>
               </div>
 
-              <div className="flex justify-end gap-3 pt-1">
+              <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
                 <button
                   type="button"
                   onClick={handleNoticeNotUnderstood}
-                  className="flex h-10 items-center justify-center rounded-md bg-black/25 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-yellow-400/20"
+                  className="flex h-10 w-full items-center justify-center rounded-md bg-black/25 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-yellow-400/20 sm:w-auto"
                 >
                   I Don’t Understand
                 </button>
@@ -515,7 +515,7 @@ function LiveSportsWatchContent() {
                 <button
                   type="button"
                   onClick={handleNoticeUnderstood}
-                  className="flex h-10 items-center justify-center rounded-md bg-yellow-500/80 px-5 text-sm font-semibold text-black transition active:scale-95 hover:bg-yellow-400"
+                  className="flex h-10 w-full items-center justify-center rounded-md bg-yellow-500/80 px-5 text-sm font-semibold text-black transition active:scale-95 hover:bg-yellow-400 sm:w-auto"
                 >
                   I Understand
                 </button>
@@ -530,10 +530,10 @@ function LiveSportsWatchContent() {
 
 function Footer() {
   return (
-    <footer className="shrink-0 px-8 pb-6 pt-2 text-center text-sm text-gray-400">
+    <footer className="shrink-0 px-4 pb-6 pt-2 text-center text-sm text-gray-400 sm:px-6 lg:px-8">
       <p>This site does not host or store any media.</p>
 
-      <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
+      <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-gray-500 sm:text-sm">
         <Link href="/Terms-and-Conditions" className="transition hover:text-red-400">
           Terms and Conditions
         </Link>

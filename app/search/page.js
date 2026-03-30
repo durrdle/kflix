@@ -10,8 +10,6 @@ const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
 const IMAGE_POSTER = 'https://image.tmdb.org/t/p/w500';
 const INITIAL_ITEM_COUNT = 30;
 const LOAD_MORE_COUNT = 30;
-const GITHUB_HASH = process.env.NEXT_PUBLIC_GIT_HASH || 'dev';
-const GITHUB_REPO_URL = process.env.NEXT_PUBLIC_GITHUB_REPO_URL || '#';
 
 const STRICT_ANIME_KEYWORDS = '210024|287501';
 
@@ -395,10 +393,7 @@ function SearchPageContent() {
     [activeTab, currentMinRating, currentYearFrom, currentYearTo, currentType]
   );
 
-  const activeTabConfig = useMemo(
-    () => getTabConfig(activeTab),
-    [activeTab]
-  );
+  const activeTabConfig = useMemo(() => getTabConfig(activeTab), [activeTab]);
 
   const filteredResults = useMemo(
     () => applyLocalFilters(rawResults, filterConfig),
@@ -615,7 +610,10 @@ function SearchPageContent() {
       let nextPage = currentPage + 1;
       let nextRaw = [...rawResults];
 
-      while (nextPage <= maxPages && applyLocalFilters(nextRaw, filterConfig).length < neededVisibleCount) {
+      while (
+        nextPage <= maxPages &&
+        applyLocalFilters(nextRaw, filterConfig).length < neededVisibleCount
+      ) {
         const result = currentQuery.trim()
           ? await fetchSearchResults({
               query: currentQuery,
@@ -690,12 +688,12 @@ function SearchPageContent() {
         <Navbar />
       </Suspense>
 
-      <main className="px-8 pb-10 pt-24">
+      <main className="px-3 pb-8 pt-20 sm:px-6 sm:pb-10 sm:pt-24 lg:px-8">
         <section>
           <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <div className="border-b border-red-500/25 bg-red-600/10 px-6 py-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400">
+            <div className="border-b border-red-500/25 bg-red-600/10 px-4 py-3 sm:px-6 sm:py-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
+                <h2 className="text-base font-semibold uppercase tracking-[0.16em] text-red-400 sm:text-lg sm:tracking-[0.18em]">
                   {resultsLabel}
                 </h2>
 
@@ -707,7 +705,7 @@ function SearchPageContent() {
               </div>
             </div>
 
-            <div className="border-b border-red-500/15 px-6 py-4">
+            <div className="border-b border-red-500/15 px-4 py-3 sm:px-6 sm:py-4">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -718,8 +716,8 @@ function SearchPageContent() {
                   aria-disabled={!canScrollTabsLeft}
                   className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full backdrop-blur-md transition ${
                     canScrollTabsLeft
-                      ? 'bg-black/25 text-white cursor-pointer active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40'
-                      : 'bg-black/15 text-gray-500 cursor-default opacity-60'
+                      ? 'cursor-pointer bg-black/25 text-white active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40'
+                      : 'cursor-default bg-black/15 text-gray-500 opacity-60'
                   }`}
                   aria-label="Scroll tabs left"
                 >
@@ -741,7 +739,7 @@ function SearchPageContent() {
                           key={tab.key}
                           type="button"
                           onClick={() => handleTabChange(tab.key)}
-                          className={`whitespace-nowrap rounded-md border px-4 py-2 text-sm font-semibold transition active:scale-95 ${
+                          className={`whitespace-nowrap rounded-md border px-3 py-2 text-xs font-semibold transition active:scale-95 sm:px-4 sm:text-sm ${
                             active
                               ? 'border-red-400 bg-red-600/15 text-red-300 shadow-[0_0_18px_rgba(239,68,68,0.18)]'
                               : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
@@ -763,8 +761,8 @@ function SearchPageContent() {
                   aria-disabled={!canScrollTabsRight}
                   className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full backdrop-blur-md transition ${
                     canScrollTabsRight
-                      ? 'bg-black/25 text-white cursor-pointer active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40'
-                      : 'bg-black/15 text-gray-500 cursor-default opacity-60'
+                      ? 'cursor-pointer bg-black/25 text-white active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40'
+                      : 'cursor-default bg-black/15 text-gray-500 opacity-60'
                   }`}
                   aria-label="Scroll tabs right"
                 >
@@ -776,16 +774,16 @@ function SearchPageContent() {
             </div>
 
             {loading ? (
-              <div className="px-6 py-10">
-                <p className="text-lg text-gray-300">Loading results...</p>
+              <div className="px-4 py-8 sm:px-6 sm:py-10">
+                <p className="text-base text-gray-300 sm:text-lg">Loading results...</p>
               </div>
             ) : visibleResults.length === 0 ? (
-              <div className="px-6 py-10">
-                <p className="text-lg text-gray-300">No results found.</p>
+              <div className="px-4 py-8 sm:px-6 sm:py-10">
+                <p className="text-base text-gray-300 sm:text-lg">No results found.</p>
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-2 gap-4 px-6 py-6 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10">
+                <div className="grid grid-cols-2 gap-3 px-4 py-4 sm:gap-4 sm:px-6 sm:py-6 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 2xl:grid-cols-10">
                   {visibleResults.map((item) => {
                     const itemType = item.media_type === 'tv' ? 'tv' : 'movie';
                     const href = `/${itemType}/${item.id}`;
@@ -804,7 +802,7 @@ function SearchPageContent() {
                             onToggleBookmark={() => toggleBookmark(item, itemType)}
                           />
 
-                          <div className="absolute inset-0 opacity-0 bg-red-500/10 blur-xl transition duration-300 group-hover:opacity-100" />
+                          <div className="absolute inset-0 bg-red-500/10 opacity-0 blur-xl transition duration-300 group-hover:opacity-100" />
 
                           <div className="relative aspect-[2/3] w-full bg-gray-800">
                             <img
@@ -815,12 +813,12 @@ function SearchPageContent() {
                           </div>
                         </div>
 
-                        <div className="mt-3">
-                          <div className="line-clamp-1 text-sm font-medium text-white transition group-hover:text-red-300">
+                        <div className="mt-2 sm:mt-3">
+                          <div className="line-clamp-1 text-xs font-medium text-white transition group-hover:text-red-300 sm:text-sm">
                             {item.title || item.name}
                           </div>
 
-                          <div className="mt-1 flex items-center gap-2 text-xs text-gray-400">
+                          <div className="mt-1 flex items-center gap-2 text-[11px] text-gray-400 sm:text-xs">
                             <span>
                               {(item.release_date || item.first_air_date || 'Unknown').slice(0, 4)}
                             </span>
@@ -828,7 +826,7 @@ function SearchPageContent() {
                             <span>{itemType === 'movie' ? 'Movie' : 'Show'}</span>
                           </div>
 
-                          <div className="mt-1 text-xs text-gray-400">
+                          <div className="mt-1 text-[11px] text-gray-400 sm:text-xs">
                             TMDB {Number(item.vote_average || 0).toFixed(1)}
                           </div>
                         </div>
@@ -837,14 +835,14 @@ function SearchPageContent() {
                   })}
                 </div>
 
-                <div className="border-t border-red-500/15 px-6 pb-6 pt-2">
-                  <div className="flex justify-end gap-2">
+                <div className="border-t border-red-500/15 px-4 pb-5 pt-3 sm:px-6 sm:pb-6 sm:pt-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                     {canLoadMore && (
                       <button
                         type="button"
                         onClick={handleLoadMore}
                         disabled={loadingMore}
-                        className={`flex h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition active:scale-95 ${
+                        className={`flex h-11 w-full items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition active:scale-95 sm:w-auto ${
                           loadingMore
                             ? 'cursor-default bg-red-600/70'
                             : 'bg-red-600 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60'
@@ -866,7 +864,7 @@ function SearchPageContent() {
                     <button
                       type="button"
                       onClick={handleBackToTop}
-                      className="flex h-11 items-center justify-center gap-2 rounded-md bg-black/25 px-5 text-sm font-semibold text-white backdrop-blur-md transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
+                      className="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-black/25 px-5 text-sm font-semibold text-white backdrop-blur-md transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40 sm:w-auto"
                     >
                       <svg
                         className="h-4 w-4"
@@ -887,7 +885,7 @@ function SearchPageContent() {
         </section>
       </main>
 
-      <footer className="px-8 pb-8 pt-2 text-center text-sm text-gray-400">
+      <footer className="px-4 pb-8 pt-2 text-center text-sm text-gray-400 sm:px-6 lg:px-8">
         <p>This site does not host or store any media.</p>
 
         <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">

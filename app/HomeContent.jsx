@@ -354,29 +354,29 @@ function RatingsStarBadge({ item }) {
       </button>
 
       <div className="pointer-events-none absolute left-0 top-9 z-30 min-w-[88px] max-w-[110px] rounded-md border border-yellow-300/45 bg-gradient-to-b from-gray-800 to-gray-900 px-2.5 py-2 opacity-0 shadow-[0_0_18px_rgba(253,224,71,0.18),0_12px_35px_rgba(0,0,0,0.55)] transition-all duration-150 group-hover/ratings:pointer-events-auto group-hover/ratings:translate-y-0 group-hover/ratings:opacity-100">
-  <div className="space-y-1.5">
-    {item.imdbRating ? (
-      <div className="flex items-center gap-2 text-[11px] leading-none">
-        <span className="shrink-0 font-semibold uppercase tracking-[0.08em] text-yellow-300">IMDb</span>
-        <span className="truncate text-white">{item.imdbRating}</span>
-      </div>
-    ) : null}
+        <div className="space-y-1.5">
+          {item.imdbRating ? (
+            <div className="flex items-center gap-2 text-[11px] leading-none">
+              <span className="shrink-0 font-semibold uppercase tracking-[0.08em] text-yellow-300">IMDb</span>
+              <span className="truncate text-white">{item.imdbRating}</span>
+            </div>
+          ) : null}
 
-    {item.rtRating ? (
-      <div className="flex items-center gap-2 text-[11px] leading-none">
-        <span className="shrink-0 font-semibold uppercase tracking-[0.08em] text-yellow-300">RT</span>
-        <span className="truncate text-white">{item.rtRating}</span>
-      </div>
-    ) : null}
+          {item.rtRating ? (
+            <div className="flex items-center gap-2 text-[11px] leading-none">
+              <span className="shrink-0 font-semibold uppercase tracking-[0.08em] text-yellow-300">RT</span>
+              <span className="truncate text-white">{item.rtRating}</span>
+            </div>
+          ) : null}
 
-    {tmdbRating ? (
-      <div className="flex items-center gap-2 text-[11px] leading-none">
-        <span className="shrink-0 font-semibold uppercase tracking-[0.08em] text-yellow-300">TMDB</span>
-        <span className="truncate text-white">{tmdbRating}</span>
+          {tmdbRating ? (
+            <div className="flex items-center gap-2 text-[11px] leading-none">
+              <span className="shrink-0 font-semibold uppercase tracking-[0.08em] text-yellow-300">TMDB</span>
+              <span className="truncate text-white">{tmdbRating}</span>
+            </div>
+          ) : null}
+        </div>
       </div>
-    ) : null}
-  </div>
-</div>
     </div>
   );
 }
@@ -432,7 +432,10 @@ function CarouselSection({
   const scrollRef = useRef(null);
   const [currentPage, setCurrentPage] = useState(0);
 
-  const totalPages = Math.max(1, Math.ceil(items.length / cardsPerPage));
+  const mobileCardsPerPage = compact ? 2 : 2;
+  const desktopCardsPerPage = cardsPerPage;
+  const effectiveCardsPerPage = desktopCardsPerPage;
+  const totalPages = Math.max(1, Math.ceil(items.length / effectiveCardsPerPage));
   const maxPage = totalPages - 1;
 
   const canScrollLeft = currentPage > 0;
@@ -509,8 +512,8 @@ function CarouselSection({
 
     return (
       <div className="overflow-hidden rounded-xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-        <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-5 py-3">
-          <h2 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400 md:text-xl">
+        <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-4 py-3 sm:px-5">
+          <h2 className="text-base font-semibold uppercase tracking-[0.16em] text-red-400 sm:text-lg md:text-xl">
             {title}
           </h2>
 
@@ -537,15 +540,15 @@ function CarouselSection({
           </div>
         </div>
 
-        <div className="px-5 py-8 text-sm text-gray-400">{emptyText}</div>
+        <div className="px-4 py-6 text-sm text-gray-400 sm:px-5 sm:py-8">{emptyText}</div>
       </div>
     );
   }
 
   return (
     <div className="overflow-hidden rounded-xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-      <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-5 py-3">
-        <h2 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400 md:text-xl">
+      <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-4 py-3 sm:px-5">
+        <h2 className="pr-3 text-base font-semibold uppercase tracking-[0.16em] text-red-400 sm:text-lg md:text-xl">
           {title}
         </h2>
 
@@ -589,14 +592,14 @@ function CarouselSection({
         <div className="flex w-full">
           {Array.from({ length: totalPages }).map((_, pageIndex) => {
             const pageItems = items.slice(
-              pageIndex * cardsPerPage,
-              pageIndex * cardsPerPage + cardsPerPage
+              pageIndex * effectiveCardsPerPage,
+              pageIndex * effectiveCardsPerPage + effectiveCardsPerPage
             );
 
             return (
               <div
                 key={`${sectionKey}-page-${pageIndex}`}
-                className={`grid min-w-full gap-4 px-5 py-5 ${
+                className={`grid min-w-full gap-3 px-4 py-4 sm:gap-4 sm:px-5 sm:py-5 ${
                   compact
                     ? cardsPerPage === 10
                       ? 'grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-10'
@@ -626,7 +629,7 @@ function CarouselSection({
                     <Link
                       key={`${sectionKey}-${item.id || index}-${mediaType}`}
                       href={resolveHref(item, mediaType)}
-                      className={`group block min-w-0 cursor-pointer ${compact ? 'max-w-[190px]' : ''}`}
+                      className="group block min-w-0"
                     >
                       <div className="relative overflow-hidden rounded-lg border-[1.5px] border-white/10 bg-black/20 transition duration-300 group-hover:border-red-400/90 group-hover:shadow-[0_0_30px_rgba(239,68,68,0.45)]">
                         <CardBadges
@@ -650,8 +653,8 @@ function CarouselSection({
                             isNextUpSection
                               ? 'Remove from Next Up'
                               : isWatched
-                              ? 'Marked watched'
-                              : 'Mark as watched'
+                                ? 'Marked watched'
+                                : 'Mark as watched'
                           }
                         />
 
@@ -672,18 +675,14 @@ function CarouselSection({
                         </div>
                       </div>
 
-                      <div className={compact ? 'mt-2' : 'mt-3'}>
-                        <div
-                          className={`line-clamp-1 font-medium text-white transition group-hover:text-red-300 ${
-                            compact ? 'text-xs' : 'text-sm'
-                          }`}
-                        >
+                      <div className="mt-2 sm:mt-3">
+                        <div className="line-clamp-1 text-xs font-medium text-white transition group-hover:text-red-300 sm:text-sm">
                           {item.title || item.name || 'Untitled'}
                         </div>
 
                         {isContinueWatchingSection || isNextUpSection ? (
                           <>
-                            <div className={`mt-1 text-gray-400 ${compact ? 'text-[11px]' : 'text-xs'}`}>
+                            <div className="mt-1 text-[11px] text-gray-400 sm:text-xs">
                               {(item.media_type || item.type) === 'tv'
                                 ? `S${
                                     isNextUpSection
@@ -702,7 +701,7 @@ function CarouselSection({
                             </div>
 
                             {(item.media_type || item.type) === 'tv' && (
-                              <div className={`mt-1 text-gray-500 ${compact ? 'text-[11px]' : 'text-xs'}`}>
+                              <div className="mt-1 text-[11px] text-gray-500 sm:text-xs">
                                 {isNextUpSection
                                   ? 'Ready to start'
                                   : formatRemainingTime(item.remainingTime)}
@@ -724,7 +723,7 @@ function CarouselSection({
                             )}
                           </>
                         ) : (
-                          <div className={`mt-1 text-gray-400 ${compact ? 'text-[11px]' : 'text-xs'}`}>
+                          <div className="mt-1 text-[11px] text-gray-400 sm:text-xs">
                             {(item.release_date || item.first_air_date || 'Unknown').slice(0, 4)}
                           </div>
                         )}
@@ -733,8 +732,8 @@ function CarouselSection({
                   );
                 })}
 
-                {pageItems.length < cardsPerPage &&
-                  Array.from({ length: cardsPerPage - pageItems.length }).map((_, fillerIndex) => (
+                {pageItems.length < effectiveCardsPerPage &&
+                  Array.from({ length: effectiveCardsPerPage - pageItems.length }).map((_, fillerIndex) => (
                     <div key={`${sectionKey}-filler-${pageIndex}-${fillerIndex}`} />
                   ))}
               </div>
@@ -1050,8 +1049,8 @@ export default function HomeContent() {
     <div className="min-h-screen bg-black text-white">
       <Navbar />
 
-      <section className="px-4 pt-24 sm:px-6 lg:px-8">
-        <div className="relative h-[62vh] min-h-[470px] w-full overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
+      <section className="px-3 pt-20 sm:px-4 sm:pt-24 lg:px-8">
+        <div className="relative h-[42vh] min-h-[300px] w-full overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)] sm:h-[52vh] sm:min-h-[380px] lg:h-[62vh] lg:min-h-[470px]">
           {heroMovies.map((movie, idx) => (
             <Link
               key={movie.id}
@@ -1068,27 +1067,27 @@ export default function HomeContent() {
             />
           ))}
 
-          <div className="pointer-events-none absolute inset-0 bg-black/45" />
+          <div className="pointer-events-none absolute inset-0 bg-black/50 sm:bg-black/45" />
 
-          <div className="absolute inset-y-0 left-4 z-30 flex items-center">
+          <div className="absolute inset-y-0 left-2 z-30 flex items-center sm:left-4">
             <button
               type="button"
               onClick={goHeroLeft}
-              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-black/35 backdrop-blur-md transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-black/35 backdrop-blur-md transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60 sm:h-10 sm:w-10"
             >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M15 6l-6 6 6 6" />
               </svg>
             </button>
           </div>
 
-          <div className="absolute inset-y-0 right-4 z-30 flex items-center">
+          <div className="absolute inset-y-0 right-2 z-30 flex items-center sm:right-4">
             <button
               type="button"
               onClick={goHeroRight}
-              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-black/35 backdrop-blur-md transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-black/35 backdrop-blur-md transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60 sm:h-10 sm:w-10"
             >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M9 6l6 6-6 6" />
               </svg>
             </button>
@@ -1097,10 +1096,12 @@ export default function HomeContent() {
           {currentHero && (
             <Link
               href={`/movie/${currentHero.id}`}
-              className="relative z-20 flex h-full w-full max-w-4xl cursor-pointer flex-col justify-end px-8 pb-10 text-left"
+              className="relative z-20 flex h-full w-full max-w-4xl cursor-pointer flex-col justify-end px-4 pb-6 text-left sm:px-6 sm:pb-8 lg:px-8 lg:pb-10"
             >
-              <h1 className="text-4xl font-bold md:text-6xl">{currentHero.title}</h1>
-              <p className="mt-4 max-w-2xl line-clamp-3 text-gray-200">
+              <h1 className="max-w-[85%] text-2xl font-bold leading-tight sm:text-4xl md:text-5xl lg:text-6xl">
+                {currentHero.title}
+              </h1>
+              <p className="mt-3 max-w-2xl line-clamp-3 text-sm text-gray-200 sm:mt-4 sm:text-base">
                 {currentHero.overview}
               </p>
             </Link>
@@ -1108,8 +1109,8 @@ export default function HomeContent() {
         </div>
       </section>
 
-      <section className="space-y-10 px-4 py-10 sm:px-6 lg:px-8">
-        <div className="grid gap-10 xl:grid-cols-2">
+      <section className="space-y-6 px-3 py-6 sm:space-y-8 sm:px-4 sm:py-8 lg:space-y-10 lg:px-8 lg:py-10">
+        <div className="grid gap-6 xl:grid-cols-2 xl:gap-10">
           {homepageReady ? (
             <>
               <CarouselSection
@@ -1147,8 +1148,8 @@ export default function HomeContent() {
           ) : (
             <>
               <div className="overflow-hidden rounded-xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-                <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-5 py-3">
-                  <h2 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400 md:text-xl">
+                <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-4 py-3 sm:px-5">
+                  <h2 className="text-base font-semibold uppercase tracking-[0.16em] text-red-400 sm:text-lg md:text-xl">
                     Continue Watching
                   </h2>
 
@@ -1175,12 +1176,12 @@ export default function HomeContent() {
                   </div>
                 </div>
 
-                <div className="px-5 py-8 text-sm text-gray-400">Loading your progress...</div>
+                <div className="px-4 py-6 text-sm text-gray-400 sm:px-5 sm:py-8">Loading your progress...</div>
               </div>
 
               <div className="overflow-hidden rounded-xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-                <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-5 py-3">
-                  <h2 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400 md:text-xl">
+                <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-4 py-3 sm:px-5">
+                  <h2 className="text-base font-semibold uppercase tracking-[0.16em] text-red-400 sm:text-lg md:text-xl">
                     Next Up
                   </h2>
 
@@ -1207,7 +1208,7 @@ export default function HomeContent() {
                   </div>
                 </div>
 
-                <div className="px-5 py-8 text-sm text-gray-400">Loading your progress...</div>
+                <div className="px-4 py-6 text-sm text-gray-400 sm:px-5 sm:py-8">Loading your progress...</div>
               </div>
             </>
           )}
@@ -1271,35 +1272,35 @@ export default function HomeContent() {
       </section>
 
       <footer className="px-4 pb-8 pt-2 text-center text-sm text-gray-400 sm:px-6 lg:px-8">
-  <p>This site does not host or store any media.</p>
+        <p>This site does not host or store any media.</p>
 
-  <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
-    <Link href="/Terms-and-Conditions" className="cursor-pointer transition hover:text-red-400">
-      Terms and Conditions
-    </Link>
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
+          <Link href="/Terms-and-Conditions" className="cursor-pointer transition hover:text-red-400">
+            Terms and Conditions
+          </Link>
 
-    <span>•</span>
+          <span>•</span>
 
-    <Link href="/Privacy-Policy" className="cursor-pointer transition hover:text-red-400">
-      Privacy Policy
-    </Link>
+          <Link href="/Privacy-Policy" className="cursor-pointer transition hover:text-red-400">
+            Privacy Policy
+          </Link>
 
-    <span>•</span>
+          <span>•</span>
 
-    <a
-      href={`${process.env.NEXT_PUBLIC_GITHUB_REPO}/commit/${process.env.NEXT_PUBLIC_COMMIT_HASH}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex items-center gap-1 font-mono tracking-wider"
-      title="View this version on GitHub"
-    >
-      <span className="text-gray-500">Update</span>
-      <span className="text-red-400 animate-pulse drop-shadow-[0_0_8px_rgba(239,68,68,0.6)] transition hover:text-red-300">
-        {process.env.NEXT_PUBLIC_COMMIT_HASH}
-      </span>
-    </a>
-  </div>
-</footer>
+          <a
+            href={`${process.env.NEXT_PUBLIC_GITHUB_REPO}/commit/${process.env.NEXT_PUBLIC_COMMIT_HASH}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 font-mono tracking-wider"
+            title="View this version on GitHub"
+          >
+            <span className="text-gray-500">Update</span>
+            <span className="animate-pulse text-red-400 drop-shadow-[0_0_8px_rgba(239,68,68,0.6)] transition hover:text-red-300">
+              {process.env.NEXT_PUBLIC_COMMIT_HASH}
+            </span>
+          </a>
+        </div>
+      </footer>
     </div>
   );
 }
