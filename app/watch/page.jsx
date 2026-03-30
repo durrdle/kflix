@@ -444,30 +444,31 @@ function WatchPageContent() {
   };
 
   const queueSaveContinueWatching = (timeArg, playingArg) => {
-    if (!userId || !heroData || !type || !id) return;
+  if (!autoplayUnlocked) return;
+  if (!userId || !heroData || !type || !id) return;
 
-    if (saveContinueWatchingTimeoutRef.current) {
-      clearTimeout(saveContinueWatchingTimeoutRef.current);
-    }
+  if (saveContinueWatchingTimeoutRef.current) {
+    clearTimeout(saveContinueWatchingTimeoutRef.current);
+  }
 
-    saveContinueWatchingTimeoutRef.current = setTimeout(() => {
-      saveContinueWatchingItem({
-        uid: userId,
-        type,
-        id,
-        heroData,
-        episodeData,
-        season: type === 'tv' ? liveTvProgressRef.current.season || season : season,
-        episode: type === 'tv' ? liveTvProgressRef.current.episode || episode : episode,
-        episodeName:
-          type === 'tv'
-            ? liveTvProgressRef.current.episodeName || episodeData?.name || ''
-            : '',
-        currentTime: timeArg,
-        isPlaying: playingArg,
-      });
-    }, 250);
-  };
+  saveContinueWatchingTimeoutRef.current = setTimeout(() => {
+    saveContinueWatchingItem({
+      uid: userId,
+      type,
+      id,
+      heroData,
+      episodeData,
+      season: type === 'tv' ? liveTvProgressRef.current.season || season : season,
+      episode: type === 'tv' ? liveTvProgressRef.current.episode || episode : episode,
+      episodeName:
+        type === 'tv'
+          ? liveTvProgressRef.current.episodeName || episodeData?.name || ''
+          : '',
+      currentTime: timeArg,
+      isPlaying: playingArg,
+    });
+  }, 250);
+};
 
   const reloadPlayerToPosition = ({ currentTime, isPlaying }) => {
     const targetTime =
@@ -825,29 +826,31 @@ function WatchPageContent() {
       }
 
       if (playerEvent === 'playerstatus') {
-        setPlayerReady(true);
-        setPlayerCurrentTime(currentTime);
+  setPlayerReady(true);
+  setPlayerCurrentTime(currentTime);
 
-        const playing =
-          typeof payload.playing === 'boolean'
-            ? payload.playing
-            : typeof payload.isPlaying === 'boolean'
-            ? payload.isPlaying
-            : latestPlaybackRef.current.isPlaying;
+  const playing =
+    typeof payload.playing === 'boolean'
+      ? payload.playing
+      : typeof payload.isPlaying === 'boolean'
+      ? payload.isPlaying
+      : latestPlaybackRef.current.isPlaying;
 
-        setPlayerIsPlaying(playing);
-        latestPlaybackRef.current = {
-          currentTime,
-          isPlaying: playing,
-        };
+  setPlayerIsPlaying(playing);
+  latestPlaybackRef.current = {
+    currentTime,
+    isPlaying: playing,
+  };
 
-        queueSaveContinueWatching(currentTime, playing);
-      }
+  if (autoplayUnlocked) {
+    queueSaveContinueWatching(currentTime, playing);
+  }
+}
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [isHost, userId, type, id, season, episode, heroData, episodeData]);
+  }, [isHost, userId, type, id, season, episode, heroData, episodeData, autoplayUnlocked]);
 
   useEffect(() => {
     if (!playerReady || !pendingInitialSyncRef.current || !autoplayUnlocked) return;
