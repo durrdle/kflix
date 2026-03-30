@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { get, onValue, ref, update } from 'firebase/database';
+import { get, onValue, ref, update, remove, set } from 'firebase/database';
 import Navbar from '@/components/Navbar';
 import { db, setPartyMedia, subscribeToMembers } from '@/lib/firebaseParty';
 
@@ -93,10 +93,6 @@ function getEmbedUrl({ type, id, season, episode, startAt = 0, autoPlay = true }
   return '';
 }
 
-function getContinueWatchingStorageKey(uid) {
-  return `kflix_continue_watching_${uid}`;
-}
-
 function safeNumber(value, fallback = 0) {
   const num = Number(value);
   return Number.isFinite(num) ? num : fallback;
@@ -104,6 +100,10 @@ function safeNumber(value, fallback = 0) {
 
 function buildEpisodeKey(showId, seasonNumber, episodeNumber) {
   return `${showId}-S${seasonNumber}-E${episodeNumber}`;
+}
+
+function buildContinueWatchingKey(type, id) {
+  return `${type}-${id}`;
 }
 
 async function markEpisodeWatched({ uid, showId, season, episode }) {
@@ -252,51 +252,31 @@ async function saveContinueWatchingItem({
 
   const shouldHideBecauseTooEarly = watchedSeconds < MIN_WATCHED_SECONDS;
   const shouldHideBecauseAlmostDone =
-    type === 'movie' &&
     totalRuntimeSeconds > 0 &&
     remainingSeconds !== null &&
     remainingSeconds <= HIDE_WHEN_REMAINING_SECONDS;
 
-  const storageKey = getContinueWatchingStorageKey(uid);
-  const firebaseKey = `${type}-${heroData.id}`;
+  const firebaseKey = buildContinueWatchingKey(type, heroData.id);
+  const itemRef = ref(db, `users/${uid}/continueWatching/${firebaseKey}`);
 
   try {
-    const raw = localStorage.getItem(storageKey);
-    const parsed = raw ? JSON.parse(raw) : [];
-    const list = Array.isArray(parsed) ? parsed : [];
-
-    const filtered = list.filter((entry) => {
-      if (type === 'movie') {
-        return !(entry.media_type === 'movie' && String(entry.id) === String(id));
-      }
-
-      return !(entry.media_type === 'tv' && String(entry.id) === String(id));
-    });
-
-    if (shouldHideBecauseTooEarly || shouldHideBecauseAlmostDone) {
-      localStorage.setItem(storageKey, JSON.stringify(filtered));
-      window.dispatchEvent(new Event('storage'));
+    if (shouldHideBecauseTooEarly) {
+      await remove(itemRef);
       window.dispatchEvent(new Event('kflix-continue-watching-updated'));
-
-      try {
-        await update(ref(db, `users/${uid}/continueWatching`), {
-          [firebaseKey]: null,
-        });
-      } catch (firebaseError) {
-        console.error('Failed to remove continue watching from Firebase:', firebaseError);
-      }
-
       return;
     }
 
     const activeSeason = type === 'tv' ? safeNumber(season, '') : null;
     const activeEpisode = type === 'tv' ? safeNumber(episode, '') : null;
 
+    if (type === 'movie' && shouldHideBecauseAlmostDone) {
+      await remove(itemRef);
+      window.dispatchEvent(new Event('kflix-continue-watching-updated'));
+      return;
+    }
+
     const nextEpisodeTarget =
-      type === 'tv' &&
-      totalRuntimeSeconds > 0 &&
-      remainingSeconds !== null &&
-      remainingSeconds <= HIDE_WHEN_REMAINING_SECONDS
+      type === 'tv' && shouldHideBecauseAlmostDone
         ? resolveNextTvEpisode(heroData, activeSeason, activeEpisode)
         : null;
 
@@ -331,17 +311,8 @@ async function saveContinueWatchingItem({
       updatedAt: Date.now(),
     };
 
-    localStorage.setItem(storageKey, JSON.stringify([item, ...filtered].slice(0, 24)));
-    window.dispatchEvent(new Event('storage'));
+    await set(itemRef, item);
     window.dispatchEvent(new Event('kflix-continue-watching-updated'));
-
-    try {
-      await update(ref(db, `users/${uid}/continueWatching`), {
-        [firebaseKey]: item,
-      });
-    } catch (firebaseError) {
-      console.error('Failed to sync continue watching to Firebase:', firebaseError);
-    }
   } catch (error) {
     console.error('Failed to save continue watching:', error);
   }
@@ -1114,7 +1085,7 @@ function WatchPageContent() {
         </main>
 
         <footer className="px-8 pb-8 pt-2 text-center text-sm text-gray-400">
-          <p>This website does not host or store any media on its servers.</p>
+          <p>This site does not host or store any media.</p>
 
           <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
             <Link href="/Terms-and-Conditions" className="transition hover:text-red-400">
@@ -1163,7 +1134,7 @@ function WatchPageContent() {
         </main>
 
         <footer className="px-8 pb-8 pt-2 text-center text-sm text-gray-400">
-          <p>This website does not host or store any media on its servers.</p>
+          <p>This site does not host or store any media.</p>
 
           <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
             <Link href="/Terms-and-Conditions" className="transition hover:text-red-400">
@@ -1254,7 +1225,7 @@ function WatchPageContent() {
         </main>
 
         <footer className="px-8 pb-8 pt-2 text-center text-sm text-gray-400">
-          <p>This website does not host or store any media on its servers.</p>
+          <p>This site does not host or store any media.</p>
 
           <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
             <Link href="/Terms-and-Conditions" className="transition hover:text-red-400">
@@ -1263,18 +1234,6 @@ function WatchPageContent() {
             <span>•</span>
             <Link href="/Privacy-Policy" className="transition hover:text-red-400">
               Privacy Policy
-            </Link>
-            <span>•</span>
-            <Link href="/Feedback" className="transition hover:text-red-400">
-              Feedback
-            </Link>
-            <span>•</span>
-            <Link href="/Contact" className="transition hover:text-red-400">
-              Contact
-            </Link>
-            <span>•</span>
-            <Link href="/Help" className="transition hover:text-red-400">
-              Help
             </Link>
           </div>
         </footer>

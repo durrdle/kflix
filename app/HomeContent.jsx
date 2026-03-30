@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { onValue, ref } from 'firebase/database';
+import { onValue, ref, set, remove } from 'firebase/database';
 import Navbar from '@/components/Navbar';
 import { db } from '@/lib/firebaseParty';
 
@@ -22,14 +22,10 @@ const fetchTMDB = async (endpoint) => {
 
 function formatRemainingTime(seconds) {
   const total = Math.max(0, Math.floor(Number(seconds) || 0));
-
   const hrs = Math.floor(total / 3600);
   const mins = Math.floor((total % 3600) / 60);
 
-  if (hrs > 0) {
-    return `${hrs}h ${mins}m left`;
-  }
-
+  if (hrs > 0) return `${hrs}h ${mins}m left`;
   return `${mins}m left`;
 }
 
@@ -37,21 +33,21 @@ function buildEpisodeKey(showId, seasonNumber, episodeNumber) {
   return `${showId}-S${seasonNumber}-E${episodeNumber}`;
 }
 
-function normalizeWatchedMap(value) {
+function buildContentKey(item) {
+  const mediaType = item?.media_type || item?.type || 'movie';
+  return `${mediaType}-${item?.id}`;
+}
+
+function normalizeMap(value) {
   if (!value || typeof value !== 'object') return {};
   return value;
 }
 
-function parseContinueWatchingStorage(uid) {
-  if (!uid) return [];
-
-  try {
-    const raw = localStorage.getItem(`kflix_continue_watching_${uid}`);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+function mapToSortedArray(value, sortField = 'updatedAt') {
+  const normalized = normalizeMap(value);
+  return Object.values(normalized)
+    .filter(Boolean)
+    .sort((a, b) => (b?.[sortField] || 0) - (a?.[sortField] || 0));
 }
 
 function buildContinueWatchingHref(item) {
@@ -548,131 +544,22 @@ export default function HomeContent() {
   const [trendingWeekMovies, setTrendingWeekMovies] = useState([]);
   const [trendingWeekShows, setTrendingWeekShows] = useState([]);
 
+  const [continueWatchingRaw, setContinueWatchingRaw] = useState([]);
   const [continueWatching, setContinueWatching] = useState([]);
   const [nextUp, setNextUp] = useState([]);
-  const [bookmarkedContent, setBookmarkedContent] = useState([]);
-  const [userId, setUserId] = useState('');
-  const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
-  const [progressReady, setProgressReady] = useState(false);
-  const [progressTick, setProgressTick] = useState(0);
 
-  const watchedEpisodesRef = useRef({});
+  const [bookmarkedContent, setBookmarkedContent] = useState([]);
+  const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
+
+  const [userId, setUserId] = useState('');
+  const [watchedEpisodes, setWatchedEpisodes] = useState({});
+  const [progressReady, setProgressReady] = useState(false);
+  const [bookmarksReady, setBookmarksReady] = useState(false);
 
   const currentHero = useMemo(
     () => heroMovies[currentBackdrop] || null,
     [heroMovies, currentBackdrop]
   );
-
-  const readBookmarks = (uid) => {
-    if (!uid) {
-      setBookmarkedIds(new Set());
-      setBookmarkedContent([]);
-      return;
-    }
-
-    try {
-      const raw = localStorage.getItem(`kflix_watchlist_${uid}`);
-      const parsed = raw ? JSON.parse(raw) : [];
-      const normalized = Array.isArray(parsed) ? parsed : [];
-      const sorted = [...normalized].sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
-
-      const ids = new Set(
-        sorted.map((item) => `${item.type || item.media_type || 'movie'}-${item.id}`)
-      );
-
-      setBookmarkedIds(ids);
-      setBookmarkedContent(sorted);
-    } catch {
-      setBookmarkedIds(new Set());
-      setBookmarkedContent([]);
-    }
-  };
-
-  const syncProgressSections = (uid, watchedMapArg) => {
-    if (!uid) {
-      setContinueWatching([]);
-      setNextUp([]);
-      setProgressReady(true);
-      return;
-    }
-
-    try {
-      const normalized = parseContinueWatchingStorage(uid);
-
-      const latestByTitle = normalized.reduce((map, item) => {
-        if (!item || !item.id) return map;
-
-        const mediaType = item.media_type || item.type || 'movie';
-        const key = `${mediaType}-${item.id}`;
-        const existing = map.get(key);
-
-        if (!existing || (item.updatedAt || 0) > (existing.updatedAt || 0)) {
-          map.set(key, item);
-        }
-
-        return map;
-      }, new Map());
-
-      const sorted = [...latestByTitle.values()].sort(
-        (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)
-      );
-
-      const watchedMap = normalizeWatchedMap(watchedMapArg);
-      const { continueItems, nextUpItems } = splitProgressIntoSections(sorted, watchedMap);
-
-      setContinueWatching(continueItems);
-      setNextUp(nextUpItems);
-      setProgressReady(true);
-    } catch {
-      setContinueWatching([]);
-      setNextUp([]);
-      setProgressReady(true);
-    }
-  };
-
-  const toggleBookmark = (item, mediaType) => {
-    if (!userId || !item?.id) return;
-
-    try {
-      const storageKey = `kflix_watchlist_${userId}`;
-      const raw = localStorage.getItem(storageKey);
-      const parsed = raw ? JSON.parse(raw) : [];
-
-      const exists = parsed.some(
-        (entry) => String(entry.id) === String(item.id) && entry.type === mediaType
-      );
-
-      let updated;
-
-      if (exists) {
-        updated = parsed.filter(
-          (entry) => !(String(entry.id) === String(item.id) && entry.type === mediaType)
-        );
-      } else {
-        const watchlistItem = {
-          id: item.id,
-          type: mediaType,
-          media_type: mediaType,
-          title: item.title || item.name || 'Untitled',
-          name: item.name || item.title || 'Untitled',
-          poster_path: item.poster_path || null,
-          backdrop_path: item.backdrop_path || null,
-          release_date: item.release_date || null,
-          first_air_date: item.first_air_date || null,
-          vote_average: item.vote_average ?? null,
-          addedAt: Date.now(),
-        };
-
-        updated = [watchlistItem, ...parsed];
-      }
-
-      localStorage.setItem(storageKey, JSON.stringify(updated));
-      readBookmarks(userId);
-      window.dispatchEvent(new Event('storage'));
-    } catch (error) {
-      console.error('Bookmark toggle failed:', error);
-    }
-  };
 
   useEffect(() => {
     const auth = getAuth();
@@ -680,14 +567,19 @@ export default function HomeContent() {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       const uid = currentUser?.uid || '';
       setUserId(uid);
-      setProgressReady(false);
-      readBookmarks(uid);
 
       if (!uid) {
-        watchedEpisodesRef.current = {};
+        setContinueWatchingRaw([]);
         setContinueWatching([]);
         setNextUp([]);
+        setBookmarkedContent([]);
+        setBookmarkedIds(new Set());
+        setWatchedEpisodes({});
         setProgressReady(true);
+        setBookmarksReady(true);
+      } else {
+        setProgressReady(false);
+        setBookmarksReady(false);
       }
     });
 
@@ -697,13 +589,21 @@ export default function HomeContent() {
   useEffect(() => {
     if (!userId) return;
 
-    const watchedRef = ref(db, `users/${userId}/watchedEpisodes`);
+    const continueRef = ref(db, `users/${userId}/continueWatching`);
 
-    const unsubscribe = onValue(watchedRef, (snapshot) => {
-      const nextMap = normalizeWatchedMap(snapshot.exists() ? snapshot.val() : {});
-      watchedEpisodesRef.current = nextMap;
-      syncProgressSections(userId, nextMap);
-    });
+    const unsubscribe = onValue(
+      continueRef,
+      (snapshot) => {
+        const raw = snapshot.exists() ? snapshot.val() : {};
+        const items = mapToSortedArray(raw, 'updatedAt');
+        setContinueWatchingRaw(items);
+        setProgressReady(true);
+      },
+      () => {
+        setContinueWatchingRaw([]);
+        setProgressReady(true);
+      }
+    );
 
     return () => unsubscribe();
   }, [userId]);
@@ -711,56 +611,93 @@ export default function HomeContent() {
   useEffect(() => {
     if (!userId) return;
 
-    const sync = () => {
-      syncProgressSections(userId, watchedEpisodesRef.current);
-      readBookmarks(userId);
-    };
+    const watchedRef = ref(db, `users/${userId}/watchedEpisodes`);
 
-    sync();
-
-    const handleStorage = (event) => {
-      if (
-        !event.key ||
-        event.key === `kflix_continue_watching_${userId}` ||
-        event.key === `kflix_watchlist_${userId}`
-      ) {
-        setProgressTick((prev) => prev + 1);
+    const unsubscribe = onValue(
+      watchedRef,
+      (snapshot) => {
+        const nextMap = normalizeMap(snapshot.exists() ? snapshot.val() : {});
+        setWatchedEpisodes(nextMap);
+      },
+      () => {
+        setWatchedEpisodes({});
       }
-    };
+    );
 
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        setProgressTick((prev) => prev + 1);
-      }
-    };
-
-    const handleCustom = () => {
-      setProgressTick((prev) => prev + 1);
-    };
-
-    window.addEventListener('storage', handleStorage);
-    document.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('kflix-continue-watching-updated', handleCustom);
-    window.addEventListener('kflix-watched-episode-updated', handleCustom);
-
-    const interval = setInterval(() => {
-      setProgressTick((prev) => prev + 1);
-    }, 1500);
-
-    return () => {
-      window.removeEventListener('storage', handleStorage);
-      document.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('kflix-continue-watching-updated', handleCustom);
-      window.removeEventListener('kflix-watched-episode-updated', handleCustom);
-      clearInterval(interval);
-    };
+    return () => unsubscribe();
   }, [userId]);
 
   useEffect(() => {
     if (!userId) return;
-    syncProgressSections(userId, watchedEpisodesRef.current);
-    readBookmarks(userId);
-  }, [progressTick, userId]);
+
+    const bookmarksRef = ref(db, `users/${userId}/bookmarks`);
+
+    const unsubscribe = onValue(
+      bookmarksRef,
+      (snapshot) => {
+        const raw = snapshot.exists() ? snapshot.val() : {};
+        const items = mapToSortedArray(raw, 'addedAt');
+
+        setBookmarkedContent(items);
+        setBookmarkedIds(new Set(items.map((item) => buildContentKey(item))));
+        setBookmarksReady(true);
+      },
+      () => {
+        setBookmarkedContent([]);
+        setBookmarkedIds(new Set());
+        setBookmarksReady(true);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const { continueItems, nextUpItems } = splitProgressIntoSections(
+      continueWatchingRaw,
+      watchedEpisodes
+    );
+
+    setContinueWatching(continueItems);
+    setNextUp(nextUpItems);
+  }, [continueWatchingRaw, watchedEpisodes, userId]);
+
+  const toggleBookmark = async (item, mediaType) => {
+    if (!userId || !item?.id) return;
+
+    const bookmarkKey = `${mediaType}-${item.id}`;
+    const bookmarkRef = ref(db, `users/${userId}/bookmarks/${bookmarkKey}`);
+    const exists = bookmarkedIds.has(bookmarkKey);
+
+    try {
+      if (exists) {
+        await remove(bookmarkRef);
+        return;
+      }
+
+      const bookmarkItem = {
+        id: item.id,
+        type: mediaType,
+        media_type: mediaType,
+        title: item.title || item.name || 'Untitled',
+        name: item.name || item.title || 'Untitled',
+        poster_path: item.poster_path || null,
+        backdrop_path: item.backdrop_path || null,
+        release_date: item.release_date || null,
+        first_air_date: item.first_air_date || null,
+        vote_average: item.vote_average ?? null,
+        imdbRating: item.imdbRating ?? null,
+        rtRating: item.rtRating ?? null,
+        addedAt: Date.now(),
+      };
+
+      await set(bookmarkRef, bookmarkItem);
+    } catch (error) {
+      console.error('Bookmark toggle failed:', error);
+    }
+  };
 
   useEffect(() => {
     const fetchHero = async () => {
@@ -808,6 +745,8 @@ export default function HomeContent() {
     if (!heroMovies.length) return;
     setCurrentBackdrop((prev) => (prev + 1) % heroMovies.length);
   };
+
+  const homepageReady = progressReady && bookmarksReady;
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -873,7 +812,7 @@ export default function HomeContent() {
 
       <section className="space-y-10 px-4 py-10 sm:px-6 lg:px-8">
         <div className="grid gap-10 xl:grid-cols-2">
-          {progressReady ? (
+          {homepageReady ? (
             <>
               <CarouselSection
                 title="Continue Watching"
@@ -1025,7 +964,7 @@ export default function HomeContent() {
       </section>
 
       <footer className="px-4 pb-8 pt-2 text-center text-sm text-gray-400 sm:px-6 lg:px-8">
-        <p>This website does not host or store any media on its servers.</p>
+        <p>This site does not host or store any media.</p>
 
         <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
           <Link href="/Terms-and-Conditions" className="cursor-pointer transition hover:text-red-400">
@@ -1034,18 +973,6 @@ export default function HomeContent() {
           <span>•</span>
           <Link href="/Privacy-Policy" className="cursor-pointer transition hover:text-red-400">
             Privacy Policy
-          </Link>
-          <span>•</span>
-          <Link href="/Feedback" className="cursor-pointer transition hover:text-red-400">
-            Feedback
-          </Link>
-          <span>•</span>
-          <Link href="/Contact" className="cursor-pointer transition hover:text-red-400">
-            Contact
-          </Link>
-          <span>•</span>
-          <Link href="/Help" className="cursor-pointer transition hover:text-red-400">
-            Help
           </Link>
         </div>
       </footer>

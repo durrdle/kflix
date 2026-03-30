@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { db } from '@/lib/firebaseParty';
-import { ref, get, update, onValue } from 'firebase/database';
+import { ref, get, update, onValue, set, remove } from 'firebase/database';
 
 const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
 const BACKDROP_BASE = 'https://image.tmdb.org/t/p/original';
@@ -48,8 +48,24 @@ function buildEpisodeKey(showId, seasonNumber, episodeNumber) {
   return `${showId}-S${seasonNumber}-E${episodeNumber}`;
 }
 
+function buildContentKey(type, id) {
+  return `${type}-${id}`;
+}
+
 function getWatchedEpisodesDbRef(userId) {
   return ref(db, `users/${userId}/watchedEpisodes`);
+}
+
+function getBookmarksDbRef(userId) {
+  return ref(db, `users/${userId}/bookmarks`);
+}
+
+function getContinueWatchingItemDbRef(userId, type, id) {
+  return ref(db, `users/${userId}/continueWatching/${buildContentKey(type, id)}`);
+}
+
+function getManualUnwatchedDbRef(userId, showId) {
+  return ref(db, `users/${userId}/manualUnwatched/${showId}`);
 }
 
 function normalizeWatchedMap(value) {
@@ -57,29 +73,26 @@ function normalizeWatchedMap(value) {
   return value;
 }
 
-function getContinueWatchingItem(userId, showId) {
-  if (!userId || !showId) return null;
+function normalizeBookmarkMap(value) {
+  if (!value || typeof value !== 'object') return {};
+  return value;
+}
 
-  try {
-    const raw = localStorage.getItem(`kflix_continue_watching_${userId}`);
-    const parsed = raw ? JSON.parse(raw) : [];
-    const list = Array.isArray(parsed) ? parsed : [];
+function normalizeManualUnwatchedSet(value) {
+  if (!value || typeof value !== 'object') return new Set();
 
-    const matchingEpisodes = list
-      .filter(
-        (item) =>
-          item &&
-          item.media_type === 'tv' &&
-          String(item.id) === String(showId) &&
-          Number(item.season) > 0 &&
-          Number(item.episode) > 0
-      )
-      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  const keys = Object.entries(value)
+    .filter(([_, included]) => Boolean(included))
+    .map(([key]) => key);
 
-    return matchingEpisodes[0] || null;
-  } catch {
-    return null;
-  }
+  return new Set(keys);
+}
+
+function buildManualUnwatchedObject(setValue) {
+  return Array.from(setValue).reduce((acc, key) => {
+    acc[key] = true;
+    return acc;
+  }, {});
 }
 
 function resolveContinueEpisodeTarget(item, seasons) {
@@ -157,37 +170,6 @@ function resolveContinueEpisodeTarget(item, seasons) {
     ...item,
     currentTime: 0,
   };
-}
-
-function getManualUnwatchedStorageKey(userId, showId) {
-  return `kflix_manual_unwatched_${userId}_${showId}`;
-}
-
-function readManualUnwatchedSet(userId, showId) {
-  if (!userId || !showId) return new Set();
-
-  try {
-    const raw = localStorage.getItem(getManualUnwatchedStorageKey(userId, showId));
-    const parsed = raw ? JSON.parse(raw) : [];
-    return new Set(Array.isArray(parsed) ? parsed : []);
-  } catch {
-    return new Set();
-  }
-}
-
-function writeManualUnwatchedSet(userId, showId, setValue) {
-  if (!userId || !showId) return;
-
-  try {
-    localStorage.setItem(
-      getManualUnwatchedStorageKey(userId, showId),
-      JSON.stringify(Array.from(setValue))
-    );
-    window.dispatchEvent(new Event('storage'));
-    window.dispatchEvent(new Event('kflix-manual-unwatched-updated'));
-  } catch (error) {
-    console.error('Failed to persist manual unwatched overrides:', error);
-  }
 }
 
 function compareEpisodeOrder(aSeason, aEpisode, bSeason, bEpisode) {
@@ -1253,32 +1235,25 @@ export default function DetailPageContent({ id, type }) {
   }, [id, type]);
 
   useEffect(() => {
-    if (!userId || !id || !type) {
+    if (!userId) {
       setIsInWatchlist(false);
       setBookmarkedIds(new Set());
       return;
     }
 
-    try {
-      const raw = localStorage.getItem(`kflix_watchlist_${userId}`);
-      const parsed = raw ? JSON.parse(raw) : [];
-      const normalized = Array.isArray(parsed) ? parsed : [];
+    const bookmarksRef = getBookmarksDbRef(userId);
 
-      const exists = normalized.some(
-        (item) => String(item.id) === String(id) && item.type === type
-      );
+    const unsubscribe = onValue(bookmarksRef, (snapshot) => {
+      const raw = normalizeBookmarkMap(snapshot.exists() ? snapshot.val() : {});
+      const keys = Object.keys(raw);
+      const ids = new Set(keys);
 
-      const ids = new Set(
-        normalized.map((item) => `${item.type || item.media_type || 'movie'}-${item.id}`)
-      );
-
-      setIsInWatchlist(exists);
       setBookmarkedIds(ids);
-    } catch {
-      setIsInWatchlist(false);
-      setBookmarkedIds(new Set());
-    }
-  }, [userId, id, type, data]);
+      setIsInWatchlist(ids.has(buildContentKey(type, id)));
+    });
+
+    return () => unsubscribe();
+  }, [userId, id, type]);
 
   useEffect(() => {
     if (!userId || type !== 'tv' || !id) {
@@ -1289,73 +1264,28 @@ export default function DetailPageContent({ id, type }) {
     }
 
     const watchedRef = getWatchedEpisodesDbRef(userId);
+    const continueRef = getContinueWatchingItemDbRef(userId, 'tv', id);
+    const manualRef = getManualUnwatchedDbRef(userId, id);
 
-    const unsubscribe = onValue(watchedRef, (snapshot) => {
+    const unsubWatched = onValue(watchedRef, (snapshot) => {
       const nextMap = normalizeWatchedMap(snapshot.exists() ? snapshot.val() : {});
       setWatchedEpisodes(nextMap);
     });
 
-    const syncContinueEpisode = () => {
-      setContinueEpisode(getContinueWatchingItem(userId, id));
-    };
+    const unsubContinue = onValue(continueRef, (snapshot) => {
+      setContinueEpisode(snapshot.exists() ? snapshot.val() : null);
+    });
 
-    const syncManualUnwatched = () => {
-      setManualUnwatchedKeys(readManualUnwatchedSet(userId, id));
-    };
-
-    syncContinueEpisode();
-    syncManualUnwatched();
-
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        syncContinueEpisode();
-        syncManualUnwatched();
-      }
-    };
-
-    const handleStorageOrCustom = () => {
-      syncContinueEpisode();
-      syncManualUnwatched();
-
-      try {
-        const raw = localStorage.getItem(`kflix_watchlist_${userId}`);
-        const parsed = raw ? JSON.parse(raw) : [];
-        const normalized = Array.isArray(parsed) ? parsed : [];
-        const ids = new Set(
-          normalized.map((item) => `${item.type || item.media_type || 'movie'}-${item.id}`)
-        );
-        setBookmarkedIds(ids);
-
-        const exists = normalized.some(
-          (item) => String(item.id) === String(id) && item.type === type
-        );
-        setIsInWatchlist(exists);
-      } catch {
-        setBookmarkedIds(new Set());
-      }
-    };
-
-    window.addEventListener('storage', handleStorageOrCustom);
-    window.addEventListener('focus', handleStorageOrCustom);
-    window.addEventListener('kflix-continue-watching-updated', handleStorageOrCustom);
-    window.addEventListener('kflix-watched-episode-updated', handleStorageOrCustom);
-    window.addEventListener('kflix-manual-unwatched-updated', handleStorageOrCustom);
-    document.addEventListener('visibilitychange', handleVisibility);
-
-    const interval = setInterval(() => {
-      syncContinueEpisode();
-      syncManualUnwatched();
-    }, 1500);
+    const unsubManual = onValue(manualRef, (snapshot) => {
+      setManualUnwatchedKeys(
+        normalizeManualUnwatchedSet(snapshot.exists() ? snapshot.val() : {})
+      );
+    });
 
     return () => {
-      unsubscribe();
-      window.removeEventListener('storage', handleStorageOrCustom);
-      window.removeEventListener('focus', handleStorageOrCustom);
-      window.removeEventListener('kflix-continue-watching-updated', handleStorageOrCustom);
-      window.removeEventListener('kflix-watched-episode-updated', handleStorageOrCustom);
-      window.removeEventListener('kflix-manual-unwatched-updated', handleStorageOrCustom);
-      document.removeEventListener('visibilitychange', handleVisibility);
-      clearInterval(interval);
+      unsubWatched();
+      unsubContinue();
+      unsubManual();
     };
   }, [userId, type, id]);
 
@@ -1473,103 +1403,66 @@ export default function DetailPageContent({ id, type }) {
     }&autoplay=1`;
   }, [type, resolvedContinueEpisode, id]);
 
-  const handleWatchlistToggle = () => {
+  const handleWatchlistToggle = async () => {
     if (!userId || !data) return;
 
     try {
-      const storageKey = `kflix_watchlist_${userId}`;
-      const raw = localStorage.getItem(storageKey);
-      const parsed = raw ? JSON.parse(raw) : [];
-      const normalized = Array.isArray(parsed) ? parsed : [];
+      const key = buildContentKey(type, id);
+      const itemRef = ref(db, `users/${userId}/bookmarks/${key}`);
 
-      const exists = normalized.some(
-        (item) => String(item.id) === String(id) && item.type === type
-      );
-
-      let updated;
-
-      if (exists) {
-        updated = normalized.filter(
-          (item) => !(String(item.id) === String(id) && item.type === type)
-        );
-        setIsInWatchlist(false);
-      } else {
-        const watchlistItem = {
-          id: data.id,
-          type,
-          media_type: type,
-          title: data.title || data.name || 'Untitled',
-          name: data.name || data.title || 'Untitled',
-          poster_path: data.poster_path || null,
-          backdrop_path: data.backdrop_path || null,
-          release_date: data.release_date || null,
-          first_air_date: data.first_air_date || null,
-          vote_average: data.vote_average ?? null,
-          addedAt: Date.now(),
-        };
-
-        updated = [watchlistItem, ...normalized];
-        setIsInWatchlist(true);
+      if (isInWatchlist) {
+        await remove(itemRef);
+        return;
       }
 
-      localStorage.setItem(storageKey, JSON.stringify(updated));
-      setBookmarkedIds(
-        new Set(updated.map((item) => `${item.type || item.media_type || 'movie'}-${item.id}`))
-      );
-      window.dispatchEvent(new Event('storage'));
+      const watchlistItem = {
+        id: data.id,
+        type,
+        media_type: type,
+        title: data.title || data.name || 'Untitled',
+        name: data.name || data.title || 'Untitled',
+        poster_path: data.poster_path || null,
+        backdrop_path: data.backdrop_path || null,
+        release_date: data.release_date || null,
+        first_air_date: data.first_air_date || null,
+        vote_average: data.vote_average ?? null,
+        addedAt: Date.now(),
+      };
+
+      await set(itemRef, watchlistItem);
     } catch (error) {
       console.error('Watchlist update failed:', error);
     }
   };
 
-  const handleToggleSimilarBookmark = (item, mediaType) => {
+  const handleToggleSimilarBookmark = async (item, mediaType) => {
     if (!userId || !item?.id) return;
 
     try {
-      const storageKey = `kflix_watchlist_${userId}`;
-      const raw = localStorage.getItem(storageKey);
-      const parsed = raw ? JSON.parse(raw) : [];
-      const normalized = Array.isArray(parsed) ? parsed : [];
-
-      const exists = normalized.some(
-        (entry) => String(entry.id) === String(item.id) && entry.type === mediaType
-      );
-
-      let updated;
+      const key = buildContentKey(mediaType, item.id);
+      const itemRef = ref(db, `users/${userId}/bookmarks/${key}`);
+      const exists = bookmarkedIds.has(key);
 
       if (exists) {
-        updated = normalized.filter(
-          (entry) => !(String(entry.id) === String(item.id) && entry.type === mediaType)
-        );
-      } else {
-        const watchlistItem = {
-          id: item.id,
-          type: mediaType,
-          media_type: mediaType,
-          title: item.title || item.name || 'Untitled',
-          name: item.name || item.title || 'Untitled',
-          poster_path: item.poster_path || null,
-          backdrop_path: item.backdrop_path || null,
-          release_date: item.release_date || null,
-          first_air_date: item.first_air_date || null,
-          vote_average: item.vote_average ?? null,
-          addedAt: Date.now(),
-        };
-
-        updated = [watchlistItem, ...normalized];
+        await remove(itemRef);
+        return;
       }
 
-      localStorage.setItem(storageKey, JSON.stringify(updated));
-      setBookmarkedIds(
-        new Set(updated.map((entry) => `${entry.type || entry.media_type || 'movie'}-${entry.id}`))
-      );
+      const watchlistItem = {
+        id: item.id,
+        type: mediaType,
+        media_type: mediaType,
+        title: item.title || item.name || 'Untitled',
+        name: item.name || item.title || 'Untitled',
+        poster_path: item.poster_path || null,
+        backdrop_path: item.backdrop_path || null,
+        release_date: item.release_date || null,
+        first_air_date: item.first_air_date || null,
+        vote_average: item.vote_average ?? null,
+        addedAt: Date.now(),
+      };
 
-      const existsCurrentTitle = updated.some(
-        (entry) => String(entry.id) === String(id) && entry.type === type
-      );
-      setIsInWatchlist(existsCurrentTitle);
-
-      window.dispatchEvent(new Event('storage'));
+      await set(itemRef, watchlistItem);
     } catch (error) {
       console.error('Similar bookmark toggle failed:', error);
     }
@@ -1582,8 +1475,7 @@ export default function DetailPageContent({ id, type }) {
       const currentMap = normalizeWatchedMap(watchedEpisodes);
       const key = buildEpisodeKey(id, seasonNumber, episodeNumber);
       const updated = { ...currentMap };
-
-      const manualSet = readManualUnwatchedSet(userId, id);
+      const manualSet = new Set(manualUnwatchedKeys);
 
       if (updated[key]) {
         delete updated[key];
@@ -1597,7 +1489,12 @@ export default function DetailPageContent({ id, type }) {
         watchedEpisodes: updated,
       });
 
-      writeManualUnwatchedSet(userId, id, manualSet);
+      const manualRef = getManualUnwatchedDbRef(userId, id);
+      if (manualSet.size > 0) {
+        await set(manualRef, buildManualUnwatchedObject(manualSet));
+      } else {
+        await remove(manualRef);
+      }
     } catch (toggleError) {
       console.error('Failed to toggle episode:', toggleError);
     }
@@ -1609,7 +1506,7 @@ export default function DetailPageContent({ id, type }) {
     try {
       const currentMap = normalizeWatchedMap(watchedEpisodes);
       const updated = { ...currentMap };
-      const manualSet = readManualUnwatchedSet(userId, id);
+      const manualSet = new Set(manualUnwatchedKeys);
 
       const allWatched = episodes.every((episode) =>
         updated[buildEpisodeKey(id, seasonNumber, episode.episode_number)]
@@ -1631,7 +1528,12 @@ export default function DetailPageContent({ id, type }) {
         watchedEpisodes: updated,
       });
 
-      writeManualUnwatchedSet(userId, id, manualSet);
+      const manualRef = getManualUnwatchedDbRef(userId, id);
+      if (manualSet.size > 0) {
+        await set(manualRef, buildManualUnwatchedObject(manualSet));
+      } else {
+        await remove(manualRef);
+      }
     } catch (toggleError) {
       console.error('Failed to toggle season:', toggleError);
     }
@@ -1898,7 +1800,7 @@ export default function DetailPageContent({ id, type }) {
       />
 
       <footer className="px-8 pb-8 pt-2 text-center text-sm text-gray-400">
-        <p>This website does not host or store any media on its servers.</p>
+        <p>This site does not host or store any media.</p>
 
         <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
           <Link href="/Terms-and-Conditions" className="transition hover:text-red-400">
@@ -1907,18 +1809,6 @@ export default function DetailPageContent({ id, type }) {
           <span>•</span>
           <Link href="/Privacy-Policy" className="transition hover:text-red-400">
             Privacy Policy
-          </Link>
-          <span>•</span>
-          <Link href="/Feedback" className="transition hover:text-red-400">
-            Feedback
-          </Link>
-          <span>•</span>
-          <Link href="/Contact" className="transition hover:text-red-400">
-            Contact
-          </Link>
-          <span>•</span>
-          <Link href="/Help" className="transition hover:text-red-400">
-            Help
           </Link>
         </div>
       </footer>
