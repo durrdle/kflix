@@ -10,6 +10,8 @@ const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
 const IMAGE_POSTER = 'https://image.tmdb.org/t/p/w500';
 const INITIAL_ITEM_COUNT = 30;
 const LOAD_MORE_COUNT = 30;
+const GITHUB_HASH = process.env.NEXT_PUBLIC_GIT_HASH || 'dev';
+const GITHUB_REPO_URL = process.env.NEXT_PUBLIC_GITHUB_REPO_URL || '#';
 
 const STRICT_ANIME_KEYWORDS = '210024|287501';
 
@@ -708,19 +710,19 @@ function SearchPageContent() {
             <div className="border-b border-red-500/15 px-6 py-4">
               <div className="flex items-center gap-2">
                 <button
-  type="button"
-  onClick={() => {
-    if (!canScrollTabsLeft) return;
-    scrollTabs('left');
-  }}
-  aria-disabled={!canScrollTabsLeft}
-  className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full backdrop-blur-md transition ${
-    canScrollTabsLeft
-      ? 'bg-black/25 text-white cursor-pointer active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40'
-      : 'bg-black/15 text-gray-500 cursor-default opacity-60'
-  }`}
-  aria-label="Scroll tabs left"
->
+                  type="button"
+                  onClick={() => {
+                    if (!canScrollTabsLeft) return;
+                    scrollTabs('left');
+                  }}
+                  aria-disabled={!canScrollTabsLeft}
+                  className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full backdrop-blur-md transition ${
+                    canScrollTabsLeft
+                      ? 'bg-black/25 text-white cursor-pointer active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40'
+                      : 'bg-black/15 text-gray-500 cursor-default opacity-60'
+                  }`}
+                  aria-label="Scroll tabs left"
+                >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <path d="M15 6l-6 6 6 6" />
                   </svg>
@@ -753,19 +755,19 @@ function SearchPageContent() {
                 </div>
 
                 <button
-  type="button"
-  onClick={() => {
-    if (!canScrollTabsRight) return;
-    scrollTabs('right');
-  }}
-  aria-disabled={!canScrollTabsRight}
-  className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full backdrop-blur-md transition ${
-    canScrollTabsRight
-      ? 'bg-black/25 text-white cursor-pointer active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40'
-      : 'bg-black/15 text-gray-500 cursor-default opacity-60'
-  }`}
-  aria-label="Scroll tabs right"
->
+                  type="button"
+                  onClick={() => {
+                    if (!canScrollTabsRight) return;
+                    scrollTabs('right');
+                  }}
+                  aria-disabled={!canScrollTabsRight}
+                  className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full backdrop-blur-md transition ${
+                    canScrollTabsRight
+                      ? 'bg-black/25 text-white cursor-pointer active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40'
+                      : 'bg-black/15 text-gray-500 cursor-default opacity-60'
+                  }`}
+                  aria-label="Scroll tabs right"
+                >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <path d="M9 6l6 6-6 6" />
                   </svg>
@@ -838,28 +840,28 @@ function SearchPageContent() {
                 <div className="border-t border-red-500/15 px-6 pb-6 pt-2">
                   <div className="flex justify-end gap-2">
                     {canLoadMore && (
-  <button
-    type="button"
-    onClick={handleLoadMore}
-    disabled={loadingMore}
-    className={`flex h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition active:scale-95 ${
-      loadingMore
-        ? 'cursor-default bg-red-600/70'
-        : 'bg-red-600 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60'
-    }`}
-  >
-    <svg
-      className="h-4 w-4"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-    >
-      <path d="M6 9l6 6 6-6" />
-    </svg>
-    {loadingMore ? 'Loading...' : 'Load More'}
-  </button>
-)}
+                      <button
+                        type="button"
+                        onClick={handleLoadMore}
+                        disabled={loadingMore}
+                        className={`flex h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition active:scale-95 ${
+                          loadingMore
+                            ? 'cursor-default bg-red-600/70'
+                            : 'bg-red-600 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60'
+                        }`}
+                      >
+                        <svg
+                          className="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M6 9l6 6 6-6" />
+                        </svg>
+                        {loadingMore ? 'Loading...' : 'Load More'}
+                      </button>
+                    )}
 
                     <button
                       type="button"
@@ -886,7 +888,7 @@ function SearchPageContent() {
       </main>
 
       <footer className="px-8 pb-8 pt-2 text-center text-sm text-gray-400">
-        <p>This website does not host or store any media on its servers.</p>
+        <p>This site does not host or store any media.</p>
 
         <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
           <Link href="/Terms-and-Conditions" className="transition hover:text-red-400">
@@ -895,18 +897,6 @@ function SearchPageContent() {
           <span>•</span>
           <Link href="/Privacy-Policy" className="transition hover:text-red-400">
             Privacy Policy
-          </Link>
-          <span>•</span>
-          <Link href="/Feedback" className="transition hover:text-red-400">
-            Feedback
-          </Link>
-          <span>•</span>
-          <Link href="/Contact" className="transition hover:text-red-400">
-            Contact
-          </Link>
-          <span>•</span>
-          <Link href="/Help" className="transition hover:text-red-400">
-            Help
           </Link>
         </div>
       </footer>

@@ -30,7 +30,7 @@ export default function PrivacyPolicyPage() {
               <p>We may collect the following categories of information:</p>
               <ul className="list-disc space-y-2 pl-6 text-gray-400">
                 <li>account information, such as email address and login-related data;</li>
-                <li>information you provide through contact or feedback forms;</li>
+                <li>information you provide through any means of contacting us;</li>
                 <li>technical data such as browser type, device type, and basic session information;</li>
                 <li>cookie-related information used to support website functionality.</li>
               </ul>

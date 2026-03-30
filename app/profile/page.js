@@ -10,7 +10,9 @@ import {
   reauthenticateWithCredential,
   updatePassword,
 } from 'firebase/auth';
+import { onValue, ref, update, remove } from 'firebase/database';
 import Navbar from '@/components/Navbar';
+import { db } from '@/lib/firebaseParty';
 
 const AVATAR_PRESETS = [
   {
@@ -288,7 +290,7 @@ function BookmarkedSection({ items, onRemoveBookmark }) {
                             {item.poster_path ? (
                               <img
                                 src={`https://image.tmdb.org/t/p/w500${item.poster_path}`}
-                                alt={item.title || 'Poster'}
+                                alt={item.title || item.name || 'Poster'}
                                 className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.06]"
                               />
                             ) : (
@@ -301,7 +303,7 @@ function BookmarkedSection({ items, onRemoveBookmark }) {
 
                         <div className="mt-3">
                           <div className="line-clamp-1 text-sm font-medium text-white transition group-hover:text-red-300">
-                            {item.title || 'Untitled'}
+                            {item.title || item.name || 'Untitled'}
                           </div>
                           <div className="mt-1 text-xs text-gray-400">
                             {item.type === 'tv' ? 'TV Show' : 'Movie'}
@@ -369,45 +371,6 @@ function ProfilePageContent() {
     setInParty(savedInParty);
   };
 
-  const readBookmarkedItems = (uid) => {
-    if (!uid) {
-      setBookmarkedItems([]);
-      return;
-    }
-
-    try {
-      const raw = localStorage.getItem(`kflix_watchlist_${uid}`);
-      const parsed = raw ? JSON.parse(raw) : [];
-      setBookmarkedItems(Array.isArray(parsed) ? parsed.slice(0, 24) : []);
-    } catch {
-      setBookmarkedItems([]);
-    }
-  };
-
-  const removeBookmark = (itemToRemove) => {
-    if (!user?.uid || !itemToRemove?.id) return;
-
-    try {
-      const storageKey = `kflix_watchlist_${user.uid}`;
-      const raw = localStorage.getItem(storageKey);
-      const parsed = raw ? JSON.parse(raw) : [];
-
-      const updated = parsed.filter(
-        (entry) =>
-          !(
-            String(entry.id) === String(itemToRemove.id) &&
-            (entry.type || 'movie') === (itemToRemove.type || 'movie')
-          )
-      );
-
-      localStorage.setItem(storageKey, JSON.stringify(updated));
-      setBookmarkedItems(updated.slice(0, 24));
-      window.dispatchEvent(new Event('storage'));
-    } catch (error) {
-      console.error('Failed to remove bookmark:', error);
-    }
-  };
-
   useEffect(() => {
     const auth = getAuth();
 
@@ -418,26 +381,7 @@ function ProfilePageContent() {
       }
 
       setUser(currentUser);
-
-      const savedName =
-        localStorage.getItem(`kflix_profile_name_${currentUser.uid}`) ||
-        currentUser.displayName ||
-        (currentUser.email ? currentUser.email.split('@')[0] : 'User');
-
-      const savedAvatar =
-        localStorage.getItem(`kflix_profile_avatar_${currentUser.uid}`) || 'ember';
-
-      const savedTheme =
-        localStorage.getItem(`kflix_profile_theme_${currentUser.uid}`) || 'lava';
-
-      setProfileName(savedName);
-      setDraftName(savedName);
-      setSelectedAvatar(savedAvatar);
-      setSelectedTheme(savedTheme);
-
       readPartyState();
-      readBookmarkedItems(currentUser.uid);
-
       setLoading(false);
     });
 
@@ -445,11 +389,54 @@ function ProfilePageContent() {
   }, [router]);
 
   useEffect(() => {
+    if (!user?.uid) return;
+
+    const profileRef = ref(db, `users/${user.uid}/profile`);
+
+    const unsubscribe = onValue(profileRef, (snapshot) => {
+      const profile = snapshot.exists() ? snapshot.val() || {} : {};
+
+      const resolvedName =
+        profile.displayName ||
+        user.displayName ||
+        (user.email ? user.email.split('@')[0] : 'User');
+
+      const resolvedAvatar = profile.avatarId || 'ember';
+      const resolvedTheme = profile.theme || 'lava';
+
+      setProfileName(resolvedName);
+      setDraftName((prev) => (editingName ? prev : resolvedName));
+      setSelectedAvatar(resolvedAvatar);
+      setSelectedTheme(resolvedTheme);
+    });
+
+    return () => unsubscribe();
+  }, [user, editingName]);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setBookmarkedItems([]);
+      return;
+    }
+
+    const bookmarksRef = ref(db, `users/${user.uid}/bookmarks`);
+
+    const unsubscribe = onValue(bookmarksRef, (snapshot) => {
+      const raw = snapshot.exists() ? snapshot.val() || {} : {};
+      const items = Object.values(raw)
+        .filter(Boolean)
+        .sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0))
+        .slice(0, 24);
+
+      setBookmarkedItems(items);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
     const sync = () => {
       readPartyState();
-      if (user?.uid) {
-        readBookmarkedItems(user.uid);
-      }
     };
 
     sync();
@@ -458,8 +445,7 @@ function ProfilePageContent() {
       if (
         !event.key ||
         event.key === 'kflix_current_party_code' ||
-        event.key === 'kflix_in_party' ||
-        event.key === `kflix_watchlist_${user?.uid}`
+        event.key === 'kflix_in_party'
       ) {
         sync();
       }
@@ -487,7 +473,7 @@ function ProfilePageContent() {
       window.removeEventListener('kflix-party-updated', handlePartyUpdated);
       clearInterval(interval);
     };
-  }, [user]);
+  }, []);
 
   useEffect(() => {
     const el = avatarScrollRef.current;
@@ -529,18 +515,29 @@ function ProfilePageContent() {
     return THEME_OPTIONS.find((theme) => theme.id === selectedTheme)?.label || 'KFlix - Lava';
   }, [selectedTheme]);
 
-  const handleSaveName = () => {
+  const handleSaveName = async () => {
     const cleaned = draftName.trim().slice(0, 24);
+    if (!cleaned || !user?.uid) return;
 
-    if (!cleaned) return;
+    try {
+      await update(ref(db, `users/${user.uid}/profile`), {
+        displayName: cleaned,
+      });
 
-    const auth = getAuth();
-    const currentUser = auth.currentUser;
-    if (!currentUser?.uid) return;
+      const activePartyCode = localStorage.getItem('kflix_current_party_code') || '';
+      const activeInParty = localStorage.getItem('kflix_in_party') === 'true';
 
-    setProfileName(cleaned);
-    localStorage.setItem(`kflix_profile_name_${currentUser.uid}`, cleaned);
-    setEditingName(false);
+      if (activePartyCode && activeInParty) {
+        await update(ref(db, `parties/${activePartyCode}/members/${user.uid}`), {
+          name: cleaned,
+          lastSeenAt: Date.now(),
+        });
+      }
+
+      setEditingName(false);
+    } catch (error) {
+      console.error('Failed to save profile name:', error);
+    }
   };
 
   const handleCancelNameEdit = () => {
@@ -558,24 +555,42 @@ function ProfilePageContent() {
     });
   };
 
-  const chooseAvatar = (avatarId) => {
-    const auth = getAuth();
-    const currentUser = auth.currentUser;
-    if (!currentUser?.uid) return;
+  const chooseAvatar = async (avatarId) => {
+    if (!user?.uid) return;
 
-    setSelectedAvatar(avatarId);
-    localStorage.setItem(`kflix_profile_avatar_${currentUser.uid}`, avatarId);
-    setAvatarModalOpen(false);
+    try {
+      await update(ref(db, `users/${user.uid}/profile`), {
+        avatarId,
+      });
+      setAvatarModalOpen(false);
+    } catch (error) {
+      console.error('Failed to save avatar:', error);
+    }
   };
 
-  const handleThemeChange = (e) => {
-    const auth = getAuth();
-    const currentUser = auth.currentUser;
-    if (!currentUser?.uid) return;
+  const handleThemeChange = async (e) => {
+    if (!user?.uid) return;
 
     const nextTheme = e.target.value;
-    setSelectedTheme(nextTheme);
-    localStorage.setItem(`kflix_profile_theme_${currentUser.uid}`, nextTheme);
+
+    try {
+      await update(ref(db, `users/${user.uid}/profile`), {
+        theme: nextTheme,
+      });
+    } catch (error) {
+      console.error('Failed to save theme:', error);
+    }
+  };
+
+  const removeBookmark = async (itemToRemove) => {
+    if (!user?.uid || !itemToRemove?.id) return;
+
+    try {
+      const key = `${itemToRemove.type || itemToRemove.media_type || 'movie'}-${itemToRemove.id}`;
+      await remove(ref(db, `users/${user.uid}/bookmarks/${key}`));
+    } catch (error) {
+      console.error('Failed to remove bookmark:', error);
+    }
   };
 
   const handleChangePassword = async (e) => {
@@ -886,11 +901,6 @@ function ProfilePageContent() {
                     )}
                   </div>
                 </div>
-
-                <div className="rounded-xl border border-white/10 bg-black/20 p-4 md:col-span-2">
-                  <p className="text-xs uppercase tracking-[0.18em] text-red-400">Email Verified</p>
-                  <p className="mt-2 text-base text-white">{user?.emailVerified ? 'Yes' : 'No'}</p>
-                </div>
               </div>
             </div>
 
@@ -1052,7 +1062,7 @@ function ProfilePageContent() {
       )}
 
       <footer className="px-8 pb-8 pt-2 text-center text-sm text-gray-400">
-        <p>This website does not host or store any media on its servers.</p>
+        <p>This site does not host or store any media.</p>
 
         <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
           <Link href="/Terms-and-Conditions" className="transition hover:text-red-400">
@@ -1061,18 +1071,6 @@ function ProfilePageContent() {
           <span>•</span>
           <Link href="/Privacy-Policy" className="transition hover:text-red-400">
             Privacy Policy
-          </Link>
-          <span>•</span>
-          <Link href="/Feedback" className="transition hover:text-red-400">
-            Feedback
-          </Link>
-          <span>•</span>
-          <Link href="/Contact" className="transition hover:text-red-400">
-            Contact
-          </Link>
-          <span>•</span>
-          <Link href="/Help" className="transition hover:text-red-400">
-            Help
           </Link>
         </div>
       </footer>

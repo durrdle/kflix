@@ -1271,18 +1271,35 @@ export default function HomeContent() {
       </section>
 
       <footer className="px-4 pb-8 pt-2 text-center text-sm text-gray-400 sm:px-6 lg:px-8">
-        <p>This site does not host or store any media.</p>
+  <p>This site does not host or store any media.</p>
 
-        <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
-          <Link href="/Terms-and-Conditions" className="cursor-pointer transition hover:text-red-400">
-            Terms and Conditions
-          </Link>
-          <span>•</span>
-          <Link href="/Privacy-Policy" className="cursor-pointer transition hover:text-red-400">
-            Privacy Policy
-          </Link>
-        </div>
-      </footer>
+  <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
+    <Link href="/Terms-and-Conditions" className="cursor-pointer transition hover:text-red-400">
+      Terms and Conditions
+    </Link>
+
+    <span>•</span>
+
+    <Link href="/Privacy-Policy" className="cursor-pointer transition hover:text-red-400">
+      Privacy Policy
+    </Link>
+
+    <span>•</span>
+
+    <a
+      href={`${process.env.NEXT_PUBLIC_GITHUB_REPO}/commit/${process.env.NEXT_PUBLIC_COMMIT_HASH}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-1 font-mono tracking-wider"
+      title="View this version on GitHub"
+    >
+      <span className="text-gray-500">Update</span>
+      <span className="text-red-400 animate-pulse drop-shadow-[0_0_8px_rgba(239,68,68,0.6)] transition hover:text-red-300">
+        {process.env.NEXT_PUBLIC_COMMIT_HASH}
+      </span>
+    </a>
+  </div>
+</footer>
     </div>
   );
 }
