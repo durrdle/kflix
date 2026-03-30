@@ -29,6 +29,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
   const [resyncing, setResyncing] = useState(false);
   const [partyState, setPartyState] = useState(null);
   const [promotingId, setPromotingId] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
 
   const dragOffsetRef = useRef({ x: 0, y: 0 });
   const chatRef = useRef(null);
@@ -246,6 +247,17 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
   }, []);
 
   useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
     if (!code) return;
     readChatUi();
   }, [code, chatUiKey]);
@@ -317,7 +329,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
   }, [chatOpen, chatPosition, code, chatUiKey]);
 
   useEffect(() => {
-    if (!dragging) return;
+    if (!dragging || isMobile) return;
 
     const handleMove = (e) => {
       const nextX = e.clientX - dragOffsetRef.current.x;
@@ -343,7 +355,17 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
       window.removeEventListener('mousemove', handleMove);
       window.removeEventListener('mouseup', handleUp);
     };
-  }, [dragging]);
+  }, [dragging, isMobile]);
+
+  useEffect(() => {
+    if (!open && !chatOpen) return;
+
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [open, chatOpen]);
 
   const handleCopyCode = async () => {
     try {
@@ -403,7 +425,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
   };
 
   const handleStartDrag = (e) => {
-    if (!chatRef.current) return;
+    if (!chatRef.current || isMobile) return;
 
     const rect = chatRef.current.getBoundingClientRect();
 
@@ -437,242 +459,246 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
   return (
     <>
       {shouldRenderModal && (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="w-[560px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border-[1.5px] border-red-500/40 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <div className="flex items-center justify-between border-b border-red-500/20 bg-red-600/10 px-6 py-4">
-              <h2 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400">
-                Party Controls
-              </h2>
-
-              <button
-                onClick={onClose}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-black/25 text-gray-300 backdrop-blur-md transition active:scale-95 hover:text-white hover:shadow-inner hover:shadow-red-500/50"
-                aria-label="Close"
-                type="button"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M6 6l12 12M18 6L6 18" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="space-y-5 px-6 py-6">
-              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-red-400">
-                  Party Code
-                </p>
-
-                <div className="mt-3 flex items-center justify-between gap-3">
-                  <div className="rounded-lg border border-white/10 bg-gray-900 px-4 py-3 text-base font-semibold tracking-[0.25em] text-white">
-                    {code || '------'}
-                  </div>
-
-                  <button
-                    onClick={handleCopyCode}
-                    className="flex h-11 items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60"
-                    type="button"
-                  >
-                    {copied ? 'Copied' : 'Copy'}
-                  </button>
-                </div>
-              </div>
-
-              <div className={`grid gap-4 ${showJumpSection ? 'sm:grid-cols-2' : 'sm:grid-cols-1'}`}>
-                {showJumpSection && (
-                  <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-red-400">
-                      Jump to Host
-                    </p>
-
-                    <div className="mt-3">
-                      <div
-                        className={`text-sm font-medium ${
-                          syncStatus === 'Recently Resynced'
-                            ? 'text-green-300'
-                            : syncStatus === 'Party Closed'
-                            ? 'text-red-300'
-                            : 'text-white'
-                        }`}
-                      >
-                        {syncStatus}
-                      </div>
-
-                      <p className="mt-2 text-xs text-gray-400">
-                        Jump to the host’s current media and playback position.
-                      </p>
-                    </div>
-
-                    <button
-                      onClick={handleResync}
-                      disabled={resyncing}
-                      className={`mt-4 flex h-11 w-full items-center justify-center rounded-lg px-4 text-sm font-semibold text-white transition active:scale-95 ${
-                        resyncing
-                          ? 'cursor-not-allowed bg-red-900/50 opacity-70'
-                          : 'bg-red-600 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60'
-                      }`}
-                      type="button"
-                    >
-                      {resyncing ? 'Resyncing...' : 'Jump to Host'}
-                    </button>
-                  </div>
-                )}
-
-                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-red-400">
-                    Playback State
-                  </p>
-
-                  <div className="mt-3 space-y-2 text-sm text-white">
-                    <div>
-                      Media: <span className="text-gray-300">{getPlaybackLabel()}</span>
-                    </div>
-                    <div>
-                      Time: <span className="text-gray-300">{getPlaybackTimeLabel()}</span>
-                    </div>
-                    <div>
-                      Status:{' '}
-                      <span className="text-gray-300">
-                        {playbackState?.mediaType === 'live'
-                          ? 'Live'
-                          : playbackState?.isPlaying
-                          ? 'Playing'
-                          : playbackState?.mediaId
-                          ? 'Paused'
-                          : 'Waiting'}
-                      </span>
-                    </div>
-                    <div>
-                      Updated: <span className="text-gray-300">{getPlaybackUpdatedLabel()}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-red-400">
-                  Members
-                </p>
-
-                <div className="mt-3 grid gap-2">
-                  {normalizedMembers.length > 0 ? (
-                    normalizedMembers.map((member) => {
-                      const memberIsHost = Boolean(
-                        member.isHost ||
-                          (partyState?.hostId && String(member.id) === String(partyState.hostId))
-                      );
-
-                      return (
-                        <div
-                          key={member.id}
-                          className="flex items-center justify-between rounded-lg border border-white/10 bg-gray-900 px-4 py-3"
-                        >
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <div className="truncate text-sm font-medium text-white">
-                                {member.name || `User ${member.id}`}
-                              </div>
-
-                              {memberIsHost && (
-                                <span className="rounded-full border border-red-500/30 bg-red-600/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-red-300">
-                                  Host
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="text-xs text-gray-400">
-                              {memberIsHost ? 'Host' : 'Member'}
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <div className="text-xs text-gray-400">
-                              {Date.now() - (member.lastSeenAt || 0) < 30000 ? 'Online' : 'Idle'}
-                            </div>
-
-                            {isHost && !memberIsHost && (
-                              <button
-                                type="button"
-                                onClick={() => handlePromote(member.id)}
-                                disabled={promotingId === member.id}
-                                className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition ${
-                                  promotingId === member.id
-                                    ? 'cursor-not-allowed bg-red-900/40 text-red-200 opacity-70'
-                                    : 'bg-red-600 text-white hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60'
-                                }`}
-                              >
-                                {promotingId === member.id ? 'Promoting...' : 'Promote'}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="rounded-lg border border-white/10 bg-gray-900 px-4 py-3 text-sm text-gray-400">
-                      No members found.
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <form onSubmit={handleSendMessage} className="rounded-xl border border-white/10 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-red-400">
-                  Party Chat
-                </p>
-
-                <div className="mt-3 flex gap-2">
-                  <input
-                    value={chatMessage}
-                    onChange={(e) => setChatMessage(e.target.value)}
-                    placeholder="Type a quick message..."
-                    className="h-11 flex-1 rounded-xl border border-white/10 bg-gray-900 px-4 text-sm text-white outline-none transition placeholder:text-gray-500 focus:border-red-500/60 focus:ring-2 focus:ring-red-500/20"
-                  />
-
-                  <button
-                    type="submit"
-                    className="flex h-11 items-center justify-center rounded-xl bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60"
-                    disabled={!isPartyMember}
-                  >
-                    Send
-                  </button>
-                </div>
-
-                <div className="mt-3 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setChatOpen(true)}
-                    className="flex h-10 items-center justify-center rounded-lg bg-black/25 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
-                    disabled={!isPartyMember}
-                  >
-                    Open Chatbox
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setChatOpen(false)}
-                    className="flex h-10 items-center justify-center rounded-lg bg-black/25 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
-                  >
-                    Hide Chatbox
-                  </button>
-                </div>
-              </form>
-
-              <div className="flex gap-3 pt-1">
-                <button
-                  onClick={onLeave}
-                  className="flex h-11 flex-1 items-center justify-center rounded-xl bg-gray-700 text-sm font-semibold text-white transition active:scale-95 hover:bg-gray-600"
-                  type="button"
-                >
-                  Leave Party
-                </button>
+        <div className="fixed inset-0 z-[999] overflow-y-auto bg-black/70 backdrop-blur-sm">
+          <div className="flex min-h-full items-start justify-center px-3 pb-3 pt-20 sm:items-center sm:px-4 sm:py-6">
+            <div className="w-full max-w-[560px] overflow-hidden rounded-2xl border-[1.5px] border-red-500/40 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)] max-h-[calc(100dvh-1.5rem)] sm:max-h-[85dvh]">
+              <div className="flex items-center justify-between border-b border-red-500/20 bg-red-600/10 px-4 py-4 sm:px-6">
+                <h2 className="text-base font-semibold uppercase tracking-[0.18em] text-red-400 sm:text-lg">
+                  Party Controls
+                </h2>
 
                 <button
                   onClick={onClose}
-                  className="flex h-11 flex-1 items-center justify-center rounded-xl bg-black/25 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-black/25 text-gray-300 backdrop-blur-md transition active:scale-95 hover:text-white hover:shadow-inner hover:shadow-red-500/50"
+                  aria-label="Close"
                   type="button"
                 >
-                  Close
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path d="M6 6l12 12M18 6L6 18" />
+                  </svg>
                 </button>
+              </div>
+
+              <div className="overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 max-h-[calc(100dvh-6.5rem)] sm:max-h-[calc(85dvh-4.5rem)]">
+                <div className="space-y-5">
+                  <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-red-400">
+                      Party Code
+                    </p>
+
+                    <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="rounded-lg border border-white/10 bg-gray-900 px-4 py-3 text-center text-sm font-semibold tracking-[0.25em] text-white sm:text-base">
+                        {code || '------'}
+                      </div>
+
+                      <button
+                        onClick={handleCopyCode}
+                        className="flex h-11 w-full items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60 sm:w-auto"
+                        type="button"
+                      >
+                        {copied ? 'Copied' : 'Copy'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className={`grid gap-4 ${showJumpSection ? 'sm:grid-cols-2' : 'sm:grid-cols-1'}`}>
+                    {showJumpSection && (
+                      <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                        <p className="text-xs uppercase tracking-[0.18em] text-red-400">
+                          Jump to Host
+                        </p>
+
+                        <div className="mt-3">
+                          <div
+                            className={`text-sm font-medium ${
+                              syncStatus === 'Recently Resynced'
+                                ? 'text-green-300'
+                                : syncStatus === 'Party Closed'
+                                ? 'text-red-300'
+                                : 'text-white'
+                            }`}
+                          >
+                            {syncStatus}
+                          </div>
+
+                          <p className="mt-2 text-xs leading-6 text-gray-400">
+                            Jump to the host’s current media and playback position.
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={handleResync}
+                          disabled={resyncing}
+                          className={`mt-4 flex h-11 w-full items-center justify-center rounded-lg px-4 text-sm font-semibold text-white transition active:scale-95 ${
+                            resyncing
+                              ? 'cursor-not-allowed bg-red-900/50 opacity-70'
+                              : 'bg-red-600 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60'
+                          }`}
+                          type="button"
+                        >
+                          {resyncing ? 'Resyncing...' : 'Jump to Host'}
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-red-400">
+                        Playback State
+                      </p>
+
+                      <div className="mt-3 space-y-2 text-sm text-white">
+                        <div className="break-words">
+                          Media: <span className="text-gray-300">{getPlaybackLabel()}</span>
+                        </div>
+                        <div>
+                          Time: <span className="text-gray-300">{getPlaybackTimeLabel()}</span>
+                        </div>
+                        <div>
+                          Status:{' '}
+                          <span className="text-gray-300">
+                            {playbackState?.mediaType === 'live'
+                              ? 'Live'
+                              : playbackState?.isPlaying
+                              ? 'Playing'
+                              : playbackState?.mediaId
+                              ? 'Paused'
+                              : 'Waiting'}
+                          </span>
+                        </div>
+                        <div>
+                          Updated: <span className="text-gray-300">{getPlaybackUpdatedLabel()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-red-400">
+                      Members
+                    </p>
+
+                    <div className="mt-3 grid gap-2">
+                      {normalizedMembers.length > 0 ? (
+                        normalizedMembers.map((member) => {
+                          const memberIsHost = Boolean(
+                            member.isHost ||
+                              (partyState?.hostId && String(member.id) === String(partyState.hostId))
+                          );
+
+                          return (
+                            <div
+                              key={member.id}
+                              className="flex flex-col gap-3 rounded-lg border border-white/10 bg-gray-900 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                            >
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <div className="truncate text-sm font-medium text-white">
+                                    {member.name || `User ${member.id}`}
+                                  </div>
+
+                                  {memberIsHost && (
+                                    <span className="rounded-full border border-red-500/30 bg-red-600/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-red-300">
+                                      Host
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="text-xs text-gray-400">
+                                  {memberIsHost ? 'Host' : 'Member'}
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                                <div className="text-xs text-gray-400">
+                                  {Date.now() - (member.lastSeenAt || 0) < 30000 ? 'Online' : 'Idle'}
+                                </div>
+
+                                {isHost && !memberIsHost && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePromote(member.id)}
+                                    disabled={promotingId === member.id}
+                                    className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold transition ${
+                                      promotingId === member.id
+                                        ? 'cursor-not-allowed bg-red-900/40 text-red-200 opacity-70'
+                                        : 'bg-red-600 text-white hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60'
+                                    }`}
+                                  >
+                                    {promotingId === member.id ? 'Promoting...' : 'Promote'}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="rounded-lg border border-white/10 bg-gray-900 px-4 py-3 text-sm text-gray-400">
+                          No members found.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleSendMessage} className="rounded-xl border border-white/10 bg-black/20 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-red-400">
+                      Party Chat
+                    </p>
+
+                    <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                      <input
+                        value={chatMessage}
+                        onChange={(e) => setChatMessage(e.target.value)}
+                        placeholder="Type a quick message..."
+                        className="h-11 flex-1 rounded-xl border border-white/10 bg-gray-900 px-4 text-sm text-white outline-none transition placeholder:text-gray-500 focus:border-red-500/60 focus:ring-2 focus:ring-red-500/20"
+                      />
+
+                      <button
+                        type="submit"
+                        className="flex h-11 w-full items-center justify-center rounded-xl bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60 sm:w-auto"
+                        disabled={!isPartyMember}
+                      >
+                        Send
+                      </button>
+                    </div>
+
+                    <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                      <button
+                        type="button"
+                        onClick={() => setChatOpen(true)}
+                        className="flex h-10 items-center justify-center rounded-lg bg-black/25 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
+                        disabled={!isPartyMember}
+                      >
+                        Open Chatbox
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setChatOpen(false)}
+                        className="flex h-10 items-center justify-center rounded-lg bg-black/25 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
+                      >
+                        Hide Chatbox
+                      </button>
+                    </div>
+                  </form>
+
+                  <div className="flex flex-col gap-3 pt-1 sm:flex-row">
+                    <button
+                      onClick={onLeave}
+                      className="flex h-11 flex-1 items-center justify-center rounded-xl bg-gray-700 text-sm font-semibold text-white transition active:scale-95 hover:bg-gray-600"
+                      type="button"
+                    >
+                      Leave Party
+                    </button>
+
+                    <button
+                      onClick={onClose}
+                      className="flex h-11 flex-1 items-center justify-center rounded-xl bg-black/25 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
+                      type="button"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -682,23 +708,31 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
       {shouldRenderChat && (
         <div
           ref={chatRef}
-          className="fixed z-[1000] w-[340px] overflow-hidden rounded-2xl border-[1.5px] border-red-500/40 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.6)]"
-          style={{
-            left: `${chatPosition.x}px`,
-            top: `${chatPosition.y}px`,
-          }}
+          className={`fixed z-[1000] overflow-hidden rounded-2xl border-[1.5px] border-red-500/40 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.6)] ${
+            isMobile ? 'left-3 right-3 bottom-3 w-auto' : 'w-[340px]'
+          }`}
+          style={
+            isMobile
+              ? undefined
+              : {
+                  left: `${chatPosition.x}px`,
+                  top: `${chatPosition.y}px`,
+                }
+          }
         >
           <div
             onMouseDown={handleStartDrag}
-            className={`flex cursor-grab items-center justify-between border-b border-red-500/20 bg-red-600/10 px-4 py-3 ${
-              dragging ? 'cursor-grabbing' : ''
+            className={`flex items-center justify-between border-b border-red-500/20 bg-red-600/10 px-4 py-3 ${
+              isMobile ? 'cursor-default' : dragging ? 'cursor-grabbing' : 'cursor-grab'
             }`}
           >
             <div>
               <div className="text-sm font-semibold uppercase tracking-[0.18em] text-red-400">
                 Party Chat
               </div>
-              <div className="text-[11px] text-gray-400">Drag me around</div>
+              <div className="text-[11px] text-gray-400">
+                {isMobile ? 'Party messages' : 'Drag me around'}
+              </div>
             </div>
 
             <button
@@ -713,7 +747,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
             </button>
           </div>
 
-          <div className="flex h-[360px] flex-col">
+          <div className={`flex flex-col ${isMobile ? 'h-[60dvh] max-h-[520px]' : 'h-[360px]'}`}>
             <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               {formattedMessages.length > 0 ? (
                 formattedMessages.map((message) => (
@@ -731,7 +765,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
                       </span>
                       <span className="text-[10px] text-gray-400">{message.time}</span>
                     </div>
-                    <div className="text-sm">{message.text}</div>
+                    <div className="break-words text-sm">{message.text}</div>
                   </div>
                 ))
               ) : (
