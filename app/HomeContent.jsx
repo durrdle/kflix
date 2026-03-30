@@ -144,33 +144,27 @@ function splitProgressIntoSections(items, watchedMap) {
     const episode = Number(item.episode || 0);
     const nextSeason = Number(item.nextSeason || 0);
     const nextEpisode = Number(item.nextEpisode || 0);
-    const progress = Number(item.progress || 0);
-    const currentTime = Number(item.currentTime || 0);
-
     const hasExplicitNext =
-      nextSeason > 0 &&
-      nextEpisode > 0 &&
-      (nextSeason !== season || nextEpisode !== episode);
+  nextSeason > 0 &&
+  nextEpisode > 0 &&
+  (nextSeason !== season || nextEpisode !== episode);
 
-    const currentKey =
-      season > 0 && episode > 0 ? buildEpisodeKey(item.id, season, episode) : '';
+const currentKey =
+  season > 0 && episode > 0 ? buildEpisodeKey(item.id, season, episode) : '';
 
-    const currentIsWatched = currentKey ? Boolean(watchedMap[currentKey]) : false;
+const currentIsWatched = currentKey ? Boolean(watchedMap[currentKey]) : false;
 
-    const shouldBeNextUp =
-      hasExplicitNext && (currentIsWatched || currentTime <= 0 || progress <= 0);
+if (hasExplicitNext) {
+  nextUpItems.push(item);
+  return;
+}
 
-    if (shouldBeNextUp) {
-      nextUpItems.push(item);
-      return;
-    }
+if (currentIsWatched) {
+  return;
+}
 
-    if (currentIsWatched && !hasExplicitNext) {
-      return;
-    }
-
-    continueItems.push(item);
-  });
+continueItems.push(item);
+});
 
   return {
     continueItems: continueItems.slice(0, 10),
