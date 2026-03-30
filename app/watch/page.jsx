@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { get, onValue, ref, update, remove, set } from 'firebase/database';
+import { get, onValue, ref, remove, set, update } from 'firebase/database';
 import Navbar from '@/components/Navbar';
 import { db, setPartyMedia, subscribeToMembers } from '@/lib/firebaseParty';
 
@@ -260,9 +260,32 @@ async function saveContinueWatchingItem({
   const itemRef = ref(db, `users/${uid}/continueWatching/${firebaseKey}`);
 
   try {
+    const existingSnap = await get(itemRef);
+    const existingItem =
+      existingSnap.exists() && typeof existingSnap.val() === 'object'
+        ? existingSnap.val()
+        : null;
+
     if (shouldHideBecauseTooEarly) {
-      await remove(itemRef);
-      window.dispatchEvent(new Event('kflix-continue-watching-updated'));
+      return;
+    }
+
+    const existingCurrentTime = safeNumber(existingItem?.currentTime, 0);
+    const existingUpdatedAt = safeNumber(existingItem?.updatedAt, 0);
+
+    const sameTvTarget =
+      type !== 'tv' ||
+      (safeNumber(existingItem?.season, '') === safeNumber(season, '') &&
+        safeNumber(existingItem?.episode, '') === safeNumber(episode, ''));
+
+    const isClearlyWorseStartupOverwrite =
+      existingItem &&
+      sameTvTarget &&
+      existingCurrentTime > watchedSeconds &&
+      watchedSeconds < MIN_WATCHED_SECONDS &&
+      existingUpdatedAt > 0;
+
+    if (isClearlyWorseStartupOverwrite) {
       return;
     }
 
@@ -333,6 +356,7 @@ function WatchPageContent() {
   });
   const lastHandledRemotePlaybackRef = useRef('');
   const suppressBroadcastUntilRef = useRef(0);
+  const initialResumeAppliedRef = useRef(false);
 
   const type = searchParams.get('type') || '';
   const id = searchParams.get('id') || '';
@@ -445,6 +469,8 @@ function WatchPageContent() {
 
   const queueSaveContinueWatching = (timeArg, playingArg) => {
     if (!autoplayUnlocked) return;
+    if (!initialResumeAppliedRef.current) return;
+    if (pendingInitialSyncRef.current) return;
     if (!userId || !heroData || !type || !id) return;
 
     if (saveContinueWatchingTimeoutRef.current) {
@@ -629,7 +655,8 @@ function WatchPageContent() {
 
   useEffect(() => {
     lastHandledRemotePlaybackRef.current = '';
-  }, [type, id, season, episode]);
+    initialResumeAppliedRef.current = false;
+  }, [type, id, season, episode, initialTimeParam, initialAutoplayParam]);
 
   useEffect(() => {
     const nextStartTime = Number(initialTimeParam || 0);
@@ -784,7 +811,10 @@ function WatchPageContent() {
           });
         }
 
-        queueSaveContinueWatching(currentTime, true);
+        if (!hasEpisodeTransition) {
+          queueSaveContinueWatching(currentTime, true);
+        }
+
         return;
       }
 
@@ -803,7 +833,10 @@ function WatchPageContent() {
           });
         }
 
-        queueSaveContinueWatching(currentTime, false);
+        if (!hasEpisodeTransition) {
+          queueSaveContinueWatching(currentTime, false);
+        }
+
         return;
       }
 
@@ -821,7 +854,10 @@ function WatchPageContent() {
           });
         }
 
-        queueSaveContinueWatching(currentTime, latestPlaybackRef.current.isPlaying);
+        if (!hasEpisodeTransition) {
+          queueSaveContinueWatching(currentTime, latestPlaybackRef.current.isPlaying);
+        }
+
         return;
       }
 
@@ -833,8 +869,8 @@ function WatchPageContent() {
           typeof payload.playing === 'boolean'
             ? payload.playing
             : typeof payload.isPlaying === 'boolean'
-            ? payload.isPlaying
-            : latestPlaybackRef.current.isPlaying;
+              ? payload.isPlaying
+              : latestPlaybackRef.current.isPlaying;
 
         setPlayerIsPlaying(playing);
         latestPlaybackRef.current = {
@@ -842,7 +878,12 @@ function WatchPageContent() {
           isPlaying: playing,
         };
 
-        if (autoplayUnlocked) {
+        if (
+          autoplayUnlocked &&
+          initialResumeAppliedRef.current &&
+          !pendingInitialSyncRef.current &&
+          !hasEpisodeTransition
+        ) {
           queueSaveContinueWatching(currentTime, playing);
         }
       }
@@ -869,6 +910,7 @@ function WatchPageContent() {
           currentTime: pending.currentTime,
           isPlaying: pending.isPlaying,
         });
+        initialResumeAppliedRef.current = true;
         return;
       }
 
@@ -876,6 +918,8 @@ function WatchPageContent() {
         command: pending.isPlaying ? 'play' : 'pause',
         time: pending.currentTime,
       });
+
+      initialResumeAppliedRef.current = true;
     }, 700);
 
     return () => clearTimeout(timeout);
@@ -997,6 +1041,7 @@ function WatchPageContent() {
         };
         setPlayerReady(false);
         setIframeSeed((prev) => prev + 1);
+        initialResumeAppliedRef.current = false;
         return;
       }
 
@@ -1010,6 +1055,7 @@ function WatchPageContent() {
           currentTime: mediaTime,
           isPlaying: mediaPlaying,
         });
+        initialResumeAppliedRef.current = false;
       } else {
         applyPartyCommandToCurrentPlayer({
           currentTime: mediaTime,

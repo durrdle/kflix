@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { onValue, ref, set, remove, update } from 'firebase/database';
+import { onValue, ref, remove, set, update } from 'firebase/database';
 import Navbar from '@/components/Navbar';
 import { db } from '@/lib/firebaseParty';
 
@@ -144,6 +144,8 @@ function splitProgressIntoSections(items, watchedMap) {
     const episode = Number(item.episode || 0);
     const nextSeason = Number(item.nextSeason || 0);
     const nextEpisode = Number(item.nextEpisode || 0);
+    const progress = Number(item.progress || 0);
+    const currentTime = Number(item.currentTime || 0);
 
     const hasExplicitNext =
       nextSeason > 0 &&
@@ -155,12 +157,15 @@ function splitProgressIntoSections(items, watchedMap) {
 
     const currentIsWatched = currentKey ? Boolean(watchedMap[currentKey]) : false;
 
-    if (hasExplicitNext) {
+    const shouldBeNextUp =
+      hasExplicitNext && (currentIsWatched || currentTime <= 0 || progress <= 0);
+
+    if (shouldBeNextUp) {
       nextUpItems.push(item);
       return;
     }
 
-    if (currentIsWatched) {
+    if (currentIsWatched && !hasExplicitNext) {
       return;
     }
 
@@ -432,7 +437,6 @@ function CarouselSection({
   const scrollRef = useRef(null);
   const [currentPage, setCurrentPage] = useState(0);
 
-  const mobileCardsPerPage = compact ? 2 : 2;
   const desktopCardsPerPage = cardsPerPage;
   const effectiveCardsPerPage = desktopCardsPerPage;
   const totalPages = Math.max(1, Math.ceil(items.length / effectiveCardsPerPage));
