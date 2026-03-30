@@ -689,470 +689,470 @@ export default function Navbar() {
   return (
     <>
       <nav
-        className={`fixed left-0 top-0 z-50 flex h-16 w-full items-center px-4 transition-all duration-300 sm:h-20 sm:px-8 ${
-          navVisible
-            ? 'translate-y-0 opacity-100'
-            : 'pointer-events-none -translate-y-full opacity-0'
-        }`}
+  className={`fixed left-0 top-0 z-50 flex h-16 w-full items-center justify-between px-4 transition-all duration-300 sm:h-20 sm:px-8 ${
+    navVisible
+      ? 'translate-y-0 opacity-100'
+      : 'pointer-events-none -translate-y-full opacity-0'
+  }`}
+>
+  <div className="flex items-center">
+    {pathname === targetHref ? (
+      <button
+        type="button"
+        onClick={handleLogoClick}
+        className="cursor-pointer bg-transparent p-0"
+        aria-label="KFlix home"
       >
-        <div className="flex items-center">
-          {pathname === targetHref ? (
+        {logoNode}
+      </button>
+    ) : (
+      <Link href={targetHref} aria-label="KFlix home">
+        {logoNode}
+      </Link>
+    )}
+  </div>
+
+  <div className="ml-auto md:hidden">
+    <button
+      type="button"
+      onClick={() => setMobileMenuOpen(true)}
+      className="flex h-10 w-10 items-center justify-center rounded-md bg-black/25 text-white backdrop-blur-md transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
+      aria-label="Open menu"
+      title="Open menu"
+    >
+      <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        <path d="M4 6h16M4 12h16M4 18h16" />
+      </svg>
+    </button>
+  </div>
+
+  <div className="absolute left-1/2 hidden w-full max-w-[720px] -translate-x-1/2 items-center gap-2 px-4 md:flex">
+    {isSearchPage && (
+      <div ref={filterRef} className="relative">
+        <button
+          type="button"
+          onClick={() => setFilterOpen((prev) => !prev)}
+          className={`flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold text-white backdrop-blur-md transition active:scale-95 ${
+            filterActive
+              ? 'bg-red-600 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60'
+              : 'bg-black/25 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40'
+          }`}
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path d="M4 6h16" />
+            <path d="M7 12h10" />
+            <path d="M10 18h4" />
+          </svg>
+          Filter
+        </button>
+
+        <div
+          className={`absolute left-0 top-full mt-2 w-[360px] overflow-hidden rounded-lg border border-red-500/40 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_10px_30px_rgba(0,0,0,0.45)] transition-all duration-200 ${
+            filterOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-2 opacity-0'
+          }`}
+        >
+          <div className="flex items-center justify-between border-b border-red-500/20 bg-red-600/10 px-4 py-3">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+              Search Filters
+            </span>
             <button
               type="button"
-              onClick={handleLogoClick}
-              className="cursor-pointer bg-transparent p-0"
-              aria-label="KFlix home"
+              onClick={resetFilters}
+              className="text-xs font-medium text-gray-300 transition hover:text-red-300"
             >
-              {logoNode}
+              Reset
             </button>
-          ) : (
-            <Link href={targetHref} aria-label="KFlix home">
-              {logoNode}
-            </Link>
-          )}
-        </div>
+          </div>
 
-        <div className="ml-2 md:hidden">
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen(true)}
-            className="flex h-10 w-10 items-center justify-center rounded-md bg-black/25 text-white backdrop-blur-md transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
-            aria-label="Open menu"
-            title="Open menu"
-          >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-        </div>
-
-        <div className="absolute left-1/2 hidden w-full max-w-[720px] -translate-x-1/2 items-center gap-2 px-4 md:flex">
-          {isSearchPage && (
-            <div ref={filterRef} className="relative">
-              <button
-                type="button"
-                onClick={() => setFilterOpen((prev) => !prev)}
-                className={`flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold text-white backdrop-blur-md transition active:scale-95 ${
-                  filterActive
-                    ? 'bg-red-600 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60'
-                    : 'bg-black/25 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40'
-                }`}
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M4 6h16" />
-                  <path d="M7 12h10" />
-                  <path d="M10 18h4" />
-                </svg>
-                Filter
-              </button>
-
-              <div
-                className={`absolute left-0 top-full mt-2 w-[360px] overflow-hidden rounded-lg border border-red-500/40 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_10px_30px_rgba(0,0,0,0.45)] transition-all duration-200 ${
-                  filterOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-2 opacity-0'
-                }`}
-              >
-                <div className="flex items-center justify-between border-b border-red-500/20 bg-red-600/10 px-4 py-3">
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
-                    Search Filters
-                  </span>
+          <div className="space-y-5 px-4 py-4">
+            <div>
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                Content Type
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: 'all', label: 'All' },
+                  { value: 'movies', label: 'Movies' },
+                  { value: 'tv', label: 'Shows' },
+                ].map((option) => (
                   <button
+                    key={option.value}
                     type="button"
-                    onClick={resetFilters}
-                    className="text-xs font-medium text-gray-300 transition hover:text-red-300"
+                    onClick={() => setDraftType(option.value)}
+                    className={`rounded-md border px-3 py-2 text-sm font-medium transition ${
+                      draftType === option.value
+                        ? 'border-red-400 bg-red-600/15 text-red-300'
+                        : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
+                    }`}
                   >
-                    Reset
+                    {option.label}
                   </button>
-                </div>
-
-                <div className="space-y-5 px-4 py-4">
-                  <div>
-                    <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
-                      Content Type
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { value: 'all', label: 'All' },
-                        { value: 'movies', label: 'Movies' },
-                        { value: 'tv', label: 'Shows' },
-                      ].map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => setDraftType(option.value)}
-                          className={`rounded-md border px-3 py-2 text-sm font-medium transition ${
-                            draftType === option.value
-                              ? 'border-red-400 bg-red-600/15 text-red-300'
-                              : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
-                      Sort By
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { value: 'newest', label: 'Newest' },
-                        { value: 'oldest', label: 'Oldest' },
-                        { value: 'top', label: 'Top Rated' },
-                      ].map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => setDraftSort(option.value)}
-                          className={`rounded-md border px-3 py-2 text-sm font-medium transition ${
-                            draftSort === option.value
-                              ? 'border-red-400 bg-red-600/15 text-red-300'
-                              : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
-                      Minimum TMDB Rating
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {['0', '4', '5', '6', '7', '8', '9'].map((rating) => (
-                        <button
-                          key={rating}
-                          type="button"
-                          onClick={() => setDraftMinRating(rating)}
-                          className={`rounded-md border px-3 py-2 text-sm font-medium transition ${
-                            draftMinRating === rating
-                              ? 'border-red-400 bg-red-600/15 text-red-300'
-                              : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
-                          }`}
-                        >
-                          {rating === '0' ? 'Any' : `${rating}+`}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
-                      Year Range
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="number"
-                        placeholder="From"
-                        min="1900"
-                        max="2100"
-                        value={draftYearFrom}
-                        onChange={(e) => setDraftYearFrom(e.target.value)}
-                        className="h-10 rounded-md border border-white/10 bg-black/20 px-3 text-sm text-white placeholder:text-gray-400 focus:border-red-500/50 focus:outline-none"
-                      />
-                      <input
-                        type="number"
-                        placeholder="To"
-                        min="1900"
-                        max="2100"
-                        value={draftYearTo}
-                        onChange={(e) => setDraftYearTo(e.target.value)}
-                        className="h-10 rounded-md border border-white/10 bg-black/20 px-3 text-sm text-white placeholder:text-gray-400 focus:border-red-500/50 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={applyFilters}
-                      className="flex h-10 flex-1 items-center justify-center rounded-md bg-red-600 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60"
-                    >
-                      Apply Filters
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFilterOpen(false)}
-                      className="flex h-10 items-center justify-center rounded-md bg-black/25 px-4 text-sm font-semibold text-white backdrop-blur-md transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
-                    >
-                      Close
-                    </button>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
-          )}
 
-          <div ref={searchRef} className="relative flex-1">
-            <form onSubmit={handleSearch} className="flex h-9">
-              <input
-                type="text"
-                placeholder="Search..."
-                className={`h-full flex-1 rounded-l-md bg-white px-4 text-sm text-black transition-all duration-200 focus:outline-none ${
-                  focused ? 'shadow-[0_0_10px_rgba(255,0,0,0.6)]' : ''
-                }`}
-                value={searchQuery}
-                onFocus={() => setFocused(true)}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-
-              <button className="h-full rounded-r-md bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60">
-                Search
-              </button>
-            </form>
-
-            <div
-              className={`absolute left-0 top-full mt-2 w-full overflow-hidden rounded-lg border border-red-500/40 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_10px_30px_rgba(0,0,0,0.45)] transition-all duration-200 ${
-                searchOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-2 opacity-0'
-              } ${
-                resultsPulse ? 'ring-1 ring-red-500/60 shadow-[0_0_18px_rgba(239,68,68,0.25)]' : ''
-              }`}
-            >
-              {searchOpen && (
-                <div className="flex items-center justify-between border-b border-red-500/20 bg-red-600/10 px-4 py-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
-                    Top Results
-                  </span>
-                  <span className="text-[11px] text-gray-300">{results.length} shown</span>
-                </div>
-              )}
-
-              <div className="relative">
-                {canScrollUp && (
-                  <div className="absolute left-1/2 top-2 z-20 -translate-x-1/2">
-                    <button
-                      type="button"
-                      onClick={() => scrollResults('up')}
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60"
-                    >
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                        <path d="M6 15l6-6 6 6" />
-                      </svg>
-                    </button>
-                  </div>
-                )}
-
-                {canScrollDown && (
-                  <div className="absolute bottom-2 left-1/2 z-20 -translate-x-1/2">
-                    <button
-                      type="button"
-                      onClick={() => scrollResults('down')}
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60"
-                    >
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                        <path d="M6 9l6 6 6-6" />
-                      </svg>
-                    </button>
-                  </div>
-                )}
-
-                <div
-                  ref={resultsScrollRef}
-                  className="max-h-[360px] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-                >
-                  {results.map((item, index) => (
-                    <Link
-                      key={`${item.media_type}-${item.id}`}
-                      href={item.media_type === 'movie' ? `/movie/${item.id}` : `/tv/${item.id}`}
-                      onClick={() => {
-                        setSearchOpen(false);
-                        setFocused(false);
-                      }}
-                    >
-                      <div
-                        className={`group flex cursor-pointer items-center gap-3 px-4 py-3 transition-all duration-200 hover:bg-red-600/12 ${
-                          index !== results.length - 1 ? 'border-b border-white/5' : ''
-                        }`}
-                      >
-                        <div className="h-14 w-10 flex-shrink-0 overflow-hidden rounded bg-gray-700 ring-1 ring-white/10 transition group-hover:ring-red-400/50">
-                          {item.poster_path ? (
-                            <img
-                              src={`${IMAGE_BASE}${item.poster_path}`}
-                              className="h-full w-full object-cover"
-                              alt={item.title || item.name || 'Poster'}
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center text-[10px] text-gray-300">
-                              N/A
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="truncate text-sm font-medium text-white transition group-hover:text-red-300">
-                              {item.title || item.name}
-                            </span>
-
-                            <span className="rounded border border-red-500/20 bg-red-600/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-red-300">
-                              {item.media_type}
-                            </span>
-                          </div>
-
-                          <div className="mt-1 truncate text-xs text-gray-400">
-                            {item.release_date || item.first_air_date || 'No date available'}
-                          </div>
-                        </div>
-
-                        <svg
-                          className="h-4 w-4 flex-shrink-0 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          viewBox="0 0 24 24"
-                        >
-                          <path d="M9 6l6 6-6 6" />
-                        </svg>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
+            <div>
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                Sort By
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: 'newest', label: 'Newest' },
+                  { value: 'oldest', label: 'Oldest' },
+                  { value: 'top', label: 'Top Rated' },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setDraftSort(option.value)}
+                    className={`rounded-md border px-3 py-2 text-sm font-medium transition ${
+                      draftSort === option.value
+                        ? 'border-red-400 bg-red-600/15 text-red-300'
+                        : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                Minimum TMDB Rating
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {['0', '4', '5', '6', '7', '8', '9'].map((rating) => (
+                  <button
+                    key={rating}
+                    type="button"
+                    onClick={() => setDraftMinRating(rating)}
+                    className={`rounded-md border px-3 py-2 text-sm font-medium transition ${
+                      draftMinRating === rating
+                        ? 'border-red-400 bg-red-600/15 text-red-300'
+                        : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
+                    }`}
+                  >
+                    {rating === '0' ? 'Any' : `${rating}+`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                Year Range
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="number"
+                  placeholder="From"
+                  min="1900"
+                  max="2100"
+                  value={draftYearFrom}
+                  onChange={(e) => setDraftYearFrom(e.target.value)}
+                  className="h-10 rounded-md border border-white/10 bg-black/20 px-3 text-sm text-white placeholder:text-gray-400 focus:border-red-500/50 focus:outline-none"
+                />
+                <input
+                  type="number"
+                  placeholder="To"
+                  min="1900"
+                  max="2100"
+                  value={draftYearTo}
+                  onChange={(e) => setDraftYearTo(e.target.value)}
+                  className="h-10 rounded-md border border-white/10 bg-black/20 px-3 text-sm text-white placeholder:text-gray-400 focus:border-red-500/50 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={applyFilters}
+                className="flex h-10 flex-1 items-center justify-center rounded-md bg-red-600 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60"
+              >
+                Apply Filters
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterOpen(false)}
+                className="flex h-10 items-center justify-center rounded-md bg-black/25 px-4 text-sm font-semibold text-white backdrop-blur-md transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
+      </div>
+    )}
 
-        <div className="ml-auto hidden items-center space-x-2 md:flex">
-          {!isHomePage && (
-            <button
-              type="button"
-              onClick={handleBackClick}
-              className="flex h-9 items-center gap-2 rounded-md bg-black/25 px-4 text-sm font-semibold text-white backdrop-blur-md transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
-            >
-              <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M15 6l-6 6 6 6" />
-              </svg>
-              Back
-            </button>
-          )}
+    <div ref={searchRef} className="relative flex-1">
+      <form onSubmit={handleSearch} className="flex h-9">
+        <input
+          type="text"
+          placeholder="Search..."
+          className={`h-full flex-1 rounded-l-md bg-white px-4 text-sm text-black transition-all duration-200 focus:outline-none ${
+            focused ? 'shadow-[0_0_10px_rgba(255,0,0,0.6)]' : ''
+          }`}
+          value={searchQuery}
+          onFocus={() => setFocused(true)}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
 
-          {!isSearchPage && (
-            <div ref={browseRef} className="relative">
+        <button className="h-full rounded-r-md bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60">
+          Search
+        </button>
+      </form>
+
+      <div
+        className={`absolute left-0 top-full mt-2 w-full overflow-hidden rounded-lg border border-red-500/40 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_10px_30px_rgba(0,0,0,0.45)] transition-all duration-200 ${
+          searchOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-2 opacity-0'
+        } ${
+          resultsPulse ? 'ring-1 ring-red-500/60 shadow-[0_0_18px_rgba(239,68,68,0.25)]' : ''
+        }`}
+      >
+        {searchOpen && (
+          <div className="flex items-center justify-between border-b border-red-500/20 bg-red-600/10 px-4 py-2">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+              Top Results
+            </span>
+            <span className="text-[11px] text-gray-300">{results.length} shown</span>
+          </div>
+        )}
+
+        <div className="relative">
+          {canScrollUp && (
+            <div className="absolute left-1/2 top-2 z-20 -translate-x-1/2">
               <button
-                onClick={() => setBrowseOpen(!browseOpen)}
-                className="flex h-9 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60"
                 type="button"
+                onClick={() => scrollResults('up')}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60"
               >
-                Browse
-                <svg className={`h-4 w-4 transition ${browseOpen ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M6 9l6 6 6-6" />
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M6 15l6-6 6 6" />
                 </svg>
               </button>
-
-              <div
-                className={`absolute left-0 top-full mt-2 min-w-full overflow-hidden rounded-lg border border-red-500/40 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_10px_30px_rgba(0,0,0,0.45)] transition-all duration-200 ${
-                  browseOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-2 opacity-0'
-                }`}
-              >
-                <div className="border-b border-red-500/20 bg-red-600/10 px-4 py-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
-                    Browse
-                  </span>
-                </div>
-
-                <Link href="/search?type=movies">
-                  <div className="group flex items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-red-600/12">
-                    <span className="text-sm font-medium text-white transition group-hover:text-red-300">
-                      Movies
-                    </span>
-                    <svg className="h-4 w-4 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path d="M9 6l6 6-6 6" />
-                    </svg>
-                  </div>
-                </Link>
-
-                <div className="border-t border-white/5" />
-
-                <Link href="/search?type=tv">
-                  <div className="group flex items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-red-600/12">
-                    <span className="text-sm font-medium text-white transition group-hover:text-red-300">
-                      Shows
-                    </span>
-                    <svg className="h-4 w-4 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path d="M9 6l6 6-6 6" />
-                    </svg>
-                  </div>
-                </Link>
-
-                <div className="border-t border-white/5" />
-
-                <Link href="/search?type=tv&tab=anime">
-                  <div className="group flex items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-red-600/12">
-                    <span className="text-sm font-medium text-white transition group-hover:text-red-300">
-                      Anime
-                    </span>
-                    <svg className="h-4 w-4 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path d="M9 6l6 6-6 6" />
-                    </svg>
-                  </div>
-                </Link>
-
-                <div className="border-t border-white/5" />
-
-                <Link href="/livesports">
-                  <div className="group flex items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-red-600/12">
-                    <span className="text-sm font-medium text-white transition group-hover:text-red-300">
-                      Live Sports
-                    </span>
-                    <svg className="h-4 w-4 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path d="M9 6l6 6-6 6" />
-                    </svg>
-                  </div>
-                </Link>
-              </div>
             </div>
           )}
 
-          <button
-            onClick={handlePartyButtonClick}
-            className={`flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition active:scale-95 ${
-              inParty
-                ? 'bg-red-600 shadow-[0_0_14px_rgba(255,0,0,0.8)] hover:shadow-[0_0_18px_rgba(255,0,0,0.95)]'
-                : 'bg-red-600 hover:shadow-inner hover:shadow-red-500/60'
-            }`}
-            type="button"
-          >
-            Party
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <circle cx="9" cy="7" r="3" />
-              <circle cx="15" cy="7" r="3" />
-              <path d="M4 20c0-3 3-5 5-5" />
-              <path d="M20 20c0-3-3-5-5-5" />
-            </svg>
-          </button>
-
-          {isProfilePage ? (
-            <button
-              onClick={handleSignOut}
-              disabled={signingOut}
-              className={`flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition active:scale-95 ${
-                signingOut ? 'cursor-not-allowed bg-red-600/70' : 'bg-red-600 hover:shadow-inner hover:shadow-red-500/60'
-              }`}
-              type="button"
-            >
-              {signingOut ? 'Signing Out...' : 'Sign Out'}
-              <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4" />
-                <path d="M10 17l5-5-5-5" />
-                <path d="M15 12H3" />
-              </svg>
-            </button>
-          ) : (
-            <Link href="/profile">
-              <span className="flex h-9 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60">
-                Profile
-                <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5z" />
-                  <path d="M2 22c0-4 4-7 10-7s10 3 10 7" />
+          {canScrollDown && (
+            <div className="absolute bottom-2 left-1/2 z-20 -translate-x-1/2">
+              <button
+                type="button"
+                onClick={() => scrollResults('down')}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M6 9l6 6 6-6" />
                 </svg>
-              </span>
-            </Link>
+              </button>
+            </div>
           )}
+
+          <div
+            ref={resultsScrollRef}
+            className="max-h-[360px] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {results.map((item, index) => (
+              <Link
+                key={`${item.media_type}-${item.id}`}
+                href={item.media_type === 'movie' ? `/movie/${item.id}` : `/tv/${item.id}`}
+                onClick={() => {
+                  setSearchOpen(false);
+                  setFocused(false);
+                }}
+              >
+                <div
+                  className={`group flex cursor-pointer items-center gap-3 px-4 py-3 transition-all duration-200 hover:bg-red-600/12 ${
+                    index !== results.length - 1 ? 'border-b border-white/5' : ''
+                  }`}
+                >
+                  <div className="h-14 w-10 flex-shrink-0 overflow-hidden rounded bg-gray-700 ring-1 ring-white/10 transition group-hover:ring-red-400/50">
+                    {item.poster_path ? (
+                      <img
+                        src={`${IMAGE_BASE}${item.poster_path}`}
+                        className="h-full w-full object-cover"
+                        alt={item.title || item.name || 'Poster'}
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-[10px] text-gray-300">
+                        N/A
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-sm font-medium text-white transition group-hover:text-red-300">
+                        {item.title || item.name}
+                      </span>
+
+                      <span className="rounded border border-red-500/20 bg-red-600/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-red-300">
+                        {item.media_type}
+                      </span>
+                    </div>
+
+                    <div className="mt-1 truncate text-xs text-gray-400">
+                      {item.release_date || item.first_air_date || 'No date available'}
+                    </div>
+                  </div>
+
+                  <svg
+                    className="h-4 w-4 flex-shrink-0 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M9 6l6 6-6 6" />
+                  </svg>
+                </div>
+              </Link>
+            ))}
+          </div>
         </div>
-      </nav>
+      </div>
+    </div>
+  </div>
+
+  <div className="ml-auto hidden items-center space-x-2 md:flex">
+    {!isHomePage && (
+      <button
+        type="button"
+        onClick={handleBackClick}
+        className="flex h-9 items-center gap-2 rounded-md bg-black/25 px-4 text-sm font-semibold text-white backdrop-blur-md transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
+      >
+        <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path d="M15 6l-6 6 6 6" />
+        </svg>
+        Back
+      </button>
+    )}
+
+    {!isSearchPage && (
+      <div ref={browseRef} className="relative">
+        <button
+          onClick={() => setBrowseOpen(!browseOpen)}
+          className="flex h-9 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60"
+          type="button"
+        >
+          Browse
+          <svg className={`h-4 w-4 transition ${browseOpen ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+
+        <div
+          className={`absolute left-0 top-full mt-2 min-w-full overflow-hidden rounded-lg border border-red-500/40 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_10px_30px_rgba(0,0,0,0.45)] transition-all duration-200 ${
+            browseOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-2 opacity-0'
+          }`}
+        >
+          <div className="border-b border-red-500/20 bg-red-600/10 px-4 py-2">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+              Browse
+            </span>
+          </div>
+
+          <Link href="/search?type=movies">
+            <div className="group flex items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-red-600/12">
+              <span className="text-sm font-medium text-white transition group-hover:text-red-300">
+                Movies
+              </span>
+              <svg className="h-4 w-4 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M9 6l6 6-6 6" />
+              </svg>
+            </div>
+          </Link>
+
+          <div className="border-t border-white/5" />
+
+          <Link href="/search?type=tv">
+            <div className="group flex items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-red-600/12">
+              <span className="text-sm font-medium text-white transition group-hover:text-red-300">
+                Shows
+              </span>
+              <svg className="h-4 w-4 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M9 6l6 6-6 6" />
+              </svg>
+            </div>
+          </Link>
+
+          <div className="border-t border-white/5" />
+
+          <Link href="/search?type=tv&tab=anime">
+            <div className="group flex items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-red-600/12">
+              <span className="text-sm font-medium text-white transition group-hover:text-red-300">
+                Anime
+              </span>
+              <svg className="h-4 w-4 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M9 6l6 6-6 6" />
+              </svg>
+            </div>
+          </Link>
+
+          <div className="border-t border-white/5" />
+
+          <Link href="/livesports">
+            <div className="group flex items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-red-600/12">
+              <span className="text-sm font-medium text-white transition group-hover:text-red-300">
+                Live Sports
+              </span>
+              <svg className="h-4 w-4 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M9 6l6 6-6 6" />
+              </svg>
+            </div>
+          </Link>
+        </div>
+      </div>
+    )}
+
+    <button
+      onClick={handlePartyButtonClick}
+      className={`flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition active:scale-95 ${
+        inParty
+          ? 'bg-red-600 shadow-[0_0_14px_rgba(255,0,0,0.8)] hover:shadow-[0_0_18px_rgba(255,0,0,0.95)]'
+          : 'bg-red-600 hover:shadow-inner hover:shadow-red-500/60'
+      }`}
+      type="button"
+    >
+      Party
+      <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        <circle cx="9" cy="7" r="3" />
+        <circle cx="15" cy="7" r="3" />
+        <path d="M4 20c0-3 3-5 5-5" />
+        <path d="M20 20c0-3-3-5-5-5" />
+      </svg>
+    </button>
+
+    {isProfilePage ? (
+      <button
+        onClick={handleSignOut}
+        disabled={signingOut}
+        className={`flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition active:scale-95 ${
+          signingOut ? 'cursor-not-allowed bg-red-600/70' : 'bg-red-600 hover:shadow-inner hover:shadow-red-500/60'
+        }`}
+        type="button"
+      >
+        {signingOut ? 'Signing Out...' : 'Sign Out'}
+        <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4" />
+          <path d="M10 17l5-5-5-5" />
+          <path d="M15 12H3" />
+        </svg>
+      </button>
+    ) : (
+      <Link href="/profile">
+        <span className="flex h-9 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60">
+          Profile
+          <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5z" />
+            <path d="M2 22c0-4 4-7 10-7s10 3 10 7" />
+          </svg>
+        </span>
+      </Link>
+    )}
+  </div>
+</nav>
 
       <div
         className={`fixed inset-0 z-[70] md:hidden ${
