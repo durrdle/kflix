@@ -358,6 +358,13 @@ function WatchPageContent() {
   const suppressBroadcastUntilRef = useRef(0);
   const initialResumeAppliedRef = useRef(false);
 
+  const latestUserIdRef = useRef('');
+  const latestHeroDataRef = useRef(null);
+  const latestEpisodeDataRef = useRef(null);
+  const latestAutoplayUnlockedRef = useRef(false);
+  const latestPartyCodeRef = useRef('');
+  const latestIsHostRef = useRef(false);
+
   const type = searchParams.get('type') || '';
   const id = searchParams.get('id') || '';
   const season = searchParams.get('season') || '';
@@ -496,6 +503,39 @@ function WatchPageContent() {
     }, 250);
   };
 
+  const flushContinueWatching = () => {
+    if (saveContinueWatchingTimeoutRef.current) {
+      clearTimeout(saveContinueWatchingTimeoutRef.current);
+      saveContinueWatchingTimeoutRef.current = null;
+    }
+
+    if (!latestAutoplayUnlockedRef.current) return;
+    if (!initialResumeAppliedRef.current) return;
+    if (pendingInitialSyncRef.current) return;
+
+    const uid = latestUserIdRef.current;
+    const currentHeroData = latestHeroDataRef.current;
+    const currentEpisodeData = latestEpisodeDataRef.current;
+
+    if (!uid || !currentHeroData || !type || !id) return;
+
+    saveContinueWatchingItem({
+      uid,
+      type,
+      id,
+      heroData: currentHeroData,
+      episodeData: currentEpisodeData,
+      season: type === 'tv' ? liveTvProgressRef.current.season || season : season,
+      episode: type === 'tv' ? liveTvProgressRef.current.episode || episode : episode,
+      episodeName:
+        type === 'tv'
+          ? liveTvProgressRef.current.episodeName || currentEpisodeData?.name || ''
+          : '',
+      currentTime: latestPlaybackRef.current.currentTime,
+      isPlaying: latestPlaybackRef.current.isPlaying,
+    });
+  };
+
   const reloadPlayerToPosition = ({ currentTime, isPlaying }) => {
     const targetTime =
       typeof currentTime === 'number' && Number.isFinite(currentTime)
@@ -561,6 +601,30 @@ function WatchPageContent() {
       isPlaying: playerIsPlaying,
     };
   }, [playerCurrentTime, playerIsPlaying]);
+
+  useEffect(() => {
+    latestUserIdRef.current = userId;
+  }, [userId]);
+
+  useEffect(() => {
+    latestHeroDataRef.current = heroData;
+  }, [heroData]);
+
+  useEffect(() => {
+    latestEpisodeDataRef.current = episodeData;
+  }, [episodeData]);
+
+  useEffect(() => {
+    latestAutoplayUnlockedRef.current = autoplayUnlocked;
+  }, [autoplayUnlocked]);
+
+  useEffect(() => {
+    latestPartyCodeRef.current = partyCode;
+  }, [partyCode]);
+
+  useEffect(() => {
+    latestIsHostRef.current = isHost;
+  }, [isHost]);
 
   useEffect(() => {
     const auth = getAuth();
@@ -1068,10 +1132,54 @@ function WatchPageContent() {
   }, [partyCode, userId, isHost, partyFollowEnabled, type, id, season, episode, playerReady, autoplayUnlocked]);
 
   useEffect(() => {
-    return () => {
-      if (saveContinueWatchingTimeoutRef.current) {
-        clearTimeout(saveContinueWatchingTimeoutRef.current);
+    const handleFlush = () => {
+      flushContinueWatching();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        flushContinueWatching();
       }
+    };
+
+    window.addEventListener('pagehide', handleFlush);
+    window.addEventListener('beforeunload', handleFlush);
+    window.addEventListener('kflix-flush-continue-watching', handleFlush);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('pagehide', handleFlush);
+      window.removeEventListener('beforeunload', handleFlush);
+      window.removeEventListener('kflix-flush-continue-watching', handleFlush);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+
+      flushContinueWatching();
+    };
+  }, [type, id, season, episode, heroData, episodeData, userId, autoplayUnlocked]);
+
+  useEffect(() => {
+    return () => {
+      const currentPartyCode = latestPartyCodeRef.current;
+      const currentUserId = latestUserIdRef.current;
+      const currentIsHost = latestIsHostRef.current;
+
+      if (!currentPartyCode || !currentUserId || !currentIsHost) return;
+
+      setPartyMedia(currentPartyCode, {
+        mediaType: null,
+        mediaId: null,
+        season: null,
+        episode: null,
+        currentTime: 0,
+        isPlaying: false,
+        updatedBy: currentUserId,
+        route: '',
+        sourceIndex: 0,
+        streamIndex: 0,
+        sourcesParam: '',
+      }).catch((partyError) => {
+        console.error('Failed to clear host media on watch page exit:', partyError);
+      });
     };
   }, []);
 
@@ -1113,10 +1221,29 @@ function WatchPageContent() {
     };
   };
 
-  const handleNoticeNotUnderstood = () => {
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      router.back();
-      return;
+    const handleNoticeNotUnderstood = () => {
+    if (typeof window !== 'undefined') {
+      const referrer = document.referrer || '';
+      const sameOriginReferrer =
+        referrer && referrer.startsWith(window.location.origin);
+
+      if (sameOriginReferrer) {
+        try {
+          const referrerUrl = new URL(referrer);
+          const referrerPath = `${referrerUrl.pathname}${referrerUrl.search || ''}`;
+
+          const currentPath = `${window.location.pathname}${window.location.search || ''}`;
+          const isLoginReferrer = referrerUrl.pathname === '/login';
+          const isSameWatchReferrer = referrerPath === currentPath;
+
+          if (!isLoginReferrer && !isSameWatchReferrer && window.history.length > 1) {
+            router.back();
+            return;
+          }
+        } catch {
+          // ignore malformed referrer and fall back below
+        }
+      }
     }
 
     router.push('/');

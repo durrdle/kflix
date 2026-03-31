@@ -4,7 +4,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { auth } from '../firebaseConfig';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import {
+  browserSessionPersistence,
+  setPersistence,
+  signInWithEmailAndPassword,
+} from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 
 const THEME_STYLES = {
@@ -98,6 +102,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      await setPersistence(auth, browserSessionPersistence);
       await signInWithEmailAndPassword(auth, email, password);
       router.push('/');
     } catch {

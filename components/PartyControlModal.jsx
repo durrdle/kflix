@@ -4,6 +4,9 @@ import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  cleanupExpiredPartyMembers,
+  HOST_LOGOUT_GRACE_MS,
+  MEMBER_LOGOUT_GRACE_MS,
   promotePartyHost,
   requestResync,
   sendPartyMessage,
@@ -12,6 +15,13 @@ import {
   subscribeToParty,
   subscribeToPlayback,
 } from '@/lib/firebaseParty';
+
+function formatRemainingCountdown(ms) {
+  const totalSeconds = Math.max(0, Math.ceil((Number(ms) || 0) / 1000));
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = totalSeconds % 60;
+  return `${mins}:${String(secs).padStart(2, '0')}`;
+}
 
 export default function PartyControlModal({ open, onClose, onLeave, code }) {
   const router = useRouter();
@@ -30,6 +40,7 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
   const [partyState, setPartyState] = useState(null);
   const [promotingId, setPromotingId] = useState('');
   const [isMobile, setIsMobile] = useState(false);
+  const [clockTick, setClockTick] = useState(Date.now());
 
   const dragOffsetRef = useRef({ x: 0, y: 0 });
   const chatRef = useRef(null);
@@ -60,6 +71,10 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
 
       if (aIsHost && !bIsHost) return -1;
       if (!aIsHost && bIsHost) return 1;
+
+      const aOffline = Boolean(a?.isOffline);
+      const bOffline = Boolean(b?.isOffline);
+      if (aOffline !== bOffline) return aOffline ? 1 : -1;
 
       const aSeen = Number(a?.lastSeenAt || 0);
       const bSeen = Number(b?.lastSeenAt || 0);
@@ -307,6 +322,17 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
   }, [code, open, chatOpen]);
 
   useEffect(() => {
+    if (!code || (!open && !chatOpen)) return;
+
+    const interval = setInterval(() => {
+      setClockTick(Date.now());
+      cleanupExpiredPartyMembers(code).catch(() => {});
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [code, open, chatOpen]);
+
+  useEffect(() => {
     const hostId = String(partyState?.hostId || '');
     if (!hostId) return;
 
@@ -377,8 +403,20 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
     }
   };
 
+  const shouldRenderModal = open;
+  const shouldRenderChat = chatOpen && code && isPartyMember;
+  const showJumpSection = isPartyMember && !isHost;
+
+  const hasActiveHostPlayback = Boolean(
+    playbackState?.mediaType &&
+      playbackState?.mediaId &&
+      (playbackState?.route === '/watch' || playbackState?.route === '/livesports/watch')
+  );
+
   const handleResync = async () => {
-    if (!code || !userId || resyncing || !isPartyMember || isHost) return;
+    if (!code || !userId || resyncing || !isPartyMember || isHost || !hasActiveHostPlayback) {
+      return;
+    }
 
     try {
       setResyncing(true);
@@ -450,10 +488,6 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
     };
   });
 
-  const shouldRenderModal = open;
-  const shouldRenderChat = chatOpen && code && isPartyMember;
-  const showJumpSection = isPartyMember && !isHost;
-
   if (!shouldRenderModal && !shouldRenderChat) return null;
 
   return (
@@ -511,26 +545,30 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
                         <div className="mt-3">
                           <div
                             className={`text-sm font-medium ${
-                              syncStatus === 'Recently Resynced'
+                              !hasActiveHostPlayback
+                                ? 'text-gray-400'
+                                : syncStatus === 'Recently Resynced'
                                 ? 'text-green-300'
                                 : syncStatus === 'Party Closed'
                                 ? 'text-red-300'
                                 : 'text-white'
                             }`}
                           >
-                            {syncStatus}
+                            {hasActiveHostPlayback ? syncStatus : 'No active content'}
                           </div>
 
                           <p className="mt-2 text-xs leading-6 text-gray-400">
-                            Jump to the host’s current media and playback position.
+                            {hasActiveHostPlayback
+                              ? 'Jump to the host’s current media and playback position.'
+                              : 'The host is not currently playing anything.'}
                           </p>
                         </div>
 
                         <button
                           onClick={handleResync}
-                          disabled={resyncing}
+                          disabled={resyncing || !hasActiveHostPlayback}
                           className={`mt-4 flex h-11 w-full items-center justify-center rounded-lg px-4 text-sm font-semibold text-white transition active:scale-95 ${
-                            resyncing
+                            resyncing || !hasActiveHostPlayback
                               ? 'cursor-not-allowed bg-red-900/50 opacity-70'
                               : 'bg-red-600 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60'
                           }`}
@@ -585,14 +623,25 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
                               (partyState?.hostId && String(member.id) === String(partyState.hostId))
                           );
 
+                          const isOffline = Boolean(member.isOffline);
+                          const loggedOutAt = Number(member.loggedOutAt || 0);
+                          const graceMs = memberIsHost ? HOST_LOGOUT_GRACE_MS : MEMBER_LOGOUT_GRACE_MS;
+
+                          const liveRemainingMs =
+                            isOffline && loggedOutAt > 0
+                              ? Math.max(0, graceMs - (clockTick - loggedOutAt))
+                              : 0;
+
                           return (
                             <div
                               key={member.id}
-                              className="flex flex-col gap-3 rounded-lg border border-white/10 bg-gray-900 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                              className={`flex flex-col gap-3 rounded-lg border border-white/10 bg-gray-900 px-4 py-3 sm:flex-row sm:items-center sm:justify-between ${
+                                isOffline ? 'opacity-55' : ''
+                              }`}
                             >
                               <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <div className="truncate text-sm font-medium text-white">
+                                  <div className={`truncate text-sm font-medium ${isOffline ? 'text-gray-400' : 'text-white'}`}>
                                     {member.name || `User ${member.id}`}
                                   </div>
 
@@ -609,11 +658,18 @@ export default function PartyControlModal({ open, onClose, onLeave, code }) {
                               </div>
 
                               <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                                <div className="text-xs text-gray-400">
-                                  {Date.now() - (member.lastSeenAt || 0) < 30000 ? 'Online' : 'Idle'}
-                                </div>
+                                {isOffline ? (
+                                  <div className="rounded-full border border-red-500/30 bg-red-600/15 px-2.5 py-1 text-[11px] font-semibold text-red-300">
+                                    <span className="opacity-80">Time to rejoin:</span>{' '}
+                                    <span className="font-bold">{formatRemainingCountdown(liveRemainingMs)}</span>
+                                  </div>
+                                ) : (
+                                  <div className="text-xs text-green-400">
+                                    Online
+                                  </div>
+                                )}
 
-                                {isHost && !memberIsHost && (
+                                {isHost && !memberIsHost && !isOffline && (
                                   <button
                                     type="button"
                                     onClick={() => handlePromote(member.id)}
