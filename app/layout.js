@@ -1,6 +1,8 @@
 // app/layout.js
 import './globals.css';
 import Script from 'next/script';
+import MaintenanceGate from '@/components/MaintenanceGate';
+import PresenceTracker from '@/components/PresenceTracker';
 
 export const metadata = {
   title: 'KFlix Streaming',
@@ -11,7 +13,10 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" data-theme="lava">
       <body className="min-h-screen">
-        {children}
+        <MaintenanceGate>
+          <PresenceTracker />
+          {children}
+        </MaintenanceGate>
 
         <Script
           id="google-cast-sdk"

@@ -1,12 +1,5 @@
 <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
-  <Link href="/Terms-and-Conditions" className="cursor-pointer transition hover:text-red-400">
-    Terms and Conditions
-  </Link>
-  <span>•</span>
-  <Link href="/Privacy-Policy" className="cursor-pointer transition hover:text-red-400">
-    Privacy Policy
-  </Link>
-  <span>•</span>
+  
   <a
     href={`${process.env.NEXT_PUBLIC_GITHUB_REPO}/commit/${process.env.NEXT_PUBLIC_COMMIT_HASH}`}
     target="_blank"

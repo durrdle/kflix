@@ -651,13 +651,7 @@ function LiveSportsPageContent() {
         <p>This site does not host or store any media.</p>
 
         <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-gray-500 sm:text-sm">
-          <Link href="/Terms-and-Conditions" className="transition hover:text-red-400">
-            Terms and Conditions
-          </Link>
-          <span>•</span>
-          <Link href="/Privacy-Policy" className="transition hover:text-red-400">
-            Privacy Policy
-          </Link>
+          
         </div>
       </footer>
     </div>

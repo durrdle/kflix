@@ -8,6 +8,7 @@ import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import { get, off, onValue, ref } from 'firebase/database';
 import PartyModal from '@/components/PartyModal';
 import PartyControlModal from '@/components/PartyControlModal';
+import useAdmin from '@/hooks/useAdmin';
 import {
   app,
   db,
@@ -86,12 +87,14 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isAdmin } = useAdmin();
 
   const isProfilePage = pathname === '/profile';
   const isSearchPage = pathname === '/search';
   const isHomePage = pathname === '/';
   const isWatchPage = pathname === '/watch';
   const isLiveSportsWatchPage = pathname === '/livesports/watch';
+  const isAdminPage = pathname === '/admin';
   const isActivePartyPlaybackPage = isWatchPage || isLiveSportsWatchPage;
 
   const armInitialPartyFollow = () => {
@@ -1293,142 +1296,159 @@ export default function Navbar() {
         </div>
 
         <div className="ml-auto hidden items-center space-x-2 lg:flex">
-          {!isHomePage && (
-            <button
-              type="button"
-              onClick={handleBackClick}
-              className="flex h-9 items-center gap-2 rounded-md bg-black/25 px-4 text-sm font-semibold text-white backdrop-blur-md transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
-            >
-              <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M15 6l-6 6 6 6" />
-              </svg>
-              Back
-            </button>
-          )}
+  {!isHomePage && (
+    <button
+      type="button"
+      onClick={handleBackClick}
+      className="flex h-9 items-center gap-2 rounded-md bg-black/25 px-4 text-sm font-semibold text-white backdrop-blur-md transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
+    >
+      <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        <path d="M15 6l-6 6 6 6" />
+      </svg>
+      Back
+    </button>
+  )}
 
-          {!isSearchPage && (
-            <div ref={browseRef} className="relative">
-              <button
-                onClick={() => setBrowseOpen(!browseOpen)}
-                className="flex h-9 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60"
-                type="button"
-              >
-                Browse
-                <svg className={`h-4 w-4 transition ${browseOpen ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
-              </button>
+  {isAdmin && !isAdminPage && (
+    <Link href="/admin">
+      <span className="flex h-9 items-center gap-2 rounded-md bg-yellow-500/80 px-4 text-sm font-semibold text-black transition active:scale-95 hover:bg-yellow-400 hover:shadow-inner hover:shadow-yellow-300/40">
+        Admin
+        <svg
+          className="h-4 w-4 flex-shrink-0"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          viewBox="0 0 24 24"
+        >
+          <path d="M12 3l7 4v5c0 5-3.5 8-7 9-3.5-1-7-4-7-9V7l7-4z" />
+        </svg>
+      </span>
+    </Link>
+  )}
 
-              <div
-                className={`absolute left-0 top-full mt-2 min-w-full overflow-hidden rounded-lg border border-red-500/40 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_10px_30px_rgba(0,0,0,0.45)] transition-all duration-200 ${
-                  browseOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-2 opacity-0'
-                }`}
-              >
-                <div className="border-b border-red-500/20 bg-red-600/10 px-4 py-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
-                    Browse
-                  </span>
-                </div>
+  {!isSearchPage && (
+    <div ref={browseRef} className="relative">
+      <button
+        onClick={() => setBrowseOpen(!browseOpen)}
+        className="flex h-9 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60"
+        type="button"
+      >
+        Browse
+        <svg className={`h-4 w-4 transition ${browseOpen ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
 
-                <Link href="/search?type=movies">
-                  <div className="group flex items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-red-600/12">
-                    <span className="text-sm font-medium text-white transition group-hover:text-red-300">
-                      Movies
-                    </span>
-                    <svg className="h-4 w-4 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path d="M9 6l6 6-6 6" />
-                    </svg>
-                  </div>
-                </Link>
-
-                <div className="border-t border-white/5" />
-
-                <Link href="/search?type=tv">
-                  <div className="group flex items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-red-600/12">
-                    <span className="text-sm font-medium text-white transition group-hover:text-red-300">
-                      Shows
-                    </span>
-                    <svg className="h-4 w-4 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path d="M9 6l6 6-6 6" />
-                    </svg>
-                  </div>
-                </Link>
-
-                <div className="border-t border-white/5" />
-
-                <Link href="/search?type=tv&tab=anime">
-                  <div className="group flex items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-red-600/12">
-                    <span className="text-sm font-medium text-white transition group-hover:text-red-300">
-                      Anime
-                    </span>
-                    <svg className="h-4 w-4 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path d="M9 6l6 6-6 6" />
-                    </svg>
-                  </div>
-                </Link>
-
-                <div className="border-t border-white/5" />
-
-                <Link href="/livesports">
-                  <div className="group flex items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-red-600/12">
-                    <span className="text-sm font-medium text-white transition group-hover:text-red-300">
-                      Live Sports
-                    </span>
-                    <svg className="h-4 w-4 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path d="M9 6l6 6-6 6" />
-                    </svg>
-                  </div>
-                </Link>
-              </div>
-            </div>
-          )}
-
-          <button
-            onClick={handlePartyButtonClick}
-            className={`flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition active:scale-95 ${
-              inParty
-                ? 'bg-red-600 shadow-[0_0_14px_rgba(255,0,0,0.8)] hover:shadow-[0_0_18px_rgba(255,0,0,0.95)]'
-                : 'bg-red-600 hover:shadow-inner hover:shadow-red-500/60'
-            }`}
-            type="button"
-          >
-            Party
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <circle cx="9" cy="7" r="3" />
-              <circle cx="15" cy="7" r="3" />
-              <path d="M4 20c0-3 3-5 5-5" />
-              <path d="M20 20c0-3-3-5-5-5" />
-            </svg>
-          </button>
-
-          {isProfilePage ? (
-            <button
-              onClick={handleSignOut}
-              disabled={signingOut}
-              className={`flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition active:scale-95 ${
-                signingOut ? 'cursor-not-allowed bg-red-600/70' : 'bg-red-600 hover:shadow-inner hover:shadow-red-500/60'
-              }`}
-              type="button"
-            >
-              {signingOut ? 'Signing Out...' : 'Sign Out'}
-              <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4" />
-                <path d="M10 17l5-5-5-5" />
-                <path d="M15 12H3" />
-              </svg>
-            </button>
-          ) : (
-            <Link href="/profile">
-              <span className="flex h-9 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60">
-                Profile
-                <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5z" />
-                  <path d="M2 22c0-4 4-7 10-7s10 3 10 7" />
-                </svg>
-              </span>
-            </Link>
-          )}
+      <div
+        className={`absolute left-0 top-full mt-2 min-w-full overflow-hidden rounded-lg border border-red-500/40 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_10px_30px_rgba(0,0,0,0.45)] transition-all duration-200 ${
+          browseOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-2 opacity-0'
+        }`}
+      >
+        <div className="border-b border-red-500/20 bg-red-600/10 px-4 py-2">
+          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+            Browse
+          </span>
         </div>
+
+        <Link href="/search?type=movies">
+          <div className="group flex items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-red-600/12">
+            <span className="text-sm font-medium text-white transition group-hover:text-red-300">
+              Movies
+            </span>
+            <svg className="h-4 w-4 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </div>
+        </Link>
+
+        <div className="border-t border-white/5" />
+
+        <Link href="/search?type=tv">
+          <div className="group flex items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-red-600/12">
+            <span className="text-sm font-medium text-white transition group-hover:text-red-300">
+              Shows
+            </span>
+            <svg className="h-4 w-4 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </div>
+        </Link>
+
+        <div className="border-t border-white/5" />
+
+        <Link href="/search?type=tv&tab=anime">
+          <div className="group flex items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-red-600/12">
+            <span className="text-sm font-medium text-white transition group-hover:text-red-300">
+              Anime
+            </span>
+            <svg className="h-4 w-4 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </div>
+        </Link>
+
+        <div className="border-t border-white/5" />
+
+        <Link href="/livesports">
+          <div className="group flex items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-red-600/12">
+            <span className="text-sm font-medium text-white transition group-hover:text-red-300">
+              Live Sports
+            </span>
+            <svg className="h-4 w-4 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </div>
+        </Link>
+      </div>
+    </div>
+  )}
+
+  <button
+    onClick={handlePartyButtonClick}
+    className={`flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition active:scale-95 ${
+      inParty
+        ? 'bg-red-600 shadow-[0_0_14px_rgba(255,0,0,0.8)] hover:shadow-[0_0_18px_rgba(255,0,0,0.95)]'
+        : 'bg-red-600 hover:shadow-inner hover:shadow-red-500/60'
+    }`}
+    type="button"
+  >
+    Party
+    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <circle cx="9" cy="7" r="3" />
+      <circle cx="15" cy="7" r="3" />
+      <path d="M4 20c0-3 3-5 5-5" />
+      <path d="M20 20c0-3-3-5-5-5" />
+    </svg>
+  </button>
+
+  {isProfilePage ? (
+    <button
+      onClick={handleSignOut}
+      disabled={signingOut}
+      className={`flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition active:scale-95 ${
+        signingOut ? 'cursor-not-allowed bg-red-600/70' : 'bg-red-600 hover:shadow-inner hover:shadow-red-500/60'
+      }`}
+      type="button"
+    >
+      {signingOut ? 'Signing Out...' : 'Sign Out'}
+      <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4" />
+        <path d="M10 17l5-5-5-5" />
+        <path d="M15 12H3" />
+      </svg>
+    </button>
+  ) : (
+    <Link href="/profile">
+      <span className="flex h-9 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60">
+        Profile
+        <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5z" />
+          <path d="M2 22c0-4 4-7 10-7s10 3 10 7" />
+        </svg>
+      </span>
+    </Link>
+  )}
+</div>
       </nav>
 
       <div
@@ -1704,6 +1724,23 @@ export default function Navbar() {
                 </p>
 
                 <div className="space-y-2">
+                  {isAdmin && (
+                    <Link href="/admin" onClick={() => setMobileMenuOpen(false)}>
+                      <div className="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-black/25 px-4 text-sm font-semibold text-white backdrop-blur-md transition active:scale-95 hover:bg-black/35">
+                        Admin
+                        <svg
+                          className="h-4 w-4 flex-shrink-0"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M12 3l7 4v5c0 5-3.5 8-7 9-3.5-1-7-4-7-9V7l7-4z" />
+                        </svg>
+                      </div>
+                    </Link>
+                  )}
+
                   <button
                     onClick={handlePartyButtonClick}
                     className={`flex h-11 w-full items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition active:scale-95 ${
