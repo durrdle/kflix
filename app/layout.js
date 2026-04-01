@@ -4,10 +4,11 @@ import Script from 'next/script';
 import MaintenanceGate from '@/components/MaintenanceGate';
 import PresenceTracker from '@/components/PresenceTracker';
 import ThemeSync from '@/components/ThemeSync';
+import AnimatedTabTitle from '@/components/AnimatedTabTitle';
 
 export const metadata = {
-  title: 'KFlix Streaming',
-  description: 'KFlix Streaming Services',
+  title: 'KFLIX by Ser Wallace',
+  description: 'Watch Movies, Shows, Anime or Live Sports',
 };
 
 export default function RootLayout({ children }) {
@@ -25,16 +26,16 @@ export default function RootLayout({ children }) {
                     localStorage.getItem('kflix_selected_theme') ||
                     localStorage.getItem('theme') ||
                     document.documentElement.getAttribute('data-theme') ||
-                    'lava';
+                    'noir';
 
-                  var nextTheme = allowedThemes.indexOf(storedTheme) !== -1 ? storedTheme : 'lava';
+                  var nextTheme = allowedThemes.indexOf(storedTheme) !== -1 ? storedTheme : 'noir';
 
                   document.documentElement.setAttribute('data-theme', nextTheme);
                   localStorage.setItem('kflix_theme', nextTheme);
                   localStorage.setItem('kflix_selected_theme', nextTheme);
                   localStorage.setItem('theme', nextTheme);
                 } catch (e) {
-                  document.documentElement.setAttribute('data-theme', 'lava');
+                  document.documentElement.setAttribute('data-theme', 'noir');
                 }
               })();
             `,
@@ -44,6 +45,7 @@ export default function RootLayout({ children }) {
 
       <body className="min-h-screen">
         <ThemeSync />
+        <AnimatedTabTitle />
 
         <MaintenanceGate>
           <PresenceTracker />
