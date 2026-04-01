@@ -1,13 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   browserSessionPersistence,
+  getAuth,
   setPersistence,
   signInWithEmailAndPassword,
 } from 'firebase/auth';
 import { get, ref } from 'firebase/database';
-import { auth, db } from '@/lib/firebaseParty';
+import { app, db } from '@/lib/firebaseParty';
 
 const ALLOWED_THEMES = ['lava', 'midnight', 'crimson', 'neon', 'noir'];
 
@@ -30,7 +32,8 @@ function resolveStoredTheme() {
   return found || 'noir';
 }
 
-function applyTheme(theme) {
+function applyTheme(theme, options = {}) {
+  const { broadcast = true } = options;
   const nextTheme = isValidTheme(theme) ? theme : 'noir';
 
   if (typeof document !== 'undefined') {
@@ -44,28 +47,27 @@ function applyTheme(theme) {
       localStorage.setItem('theme', nextTheme);
     } catch {}
 
-    window.dispatchEvent(new Event('kflix-theme-updated'));
+    if (broadcast) {
+      window.dispatchEvent(new Event('kflix-theme-updated'));
+    }
   }
 
   return nextTheme;
 }
 
-async function getThemeWithTimeout(uid, timeoutMs = 2000) {
-  try {
-    const result = await Promise.race([
-      get(ref(db, `users/${uid}/profile/theme`)),
-      new Promise((resolve) => {
-        setTimeout(() => resolve(null), timeoutMs);
-      }),
-    ]);
-
-    return result;
-  } catch {
-    return null;
-  }
+function getThemeWithTimeout(uid, timeoutMs = 2000) {
+  return Promise.race([
+    get(ref(db, `users/${uid}/profile/theme`)),
+    new Promise((resolve) => {
+      setTimeout(() => resolve(null), timeoutMs);
+    }),
+  ]);
 }
 
 export default function LoginPage() {
+  const router = useRouter();
+  const auth = useMemo(() => getAuth(app), []);
+
   const [themeId, setThemeId] = useState('noir');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -100,8 +102,7 @@ export default function LoginPage() {
   };
 
   const glassButtonStyle = {
-    borderColor:
-      'color-mix(in srgb, var(--theme-accent-border) 90%, rgba(255,255,255,0.06))',
+    borderColor: 'color-mix(in srgb, var(--theme-accent-border) 90%, rgba(255,255,255,0.06))',
     background:
       'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent) 86%, rgba(255,255,255,0.12)), color-mix(in srgb, var(--theme-accent-hover) 90%, rgba(0,0,0,0.05)))',
     boxShadow:
@@ -112,8 +113,7 @@ export default function LoginPage() {
   };
 
   const glassButtonDisabledStyle = {
-    borderColor:
-      'color-mix(in srgb, var(--theme-accent-border) 55%, rgba(255,255,255,0.05))',
+    borderColor: 'color-mix(in srgb, var(--theme-accent-border) 55%, rgba(255,255,255,0.05))',
     background: 'var(--theme-accent-disabled-bg)',
     boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
     color: 'var(--theme-accent-disabled-text)',
@@ -130,23 +130,26 @@ export default function LoginPage() {
   };
 
   useEffect(() => {
-    const syncTheme = () => {
-      const nextTheme = applyTheme(resolveStoredTheme());
+    const syncThemeFromStorage = () => {
+      const nextTheme = resolveStoredTheme();
+      applyTheme(nextTheme, { broadcast: false });
       setThemeId(nextTheme);
     };
 
-    syncTheme();
-    window.addEventListener('storage', syncTheme);
-    window.addEventListener('kflix-theme-updated', syncTheme);
+    syncThemeFromStorage();
+
+    window.addEventListener('storage', syncThemeFromStorage);
+    window.addEventListener('kflix-theme-updated', syncThemeFromStorage);
 
     return () => {
-      window.removeEventListener('storage', syncTheme);
-      window.removeEventListener('kflix-theme-updated', syncTheme);
+      window.removeEventListener('storage', syncThemeFromStorage);
+      window.removeEventListener('kflix-theme-updated', syncThemeFromStorage);
     };
   }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
+
     if (loading) return;
 
     setError('');
@@ -162,44 +165,47 @@ export default function LoginPage() {
       );
 
       let resolvedTheme = resolveStoredTheme();
-      const themeSnap = await getThemeWithTimeout(credential.user.uid, 2000);
 
-      if (themeSnap && typeof themeSnap.exists === 'function' && themeSnap.exists()) {
-        const profileTheme = String(themeSnap.val() || '');
-        if (isValidTheme(profileTheme)) {
-          resolvedTheme = profileTheme;
+      try {
+        const themeSnap = await getThemeWithTimeout(credential.user.uid, 2000);
+
+        if (themeSnap && typeof themeSnap.exists === 'function' && themeSnap.exists()) {
+          const profileTheme = String(themeSnap.val() || '');
+
+          if (isValidTheme(profileTheme)) {
+            resolvedTheme = profileTheme;
+          }
         }
+      } catch (themeError) {
+        console.error('Failed to fetch theme after login:', themeError);
       }
 
-      const applied = applyTheme(resolvedTheme);
+      const applied = applyTheme(resolvedTheme, { broadcast: true });
       setThemeId(applied);
 
-      if (typeof window !== 'undefined') {
-        window.location.assign('/');
-        return;
-      }
+      router.replace('/');
     } catch (err) {
-      console.error('Login failed:', err);
+  console.warn('Login failed:', err);
 
-      const code = typeof err?.code === 'string' ? err.code : '';
+  const code = typeof err?.code === 'string' ? err.code : '';
 
-      if (
-        code === 'auth/invalid-credential' ||
-        code === 'auth/wrong-password' ||
-        code === 'auth/user-not-found' ||
-        code === 'auth/invalid-email'
-      ) {
-        setError('Invalid email or password.');
-      } else if (code === 'auth/too-many-requests') {
-        setError('Too many attempts. Please wait a bit and try again.');
-      } else if (code === 'auth/network-request-failed') {
-        setError('Network error. Please check your connection and try again.');
-      } else {
-        setError('Failed to log in. Please try again.');
-      }
+  if (
+    code === 'auth/invalid-credential' ||
+    code === 'auth/wrong-password' ||
+    code === 'auth/user-not-found' ||
+    code === 'auth/invalid-email'
+  ) {
+    setError('Invalid email or password.');
+  } else if (code === 'auth/too-many-requests') {
+    setError('Too many attempts. Please wait a bit and try again.');
+  } else if (code === 'auth/network-request-failed') {
+    setError('Network error. Please check your connection.');
+  } else {
+    setError('Login failed. Please try again.');
+  }
 
-      setLoading(false);
-    }
+  setLoading(false);
+}
   };
 
   return (
@@ -240,7 +246,7 @@ export default function LoginPage() {
               '0 2px 10px color-mix(in srgb, var(--theme-accent-glow) 28%, transparent)',
           }}
         >
-          KFlix Streaming
+          
         </a>
 
         <div

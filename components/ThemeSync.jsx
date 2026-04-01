@@ -1,87 +1,86 @@
-// components/ThemeSync.jsx
 'use client';
 
 import { useEffect } from 'react';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { get, ref } from 'firebase/database';
-import { db } from '@/lib/firebaseParty';
 
 const ALLOWED_THEMES = ['lava', 'midnight', 'crimson', 'neon', 'noir'];
+const DEFAULT_THEME = 'noir';
 
 function isValidTheme(theme) {
   return ALLOWED_THEMES.includes(String(theme || ''));
 }
 
-function applyTheme(theme) {
-  const nextTheme = isValidTheme(theme) ? theme : 'lava';
+function resolveStoredTheme() {
+  if (typeof window === 'undefined') return DEFAULT_THEME;
 
-  document.documentElement.setAttribute('data-theme', nextTheme);
+  const candidates = [
+    localStorage.getItem('kflix_theme'),
+    localStorage.getItem('kflix_selected_theme'),
+    localStorage.getItem('theme'),
+    document.documentElement.getAttribute('data-theme'),
+    document.documentElement.getAttribute('data-kflix-theme'),
+  ];
 
-  try {
-    localStorage.setItem('kflix_theme', nextTheme);
-    localStorage.setItem('kflix_selected_theme', nextTheme);
-  } catch {}
-
-  window.dispatchEvent(new Event('kflix-theme-updated'));
+  const found = candidates.find((value) => isValidTheme(value));
+  return found || DEFAULT_THEME;
 }
 
-function getStoredTheme() {
-  try {
-    const candidates = [
-      localStorage.getItem('kflix_theme'),
-      localStorage.getItem('kflix_selected_theme'),
-      localStorage.getItem('theme'),
-      document.documentElement.getAttribute('data-theme'),
-      document.documentElement.getAttribute('data-kflix-theme'),
-    ];
+function applyThemeSilently(theme) {
+  const nextTheme = isValidTheme(theme) ? theme : DEFAULT_THEME;
 
-    const found = candidates.find((value) => isValidTheme(value));
-    return found || 'lava';
-  } catch {
-    return document.documentElement.getAttribute('data-theme') || 'lava';
+  if (typeof document !== 'undefined') {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+
+    if (currentTheme !== nextTheme) {
+      document.documentElement.setAttribute('data-theme', nextTheme);
+    }
+
+    document.documentElement.setAttribute('data-kflix-theme', nextTheme);
   }
+
+  if (typeof window !== 'undefined') {
+    try {
+      if (localStorage.getItem('kflix_theme') !== nextTheme) {
+        localStorage.setItem('kflix_theme', nextTheme);
+      }
+      if (localStorage.getItem('kflix_selected_theme') !== nextTheme) {
+        localStorage.setItem('kflix_selected_theme', nextTheme);
+      }
+      if (localStorage.getItem('theme') !== nextTheme) {
+        localStorage.setItem('theme', nextTheme);
+      }
+    } catch {}
+  }
+
+  return nextTheme;
 }
 
 export default function ThemeSync() {
   useEffect(() => {
-    applyTheme(getStoredTheme());
+    const syncThemeFromStorage = () => {
+      applyThemeSilently(resolveStoredTheme());
+    };
 
-    const auth = getAuth();
+    syncThemeFromStorage();
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user?.uid) {
-        applyTheme(getStoredTheme());
-        return;
+    const handleStorage = (event) => {
+      if (
+        !event.key ||
+        event.key === 'kflix_theme' ||
+        event.key === 'kflix_selected_theme' ||
+        event.key === 'theme'
+      ) {
+        syncThemeFromStorage();
       }
-
-      try {
-        const snap = await get(ref(db, `users/${user.uid}/profile/theme`));
-        const firebaseTheme = snap.exists() ? snap.val() : '';
-
-        if (isValidTheme(firebaseTheme)) {
-          applyTheme(firebaseTheme);
-          return;
-        }
-
-        applyTheme(getStoredTheme());
-      } catch {
-        applyTheme(getStoredTheme());
-      }
-    });
-
-    const handleStorage = () => {
-      applyTheme(getStoredTheme());
     };
 
     const handleThemeUpdated = () => {
-      applyTheme(getStoredTheme());
+      syncThemeFromStorage();
     };
 
     window.addEventListener('storage', handleStorage);
     window.addEventListener('kflix-theme-updated', handleThemeUpdated);
 
     return () => {
-      unsubscribe();
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('kflix-theme-updated', handleThemeUpdated);
     };

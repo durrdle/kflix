@@ -1021,7 +1021,7 @@ export default function Navbar() {
       }}
     >
       <span className="text-[1.5rem] leading-none sm:text-[1.8rem]">
-        KFlix Streaming
+        KFLIX
       </span>
     </div>
   );
