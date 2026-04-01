@@ -1,15 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { auth } from '../firebaseConfig';
 import {
   browserSessionPersistence,
   setPersistence,
   signInWithEmailAndPassword,
 } from 'firebase/auth';
 import { get, ref } from 'firebase/database';
-import { db } from '@/lib/firebaseParty';
-import { useRouter } from 'next/navigation';
+import { auth, db } from '@/lib/firebaseParty';
 
 const ALLOWED_THEMES = ['lava', 'midnight', 'crimson', 'neon', 'noir'];
 
@@ -52,14 +50,27 @@ function applyTheme(theme) {
   return nextTheme;
 }
 
+async function getThemeWithTimeout(uid, timeoutMs = 2000) {
+  try {
+    const result = await Promise.race([
+      get(ref(db, `users/${uid}/profile/theme`)),
+      new Promise((resolve) => {
+        setTimeout(() => resolve(null), timeoutMs);
+      }),
+    ]);
+
+    return result;
+  } catch {
+    return null;
+  }
+}
+
 export default function LoginPage() {
   const [themeId, setThemeId] = useState('noir');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  const router = useRouter();
 
   const glassShellStyle = {
     background:
@@ -89,7 +100,8 @@ export default function LoginPage() {
   };
 
   const glassButtonStyle = {
-    borderColor: 'color-mix(in srgb, var(--theme-accent-border) 90%, rgba(255,255,255,0.06))',
+    borderColor:
+      'color-mix(in srgb, var(--theme-accent-border) 90%, rgba(255,255,255,0.06))',
     background:
       'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent) 86%, rgba(255,255,255,0.12)), color-mix(in srgb, var(--theme-accent-hover) 90%, rgba(0,0,0,0.05)))',
     boxShadow:
@@ -100,7 +112,8 @@ export default function LoginPage() {
   };
 
   const glassButtonDisabledStyle = {
-    borderColor: 'color-mix(in srgb, var(--theme-accent-border) 55%, rgba(255,255,255,0.05))',
+    borderColor:
+      'color-mix(in srgb, var(--theme-accent-border) 55%, rgba(255,255,255,0.05))',
     background: 'var(--theme-accent-disabled-bg)',
     boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
     color: 'var(--theme-accent-disabled-text)',
@@ -134,7 +147,6 @@ export default function LoginPage() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-
     if (loading) return;
 
     setError('');
@@ -150,31 +162,42 @@ export default function LoginPage() {
       );
 
       let resolvedTheme = resolveStoredTheme();
+      const themeSnap = await getThemeWithTimeout(credential.user.uid, 2000);
 
-      try {
-        const themeSnap = await get(ref(db, `users/${credential.user.uid}/profile/theme`));
-        const profileTheme = themeSnap.exists() ? String(themeSnap.val() || '') : '';
-
+      if (themeSnap && typeof themeSnap.exists === 'function' && themeSnap.exists()) {
+        const profileTheme = String(themeSnap.val() || '');
         if (isValidTheme(profileTheme)) {
           resolvedTheme = profileTheme;
         }
-      } catch (themeError) {
-        console.error('Failed to fetch theme after login:', themeError);
       }
 
       const applied = applyTheme(resolvedTheme);
       setThemeId(applied);
 
-      router.replace('/');
+      if (typeof window !== 'undefined') {
+        window.location.assign('/');
+        return;
+      }
+    } catch (err) {
+      console.error('Login failed:', err);
 
-      setTimeout(() => {
-        if (typeof window !== 'undefined') {
-          window.location.href = '/';
-        }
-      }, 1200);
-    } catch (loginError) {
-      console.error('Login failed:', loginError);
-      setError('Invalid email or password.');
+      const code = typeof err?.code === 'string' ? err.code : '';
+
+      if (
+        code === 'auth/invalid-credential' ||
+        code === 'auth/wrong-password' ||
+        code === 'auth/user-not-found' ||
+        code === 'auth/invalid-email'
+      ) {
+        setError('Invalid email or password.');
+      } else if (code === 'auth/too-many-requests') {
+        setError('Too many attempts. Please wait a bit and try again.');
+      } else if (code === 'auth/network-request-failed') {
+        setError('Network error. Please check your connection and try again.');
+      } else {
+        setError('Failed to log in. Please try again.');
+      }
+
       setLoading(false);
     }
   };
@@ -213,7 +236,8 @@ export default function LoginPage() {
             fontStyle: 'italic',
             fontSize: 'clamp(1.5rem, 2.3vw, 2rem)',
             letterSpacing: '0.02em',
-            textShadow: '0 2px 10px color-mix(in srgb, var(--theme-accent-glow) 28%, transparent)',
+            textShadow:
+              '0 2px 10px color-mix(in srgb, var(--theme-accent-glow) 28%, transparent)',
           }}
         >
           KFlix Streaming
@@ -223,10 +247,7 @@ export default function LoginPage() {
           className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border-[1.5px]"
           style={glassShellStyle}
         >
-          <div
-            className="border-b px-5 py-4 sm:px-6"
-            style={glassHeaderStyle}
-          >
+          <div className="border-b px-5 py-4 sm:px-6" style={glassHeaderStyle}>
             <h1
               className="text-base font-semibold uppercase tracking-[0.18em] sm:text-lg md:text-xl"
               style={{ color: 'var(--theme-accent-text)' }}
@@ -259,7 +280,6 @@ export default function LoginPage() {
                   Object.assign(e.currentTarget.style, glassInputStyle);
                 }}
                 required
-                autoComplete="email"
               />
             </div>
 
@@ -286,15 +306,11 @@ export default function LoginPage() {
                   Object.assign(e.currentTarget.style, glassInputStyle);
                 }}
                 required
-                autoComplete="current-password"
               />
             </div>
 
             {error && (
-              <div
-                className="rounded-xl px-4 py-3 text-sm"
-                style={errorStyle}
-              >
+              <div className="rounded-xl px-4 py-3 text-sm" style={errorStyle}>
                 {error}
               </div>
             )}
@@ -303,7 +319,11 @@ export default function LoginPage() {
               type="submit"
               disabled={loading}
               className="flex h-11 w-full items-center justify-center rounded-xl border text-sm font-semibold transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-80"
-              style={loading ? { ...glassButtonStyle, ...glassButtonDisabledStyle } : glassButtonStyle}
+              style={
+                loading
+                  ? { ...glassButtonStyle, ...glassButtonDisabledStyle }
+                  : glassButtonStyle
+              }
               onMouseEnter={(e) => {
                 if (!loading) {
                   e.currentTarget.style.filter = 'brightness(1.05)';
@@ -315,7 +335,9 @@ export default function LoginPage() {
                 e.currentTarget.style.filter = 'none';
                 Object.assign(
                   e.currentTarget.style,
-                  loading ? { ...glassButtonStyle, ...glassButtonDisabledStyle } : glassButtonStyle
+                  loading
+                    ? { ...glassButtonStyle, ...glassButtonDisabledStyle }
+                    : glassButtonStyle
                 );
               }}
             >
