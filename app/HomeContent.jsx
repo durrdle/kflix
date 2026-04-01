@@ -145,26 +145,36 @@ function splitProgressIntoSections(items, watchedMap) {
     const nextSeason = Number(item.nextSeason || 0);
     const nextEpisode = Number(item.nextEpisode || 0);
     const hasExplicitNext =
-  nextSeason > 0 &&
-  nextEpisode > 0 &&
-  (nextSeason !== season || nextEpisode !== episode);
+      nextSeason > 0 &&
+      nextEpisode > 0 &&
+      (nextSeason !== season || nextEpisode !== episode);
 
-const currentKey =
-  season > 0 && episode > 0 ? buildEpisodeKey(item.id, season, episode) : '';
+    const currentKey =
+      season > 0 && episode > 0 ? buildEpisodeKey(item.id, season, episode) : '';
 
-const currentIsWatched = currentKey ? Boolean(watchedMap[currentKey]) : false;
+    const currentIsWatched = currentKey ? Boolean(watchedMap[currentKey]) : false;
 
-if (hasExplicitNext) {
-  nextUpItems.push(item);
-  return;
-}
+    if (hasExplicitNext) {
+      nextUpItems.push(item);
+      return;
+    }
 
-if (currentIsWatched) {
-  return;
-}
+    if (currentIsWatched) {
+      continueItems.push({
+        ...item,
+        currentTime: 0,
+        remainingTime:
+          item.remainingTime !== undefined && item.remainingTime !== null
+            ? item.remainingTime
+            : 0,
+        progress:
+          item.progress !== undefined && item.progress !== null ? item.progress : 0,
+      });
+      return;
+    }
 
-continueItems.push(item);
-});
+    continueItems.push(item);
+  });
 
   return {
     continueItems: continueItems.slice(0, 10),
@@ -228,7 +238,7 @@ function IconBadgeButton({
         e.stopPropagation();
         onClick?.();
       }}
-      className={`pointer-events-auto inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border backdrop-blur-md transition active:scale-95 ${
+      className={`pointer-events-auto inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl border border-white/10 backdrop-blur-xl transition duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25 ${
         active ? activeClassName : inactiveClassName
       }`}
       title={title}
@@ -246,11 +256,11 @@ function BookmarkBadge({ active, onToggle }) {
       onClick={onToggle}
       title={active ? 'Remove bookmark' : 'Save bookmark'}
       ariaLabel={active ? 'Remove bookmark' : 'Save bookmark'}
-      activeClassName="border-red-400/70 bg-red-600/90 text-white shadow-[0_0_14px_rgba(239,68,68,0.35)] hover:bg-red-700"
-      inactiveClassName="border-white/15 bg-black/65 text-white shadow-[0_0_14px_rgba(0,0,0,0.2)] hover:border-red-400/60 hover:text-red-300"
+      activeClassName="kflix-glass-button-accent text-white shadow-[0_8px_24px_var(--theme-accent-glow)]"
+      inactiveClassName="kflix-glass-button text-white/90 hover:text-white hover:shadow-[0_10px_28px_rgba(255,255,255,0.08)]"
     >
       <svg
-        className="h-3 w-3 flex-shrink-0"
+        className="h-3.5 w-3.5 flex-shrink-0"
         fill={active ? 'currentColor' : 'none'}
         stroke="currentColor"
         strokeWidth="2"
@@ -279,13 +289,13 @@ function ActionBadge({
       ariaLabel={title}
       activeClassName={
         isRemove
-          ? 'border-red-400/70 bg-red-600/90 text-white shadow-[0_0_14px_rgba(239,68,68,0.35)] hover:bg-red-700'
-          : 'border-green-400/70 bg-green-600/90 text-white shadow-[0_0_14px_rgba(34,197,94,0.35)] hover:bg-green-700'
+          ? 'kflix-glass-button-accent bg-red-600/85 text-white shadow-[0_8px_24px_rgba(239,68,68,0.32)]'
+          : 'kflix-glass-button-accent bg-green-600/85 text-white shadow-[0_8px_24px_rgba(34,197,94,0.30)]'
       }
       inactiveClassName={
         isRemove
-          ? 'border-white/15 bg-black/65 text-white shadow-[0_0_14px_rgba(0,0,0,0.2)] hover:border-red-400/60 hover:text-red-300'
-          : 'border-white/15 bg-black/65 text-white shadow-[0_0_14px_rgba(0,0,0,0.2)] hover:border-green-400/60 hover:text-green-300'
+          ? 'kflix-glass-button text-white/90 hover:text-white hover:shadow-[0_10px_28px_rgba(255,255,255,0.08)]'
+          : 'kflix-glass-button text-white/90 hover:text-green-200 hover:shadow-[0_10px_28px_rgba(255,255,255,0.08)]'
       }
     >
       <svg
@@ -327,12 +337,12 @@ function RatingsStarBadge({ item }) {
           e.preventDefault();
           e.stopPropagation();
         }}
-        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-white/15 bg-black/65 text-white shadow-[0_0_14px_rgba(0,0,0,0.2)] backdrop-blur-md transition active:scale-95 hover:border-yellow-300/70 hover:text-yellow-300"
+        className="kflix-glass-button inline-flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 text-white/90 backdrop-blur-xl transition duration-200 active:scale-95 hover:text-yellow-300 hover:shadow-[0_10px_28px_rgba(255,255,255,0.08)]"
         title="Show ratings"
         aria-label="Show ratings"
       >
         <svg
-          className="h-3.5 w-3.5 flex-shrink-0"
+          className="h-4 w-4 flex-shrink-0"
           viewBox="0 0 24 24"
           aria-hidden="true"
         >
@@ -352,25 +362,25 @@ function RatingsStarBadge({ item }) {
         </svg>
       </button>
 
-      <div className="pointer-events-none absolute left-0 top-9 z-30 min-w-[88px] max-w-[110px] rounded-md border border-yellow-300/45 bg-gradient-to-b from-gray-800 to-gray-900 px-2.5 py-2 opacity-0 shadow-[0_0_18px_rgba(253,224,71,0.18),0_12px_35px_rgba(0,0,0,0.55)] transition-all duration-150 group-hover/ratings:pointer-events-auto group-hover/ratings:translate-y-0 group-hover/ratings:opacity-100">
+      <div className="pointer-events-none absolute left-0 top-10 z-30 min-w-[96px] max-w-[120px] translate-y-1 rounded-2xl border border-white/12 bg-white/10 px-3 py-2.5 opacity-0 shadow-[0_20px_50px_rgba(0,0,0,0.42)] backdrop-blur-2xl transition-all duration-200 group-hover/ratings:pointer-events-auto group-hover/ratings:translate-y-0 group-hover/ratings:opacity-100">
         <div className="space-y-1.5">
           {item.imdbRating ? (
             <div className="flex items-center gap-2 text-[11px] leading-none">
-              <span className="shrink-0 font-semibold uppercase tracking-[0.08em] text-yellow-300">IMDb</span>
+              <span className="shrink-0 font-semibold uppercase tracking-[0.1em] text-yellow-300">IMDb</span>
               <span className="truncate text-white">{item.imdbRating}</span>
             </div>
           ) : null}
 
           {item.rtRating ? (
             <div className="flex items-center gap-2 text-[11px] leading-none">
-              <span className="shrink-0 font-semibold uppercase tracking-[0.08em] text-yellow-300">RT</span>
+              <span className="shrink-0 font-semibold uppercase tracking-[0.1em] text-yellow-300">RT</span>
               <span className="truncate text-white">{item.rtRating}</span>
             </div>
           ) : null}
 
           {tmdbRating ? (
             <div className="flex items-center gap-2 text-[11px] leading-none">
-              <span className="shrink-0 font-semibold uppercase tracking-[0.08em] text-yellow-300">TMDB</span>
+              <span className="shrink-0 font-semibold uppercase tracking-[0.1em] text-yellow-300">TMDB</span>
               <span className="truncate text-white">{tmdbRating}</span>
             </div>
           ) : null}
@@ -392,11 +402,11 @@ function CardBadges({
 }) {
   return (
     <>
-      <div className="absolute left-2 top-2 z-20">
+      <div className="absolute left-2.5 top-2.5 z-20">
         <RatingsStarBadge item={item} />
       </div>
 
-      <div className="absolute right-2 top-2 z-20 flex flex-col items-end gap-1">
+      <div className="absolute right-2.5 top-2.5 z-20 flex flex-col items-end gap-1.5">
         <BookmarkBadge active={isBookmarked} onToggle={onToggleBookmark} />
         {showWatchedToggle ? (
           <ActionBadge
@@ -509,9 +519,9 @@ function CarouselSection({
     if (!emptyText) return null;
 
     return (
-      <div className="overflow-hidden rounded-xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-        <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-4 py-3 sm:px-5">
-          <h2 className="text-base font-semibold uppercase tracking-[0.16em] text-red-400 sm:text-lg md:text-xl">
+      <div className="kflix-theme-panel kflix-theme-panel-glow overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] shadow-[0_10px_40px_rgba(0,0,0,0.22)] backdrop-blur-xl">
+        <div className="kflix-theme-panel-header flex items-center justify-between border-b border-white/10 px-4 py-3.5 sm:px-5">
+          <h2 className="kflix-theme-accent-text text-base font-semibold uppercase tracking-[0.16em] sm:text-lg md:text-xl">
             {title}
           </h2>
 
@@ -519,7 +529,7 @@ function CarouselSection({
             <button
               type="button"
               disabled
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/15 text-gray-500 opacity-60"
+              className="kflix-glass-button flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-gray-500 opacity-60 backdrop-blur-xl"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M15 6l-6 6 6 6" />
@@ -529,7 +539,7 @@ function CarouselSection({
             <button
               type="button"
               disabled
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/15 text-gray-500 opacity-60"
+              className="kflix-glass-button flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-gray-500 opacity-60 backdrop-blur-xl"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M9 6l6 6-6 6" />
@@ -544,9 +554,9 @@ function CarouselSection({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-      <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-4 py-3 sm:px-5">
-        <h2 className="pr-3 text-base font-semibold uppercase tracking-[0.16em] text-red-400 sm:text-lg md:text-xl">
+    <div className="kflix-theme-panel kflix-theme-panel-glow overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] shadow-[0_10px_40px_rgba(0,0,0,0.22)] backdrop-blur-xl">
+      <div className="kflix-theme-panel-header flex items-center justify-between border-b border-white/10 px-4 py-3.5 sm:px-5">
+        <h2 className="kflix-theme-accent-text pr-3 text-base font-semibold uppercase tracking-[0.16em] sm:text-lg md:text-xl">
           {title}
         </h2>
 
@@ -555,10 +565,10 @@ function CarouselSection({
             type="button"
             onClick={() => goToPage(currentPage - 1)}
             disabled={!canScrollLeft}
-            className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
+            className={`flex h-9 w-9 items-center justify-center rounded-full border border-white/10 backdrop-blur-xl transition duration-200 active:scale-95 ${
               canScrollLeft
-                ? 'cursor-pointer bg-black/25 text-gray-300 hover:text-white hover:shadow-inner hover:shadow-red-500/60'
-                : 'cursor-default bg-black/15 text-gray-500 opacity-60'
+                ? 'kflix-glass-button cursor-pointer text-white/90 hover:text-white hover:shadow-[0_10px_28px_rgba(255,255,255,0.08)]'
+                : 'kflix-glass-button cursor-default text-gray-500 opacity-60'
             }`}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -570,10 +580,10 @@ function CarouselSection({
             type="button"
             onClick={() => goToPage(currentPage + 1)}
             disabled={!canScrollRight}
-            className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
+            className={`flex h-9 w-9 items-center justify-center rounded-full border border-white/10 backdrop-blur-xl transition duration-200 active:scale-95 ${
               canScrollRight
-                ? 'cursor-pointer bg-black/25 text-gray-300 hover:text-white hover:shadow-inner hover:shadow-red-500/60'
-                : 'cursor-default bg-black/15 text-gray-500 opacity-60'
+                ? 'kflix-glass-button cursor-pointer text-white/90 hover:text-white hover:shadow-[0_10px_28px_rgba(255,255,255,0.08)]'
+                : 'kflix-glass-button cursor-default text-gray-500 opacity-60'
             }`}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -629,7 +639,7 @@ function CarouselSection({
                       href={resolveHref(item, mediaType)}
                       className="group block min-w-0"
                     >
-                      <div className="relative overflow-hidden rounded-lg border-[1.5px] border-white/10 bg-black/20 transition duration-300 group-hover:border-red-400/90 group-hover:shadow-[0_0_30px_rgba(239,68,68,0.45)]">
+                      <div className="relative overflow-hidden rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-0 shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl transition duration-300 group-hover:-translate-y-1 group-hover:shadow-[0_16px_40px_rgba(0,0,0,0.26),0_0_0_1px_rgba(255,255,255,0.08)]">
                         <CardBadges
                           item={item}
                           isBookmarked={isBookmarked}
@@ -656,14 +666,17 @@ function CarouselSection({
                           }
                         />
 
-                        <div className="absolute inset-0 bg-red-500/10 opacity-0 blur-xl transition duration-300 group-hover:opacity-100" />
+                        <div className="kflix-theme-overlay-glow absolute inset-0 opacity-0 blur-2xl transition duration-300 group-hover:opacity-100" />
 
-                        <div className="relative aspect-[2/3] w-full bg-gray-800">
+                        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-24 bg-gradient-to-b from-black/35 via-black/10 to-transparent" />
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-24 bg-gradient-to-t from-black/30 via-black/8 to-transparent" />
+
+                        <div className="relative aspect-[2/3] w-full overflow-hidden rounded-[1.35rem] bg-gray-800">
                           {item.poster_path ? (
                             <img
                               src={`${IMAGE_POSTER}${item.poster_path}`}
                               alt={item.title || item.name || 'Poster'}
-                              className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.06]"
+                              className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.05]"
                             />
                           ) : (
                             <div className="flex h-full items-center justify-center text-sm text-gray-400">
@@ -673,14 +686,14 @@ function CarouselSection({
                         </div>
                       </div>
 
-                      <div className="mt-2 sm:mt-3">
-                        <div className="line-clamp-1 text-xs font-medium text-white transition group-hover:text-red-300 sm:text-sm">
+                      <div className="mt-2.5 px-0.5 sm:mt-3">
+                        <div className="line-clamp-1 text-xs font-medium tracking-[0.01em] text-white/95 transition group-hover:kflix-theme-accent-text sm:text-sm">
                           {item.title || item.name || 'Untitled'}
                         </div>
 
                         {isContinueWatchingSection || isNextUpSection ? (
                           <>
-                            <div className="mt-1 text-[11px] text-gray-400 sm:text-xs">
+                            <div className="mt-1 text-[11px] text-gray-300/85 sm:text-xs">
                               {(item.media_type || item.type) === 'tv'
                                 ? `S${
                                     isNextUpSection
@@ -707,9 +720,9 @@ function CarouselSection({
                             )}
 
                             {!isNextUpSection && (
-                              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                              <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10 shadow-inner">
                                 <div
-                                  className="h-full rounded-full bg-red-500"
+                                  className="kflix-theme-accent-bg h-full rounded-full shadow-[0_0_14px_var(--theme-accent-glow)]"
                                   style={{
                                     width: `${Math.max(
                                       0,
@@ -1044,11 +1057,11 @@ export default function HomeContent() {
   const homepageReady = progressReady && bookmarksReady;
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-[var(--theme-bg)] text-white">
       <Navbar />
 
       <section className="px-3 pt-20 sm:px-4 sm:pt-24 lg:px-8">
-        <div className="relative h-[42vh] min-h-[300px] w-full overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)] sm:h-[52vh] sm:min-h-[380px] lg:h-[62vh] lg:min-h-[470px]">
+        <div className="kflix-theme-panel kflix-theme-panel-glow relative h-[42vh] min-h-[300px] w-full overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.03] shadow-[0_20px_60px_rgba(0,0,0,0.24)] backdrop-blur-xl sm:h-[52vh] sm:min-h-[380px] lg:h-[62vh] lg:min-h-[470px]">
           {heroMovies.map((movie, idx) => (
             <Link
               key={movie.id}
@@ -1065,13 +1078,15 @@ export default function HomeContent() {
             />
           ))}
 
-          <div className="pointer-events-none absolute inset-0 bg-black/50 sm:bg-black/45" />
+          <div className="pointer-events-none absolute inset-0 bg-black/50 sm:bg-black/42" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-black/10" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/35 via-transparent to-black/25" />
 
           <div className="absolute inset-y-0 left-2 z-30 flex items-center sm:left-4">
             <button
               type="button"
               onClick={goHeroLeft}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-black/35 backdrop-blur-md transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60 sm:h-10 sm:w-10"
+              className="kflix-glass-button flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-white/10 text-white/90 backdrop-blur-xl transition duration-200 active:scale-95 hover:text-white hover:shadow-[0_12px_30px_rgba(255,255,255,0.08)] sm:h-11 sm:w-11"
             >
               <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M15 6l-6 6 6 6" />
@@ -1083,7 +1098,7 @@ export default function HomeContent() {
             <button
               type="button"
               onClick={goHeroRight}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-black/35 backdrop-blur-md transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60 sm:h-10 sm:w-10"
+              className="kflix-glass-button flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-white/10 text-white/90 backdrop-blur-xl transition duration-200 active:scale-95 hover:text-white hover:shadow-[0_12px_30px_rgba(255,255,255,0.08)] sm:h-11 sm:w-11"
             >
               <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M9 6l6 6-6 6" />
@@ -1096,10 +1111,15 @@ export default function HomeContent() {
               href={`/movie/${currentHero.id}`}
               className="relative z-20 flex h-full w-full max-w-4xl cursor-pointer flex-col justify-end px-4 pb-6 text-left sm:px-6 sm:pb-8 lg:px-8 lg:pb-10"
             >
-              <h1 className="max-w-[85%] text-2xl font-bold leading-tight sm:text-4xl md:text-5xl lg:text-6xl">
+              <div className="max-w-fit rounded-2xl border border-white/10 bg-white/[0.05] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/80 backdrop-blur-xl sm:text-[11px]">
+                Featured Today
+              </div>
+
+              <h1 className="mt-3 max-w-[85%] text-2xl font-bold leading-tight tracking-[-0.03em] sm:text-4xl md:text-5xl lg:text-6xl">
                 {currentHero.title}
               </h1>
-              <p className="mt-3 max-w-2xl line-clamp-3 text-sm text-gray-200 sm:mt-4 sm:text-base">
+
+              <p className="mt-3 max-w-2xl line-clamp-3 text-sm text-gray-200/95 sm:mt-4 sm:text-base">
                 {currentHero.overview}
               </p>
             </Link>
@@ -1145,9 +1165,9 @@ export default function HomeContent() {
             </>
           ) : (
             <>
-              <div className="overflow-hidden rounded-xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-                <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-4 py-3 sm:px-5">
-                  <h2 className="text-base font-semibold uppercase tracking-[0.16em] text-red-400 sm:text-lg md:text-xl">
+              <div className="kflix-theme-panel kflix-theme-panel-glow overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] shadow-[0_10px_40px_rgba(0,0,0,0.22)] backdrop-blur-xl">
+                <div className="kflix-theme-panel-header flex items-center justify-between border-b border-white/10 px-4 py-3.5 sm:px-5">
+                  <h2 className="kflix-theme-accent-text text-base font-semibold uppercase tracking-[0.16em] sm:text-lg md:text-xl">
                     Continue Watching
                   </h2>
 
@@ -1155,7 +1175,7 @@ export default function HomeContent() {
                     <button
                       type="button"
                       disabled
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-black/15 text-gray-500 opacity-60"
+                      className="kflix-glass-button flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-gray-500 opacity-60 backdrop-blur-xl"
                     >
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path d="M15 6l-6 6 6 6" />
@@ -1165,7 +1185,7 @@ export default function HomeContent() {
                     <button
                       type="button"
                       disabled
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-black/15 text-gray-500 opacity-60"
+                      className="kflix-glass-button flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-gray-500 opacity-60 backdrop-blur-xl"
                     >
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path d="M9 6l6 6-6 6" />
@@ -1177,9 +1197,9 @@ export default function HomeContent() {
                 <div className="px-4 py-6 text-sm text-gray-400 sm:px-5 sm:py-8">Loading your progress...</div>
               </div>
 
-              <div className="overflow-hidden rounded-xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-                <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-4 py-3 sm:px-5">
-                  <h2 className="text-base font-semibold uppercase tracking-[0.16em] text-red-400 sm:text-lg md:text-xl">
+              <div className="kflix-theme-panel kflix-theme-panel-glow overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] shadow-[0_10px_40px_rgba(0,0,0,0.22)] backdrop-blur-xl">
+                <div className="kflix-theme-panel-header flex items-center justify-between border-b border-white/10 px-4 py-3.5 sm:px-5">
+                  <h2 className="kflix-theme-accent-text text-base font-semibold uppercase tracking-[0.16em] sm:text-lg md:text-xl">
                     Next Up
                   </h2>
 
@@ -1187,7 +1207,7 @@ export default function HomeContent() {
                     <button
                       type="button"
                       disabled
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-black/15 text-gray-500 opacity-60"
+                      className="kflix-glass-button flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-gray-500 opacity-60 backdrop-blur-xl"
                     >
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path d="M15 6l-6 6 6 6" />
@@ -1197,7 +1217,7 @@ export default function HomeContent() {
                     <button
                       type="button"
                       disabled
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-black/15 text-gray-500 opacity-60"
+                      className="kflix-glass-button flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-gray-500 opacity-60 backdrop-blur-xl"
                     >
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path d="M9 6l6 6-6 6" />
@@ -1273,17 +1293,15 @@ export default function HomeContent() {
         <p>This site does not host or store any media.</p>
 
         <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
-          
-
           <a
             href={`${process.env.NEXT_PUBLIC_GITHUB_REPO}/commit/${process.env.NEXT_PUBLIC_COMMIT_HASH}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 font-mono tracking-wider"
+            className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-1.5 font-mono tracking-wider backdrop-blur-xl transition hover:bg-white/[0.05]"
             title="View this version on GitHub"
           >
             <span className="text-gray-500">Latest Update </span>
-            <span className="animate-pulse text-red-400 drop-shadow-[0_0_8px_rgba(239,68,68,0.6)] transition hover:text-red-300">
+            <span className="kflix-theme-accent-text transition">
               {process.env.NEXT_PUBLIC_COMMIT_HASH}
             </span>
           </a>

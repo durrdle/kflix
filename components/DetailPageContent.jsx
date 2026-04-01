@@ -259,24 +259,130 @@ function buildEpisodesToAutoMark(showId, seasons, continueEpisode, manualUnwatch
   return keys;
 }
 
+function useGlassStyles() {
+  return useMemo(
+    () => ({
+      panel: {
+        background:
+          'linear-gradient(180deg, color-mix(in srgb, var(--theme-panel-from) 78%, rgba(255,255,255,0.06)), color-mix(in srgb, var(--theme-panel-to) 90%, rgba(255,255,255,0.02)))',
+        borderColor: 'color-mix(in srgb, var(--theme-accent-border) 72%, rgba(255,255,255,0.08))',
+        boxShadow:
+          '0 20px 46px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(255,255,255,0.02)',
+        backdropFilter: 'blur(22px) saturate(150%)',
+        WebkitBackdropFilter: 'blur(22px) saturate(150%)',
+      },
+      panelHeader: {
+        background:
+          'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent-soft) 88%, rgba(255,255,255,0.05)), color-mix(in srgb, var(--theme-accent-soft) 55%, transparent))',
+        borderColor: 'color-mix(in srgb, var(--theme-accent-border-soft) 88%, rgba(255,255,255,0.05))',
+      },
+      surface: {
+        background:
+          'linear-gradient(180deg, color-mix(in srgb, var(--theme-muted-bg) 82%, rgba(255,255,255,0.05)), color-mix(in srgb, var(--theme-muted-bg-strong) 90%, rgba(255,255,255,0.02)))',
+        borderColor: 'color-mix(in srgb, var(--theme-muted-border) 92%, rgba(255,255,255,0.06))',
+        boxShadow:
+          '0 12px 28px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.07)',
+        backdropFilter: 'blur(16px) saturate(145%)',
+        WebkitBackdropFilter: 'blur(16px) saturate(145%)',
+      },
+      surfaceActive: {
+        background:
+          'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent-soft) 88%, rgba(255,255,255,0.08)), color-mix(in srgb, var(--theme-muted-bg-strong) 95%, rgba(255,255,255,0.02)))',
+        borderColor: 'var(--theme-accent-border)',
+        boxShadow:
+          '0 0 22px color-mix(in srgb, var(--theme-accent-glow) 52%, transparent), inset 0 1px 0 rgba(255,255,255,0.1)',
+        backdropFilter: 'blur(16px) saturate(150%)',
+        WebkitBackdropFilter: 'blur(16px) saturate(150%)',
+      },
+      primaryButton: {
+        borderColor: 'color-mix(in srgb, var(--theme-accent-border) 90%, rgba(255,255,255,0.06))',
+        background:
+          'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent) 86%, rgba(255,255,255,0.12)), color-mix(in srgb, var(--theme-accent-hover) 90%, rgba(0,0,0,0.05)))',
+        boxShadow:
+          '0 14px 28px color-mix(in srgb, var(--theme-accent-glow) 40%, transparent), inset 0 1px 0 rgba(255,255,255,0.16)',
+        color: 'var(--theme-accent-contrast)',
+        backdropFilter: 'blur(16px) saturate(150%)',
+        WebkitBackdropFilter: 'blur(16px) saturate(150%)',
+      },
+      primaryButtonDisabled: {
+        borderColor: 'color-mix(in srgb, var(--theme-accent-border) 55%, rgba(255,255,255,0.05))',
+        background: 'var(--theme-accent-disabled-bg)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+        color: 'var(--theme-accent-disabled-text)',
+      },
+      iconButton: {
+        borderColor: 'color-mix(in srgb, var(--theme-muted-border) 92%, rgba(255,255,255,0.08))',
+        background:
+          'linear-gradient(180deg, color-mix(in srgb, var(--theme-muted-bg) 78%, rgba(255,255,255,0.05)), color-mix(in srgb, var(--theme-muted-bg-strong) 88%, rgba(255,255,255,0.02)))',
+        boxShadow:
+          '0 10px 20px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.08)',
+        color: 'var(--theme-text)',
+        backdropFilter: 'blur(16px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(16px) saturate(140%)',
+      },
+      chip: {
+        borderColor: 'color-mix(in srgb, var(--theme-accent-border-soft) 90%, rgba(255,255,255,0.06))',
+        background:
+          'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent-soft) 88%, rgba(255,255,255,0.05)), color-mix(in srgb, var(--theme-accent-soft) 60%, transparent))',
+        color: 'var(--theme-accent-text)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.07)',
+        backdropFilter: 'blur(14px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+      },
+      modalShell: {
+        background:
+          'linear-gradient(180deg, color-mix(in srgb, var(--theme-panel-from) 82%, rgba(255,255,255,0.06)), color-mix(in srgb, var(--theme-panel-to) 92%, rgba(255,255,255,0.02)))',
+        borderColor: 'color-mix(in srgb, var(--theme-accent-border) 72%, rgba(255,255,255,0.08))',
+        boxShadow:
+          '0 24px 56px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(255,255,255,0.02)',
+        backdropFilter: 'blur(24px) saturate(155%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(155%)',
+      },
+      modalHeader: {
+        background:
+          'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent-soft) 90%, rgba(255,255,255,0.05)), color-mix(in srgb, var(--theme-accent-soft) 58%, transparent))',
+        borderColor: 'color-mix(in srgb, var(--theme-accent-border-soft) 88%, rgba(255,255,255,0.05))',
+      },
+    }),
+    []
+  );
+}
+
 function RatingBadge({ label, value, filled = false }) {
+  const glass = useGlassStyles();
+
   if (value === undefined || value === null || value === '') return null;
 
   return (
     <div
-      className={`inline-flex min-h-[28px] min-w-[54px] items-center justify-center rounded-md border px-2 py-1 text-[10px] font-bold tracking-[0.08em] backdrop-blur-md ${
+      className="inline-flex min-h-[28px] min-w-[54px] items-center justify-center rounded-xl border px-2 py-1 text-[10px] font-bold tracking-[0.08em] text-white"
+      style={
         filled
-          ? 'border-red-400/70 bg-red-600/90 text-white shadow-[0_0_14px_rgba(239,68,68,0.35)]'
-          : 'border-white/15 bg-black/65 text-white shadow-[0_0_14px_rgba(0,0,0,0.2)]'
-      }`}
+          ? {
+              ...glass.primaryButton,
+              paddingInline: '0.5rem',
+              minHeight: '28px',
+              boxShadow:
+                '0 0 14px var(--theme-accent-glow), inset 0 1px 0 rgba(255,255,255,0.16)',
+            }
+          : {
+              ...glass.surface,
+              paddingInline: '0.5rem',
+              minHeight: '28px',
+            }
+      }
     >
-      <span className="mr-1 text-red-300">{label}</span>
+      <span className="mr-1" style={{ color: filled ? 'inherit' : 'var(--theme-accent-text)' }}>
+        {label}
+      </span>
       <span>{value}</span>
     </div>
   );
 }
 
 function BookmarkBadge({ active, onToggle }) {
+  const glass = useGlassStyles();
+
   return (
     <button
       type="button"
@@ -285,13 +391,28 @@ function BookmarkBadge({ active, onToggle }) {
         e.stopPropagation();
         onToggle?.();
       }}
-      className={`pointer-events-auto inline-flex min-h-[28px] min-w-[28px] cursor-pointer items-center justify-center rounded-md border px-2 py-1 text-[10px] font-bold tracking-[0.08em] backdrop-blur-md transition active:scale-95 ${
-        active
-          ? 'border-red-400/70 bg-red-600/90 text-white shadow-[0_0_14px_rgba(239,68,68,0.35)] hover:bg-red-700'
-          : 'border-white/15 bg-black/65 text-white shadow-[0_0_14px_rgba(0,0,0,0.2)] hover:border-red-400/60 hover:text-red-300'
-      }`}
+      className="pointer-events-auto inline-flex min-h-[30px] min-w-[30px] cursor-pointer items-center justify-center rounded-xl border px-2 py-1 text-[10px] font-bold tracking-[0.08em] transition active:scale-95"
+      style={active ? glass.primaryButton : glass.surface}
       title={active ? 'Remove bookmark' : 'Save bookmark'}
       aria-label={active ? 'Remove bookmark' : 'Save bookmark'}
+      onMouseEnter={(e) => {
+        if (active) {
+          e.currentTarget.style.filter = 'brightness(1.06)';
+        } else {
+          e.currentTarget.style.color = 'var(--theme-accent-text)';
+          e.currentTarget.style.borderColor = 'var(--theme-accent-border)';
+          e.currentTarget.style.boxShadow =
+            '0 12px 26px rgba(0,0,0,0.22), inset 0 0 14px color-mix(in srgb, var(--theme-accent-glow) 35%, transparent)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.filter = 'none';
+        if (active) {
+          Object.assign(e.currentTarget.style, glass.primaryButton);
+        } else {
+          Object.assign(e.currentTarget.style, glass.surface);
+        }
+      }}
     >
       <svg
         className="h-3 w-3 flex-shrink-0"
@@ -330,6 +451,7 @@ function SimilarCardBadges({ item, isBookmarked, onToggleBookmark }) {
 
 function TrailerModal({ open, onClose, videoKey, title }) {
   const [playerReady, setPlayerReady] = useState(false);
+  const glass = useGlassStyles();
 
   useEffect(() => {
     if (!open || !videoKey) return;
@@ -406,13 +528,10 @@ function TrailerModal({ open, onClose, videoKey, title }) {
       onClick={onClose}
       className="fixed inset-0 z-[999] flex items-center justify-center bg-black/75 px-4 backdrop-blur-sm"
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-3xl overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]"
-      >
-        <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-6 py-4">
+      <div className="w-full max-w-3xl overflow-hidden rounded-3xl border-[1.5px]" style={glass.modalShell}>
+        <div className="flex items-center justify-between border-b px-6 py-4" style={glass.modalHeader}>
           <div>
-            <h3 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400">
+            <h3 className="text-lg font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
               Trailer
             </h3>
             <p className="mt-1 text-sm text-gray-300">{title}</p>
@@ -421,9 +540,17 @@ function TrailerModal({ open, onClose, videoKey, title }) {
           <button
             type="button"
             onClick={onClose}
-            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-black/25 text-gray-300 backdrop-blur-md transition active:scale-95 hover:text-white hover:shadow-inner hover:shadow-red-500/50"
+            className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border transition active:scale-95"
+            style={glass.iconButton}
             aria-label="Close trailer"
             title="Close trailer"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--theme-accent-border)';
+              e.currentTarget.style.color = 'var(--theme-accent-text)';
+            }}
+            onMouseLeave={(e) => {
+              Object.assign(e.currentTarget.style, glass.iconButton);
+            }}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path d="M6 6l12 12M18 6L6 18" />
@@ -432,7 +559,7 @@ function TrailerModal({ open, onClose, videoKey, title }) {
         </div>
 
         <div className="px-6 py-6">
-          <div className="overflow-hidden rounded-2xl border-[1.5px] border-white/10 bg-black/30 shadow-[0_0_30px_rgba(239,68,68,0.16)]">
+          <div className="overflow-hidden rounded-3xl border-[1.5px]" style={glass.surface}>
             <div className="aspect-video w-full">
               <div id="kflix-trailer-player" className="h-full w-full" />
             </div>
@@ -446,17 +573,52 @@ function TrailerModal({ open, onClose, videoKey, title }) {
 }
 
 function WatchBadge({ checked, onClick, title }) {
+  const glass = useGlassStyles();
+
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex min-h-[28px] min-w-[28px] cursor-pointer items-center justify-center rounded-md border px-2 py-1 text-[10px] font-bold tracking-[0.08em] backdrop-blur-md transition active:scale-95 ${
-        checked
-          ? 'border-green-400/70 bg-green-600/90 text-white shadow-[0_0_14px_rgba(34,197,94,0.35)] hover:bg-green-700'
-          : 'border-white/15 bg-black/65 text-white shadow-[0_0_14px_rgba(0,0,0,0.2)] hover:border-green-400/60 hover:text-green-300'
-      }`}
       title={title}
       aria-label={title}
+      className="inline-flex min-h-[30px] min-w-[30px] cursor-pointer items-center justify-center rounded-xl border px-2 py-1 text-[10px] font-bold tracking-[0.08em] transition active:scale-95"
+      style={
+        checked
+          ? {
+              borderColor: 'rgba(34,197,94,0.66)',
+              background:
+                'linear-gradient(180deg, rgba(34,197,94,0.94), rgba(21,128,61,0.92))',
+              boxShadow:
+                '0 0 16px rgba(34,197,94,0.3), inset 0 1px 0 rgba(255,255,255,0.16)',
+              color: '#ffffff',
+              backdropFilter: 'blur(16px) saturate(145%)',
+              WebkitBackdropFilter: 'blur(16px) saturate(145%)',
+            }
+          : glass.surface
+      }
+      onMouseEnter={(e) => {
+        if (checked) {
+          e.currentTarget.style.filter = 'brightness(1.06)';
+        } else {
+          e.currentTarget.style.color = '#86efac';
+          e.currentTarget.style.borderColor = 'rgba(34,197,94,0.55)';
+          e.currentTarget.style.boxShadow =
+            '0 12px 26px rgba(0,0,0,0.22), inset 0 0 14px rgba(34,197,94,0.18)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.filter = 'none';
+        if (checked) {
+          e.currentTarget.style.borderColor = 'rgba(34,197,94,0.66)';
+          e.currentTarget.style.background =
+            'linear-gradient(180deg, rgba(34,197,94,0.94), rgba(21,128,61,0.92))';
+          e.currentTarget.style.boxShadow =
+            '0 0 16px rgba(34,197,94,0.3), inset 0 1px 0 rgba(255,255,255,0.16)';
+          e.currentTarget.style.color = '#ffffff';
+        } else {
+          Object.assign(e.currentTarget.style, glass.surface);
+        }
+      }}
     >
       <svg
         className="h-3.5 w-3.5 flex-shrink-0"
@@ -474,6 +636,8 @@ function WatchBadge({ checked, onClick, title }) {
 }
 
 function BookmarkIconButton({ active, onClick, disabled = false, title }) {
+  const glass = useGlassStyles();
+
   return (
     <button
       type="button"
@@ -481,11 +645,40 @@ function BookmarkIconButton({ active, onClick, disabled = false, title }) {
       disabled={disabled}
       title={title}
       aria-label={title}
-      className={`flex h-11 w-11 items-center justify-center rounded-md border transition active:scale-95 ${
-        active
-          ? 'border-red-400/70 bg-red-600/90 text-white shadow-[0_0_14px_rgba(239,68,68,0.35)] hover:bg-red-700'
-          : 'border-white/15 bg-black/25 text-white backdrop-blur-md hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40'
-      } ${disabled ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
+      className={`flex h-11 w-11 items-center justify-center rounded-xl border transition active:scale-95 ${
+        disabled ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'
+      }`}
+      style={
+        disabled
+          ? { ...glass.primaryButton, ...glass.primaryButtonDisabled }
+          : active
+            ? glass.primaryButton
+            : glass.iconButton
+      }
+      onMouseEnter={(e) => {
+        if (disabled) return;
+
+        if (active) {
+          e.currentTarget.style.filter = 'brightness(1.06)';
+          e.currentTarget.style.boxShadow =
+            '0 16px 30px color-mix(in srgb, var(--theme-accent-glow) 45%, transparent), inset 0 1px 0 rgba(255,255,255,0.18)';
+        } else {
+          e.currentTarget.style.borderColor = 'var(--theme-accent-border)';
+          e.currentTarget.style.color = 'var(--theme-accent-text)';
+          e.currentTarget.style.boxShadow =
+            '0 12px 26px rgba(0,0,0,0.2), inset 0 0 14px color-mix(in srgb, var(--theme-accent-glow) 28%, transparent)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.filter = 'none';
+        if (disabled) {
+          Object.assign(e.currentTarget.style, { ...glass.primaryButton, ...glass.primaryButtonDisabled });
+        } else if (active) {
+          Object.assign(e.currentTarget.style, glass.primaryButton);
+        } else {
+          Object.assign(e.currentTarget.style, glass.iconButton);
+        }
+      }}
     >
       <svg
         className="h-4 w-4 flex-shrink-0"
@@ -520,6 +713,7 @@ function WatchOptionsModal({
   const seasonScrollRef = useRef(null);
   const [canScrollSeasonUp, setCanScrollSeasonUp] = useState(false);
   const [canScrollSeasonDown, setCanScrollSeasonDown] = useState(false);
+  const glass = useGlassStyles();
 
   useEffect(() => {
     if (!open) {
@@ -644,13 +838,10 @@ function WatchOptionsModal({
       onClick={onClose}
       className="fixed inset-0 z-[999] flex items-center justify-center bg-black/75 px-4 backdrop-blur-sm"
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-5xl overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]"
-      >
-        <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-6 py-4">
+      <div className="w-full max-w-5xl overflow-hidden rounded-3xl border-[1.5px]" style={glass.modalShell}>
+        <div className="flex items-center justify-between border-b px-6 py-4" style={glass.modalHeader}>
           <div>
-            <h3 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400">
+            <h3 className="text-lg font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
               Choose Episode
             </h3>
             <p className="mt-1 text-sm text-gray-300">{title}</p>
@@ -659,9 +850,17 @@ function WatchOptionsModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-black/25 text-gray-300 backdrop-blur-md transition active:scale-95 hover:text-white hover:shadow-inner hover:shadow-red-500/50"
+            className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border transition active:scale-95"
+            style={glass.iconButton}
             aria-label="Close watch options"
             title="Close watch options"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--theme-accent-border)';
+              e.currentTarget.style.color = 'var(--theme-accent-text)';
+            }}
+            onMouseLeave={(e) => {
+              Object.assign(e.currentTarget.style, glass.iconButton);
+            }}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path d="M6 6l12 12M18 6L6 18" />
@@ -670,10 +869,10 @@ function WatchOptionsModal({
         </div>
 
         <div className="grid gap-0 md:grid-cols-[280px_1fr]">
-          <div className="border-b border-red-500/20 bg-black/20 md:border-b-0 md:border-r">
+          <div className="border-b md:border-b-0 md:border-r" style={{ borderColor: 'var(--theme-accent-border-soft)', background: 'rgba(255,255,255,0.02)' }}>
             <div className="px-5 py-4">
               <div className="mb-4 flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                   Seasons
                 </p>
 
@@ -682,11 +881,10 @@ function WatchOptionsModal({
                     type="button"
                     onClick={() => scrollSeasons('up')}
                     disabled={!canScrollSeasonUp}
-                    className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
-                      canScrollSeasonUp
-                        ? 'bg-black/25 text-gray-300 cursor-pointer hover:text-white hover:shadow-inner hover:shadow-red-500/60'
-                        : 'bg-black/15 text-gray-500 opacity-60'
+                    className={`flex h-8 w-8 items-center justify-center rounded-full border transition active:scale-95 ${
+                      canScrollSeasonUp ? 'cursor-pointer' : 'cursor-default opacity-60'
                     }`}
+                    style={canScrollSeasonUp ? glass.iconButton : { ...glass.iconButton, opacity: 0.6 }}
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                       <path d="M6 15l6-6 6 6" />
@@ -697,11 +895,10 @@ function WatchOptionsModal({
                     type="button"
                     onClick={() => scrollSeasons('down')}
                     disabled={!canScrollSeasonDown}
-                    className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
-                      canScrollSeasonDown
-                        ? 'bg-black/25 text-gray-300 cursor-pointer hover:text-white hover:shadow-inner hover:shadow-red-500/60'
-                        : 'bg-black/15 text-gray-500 opacity-60'
+                    className={`flex h-8 w-8 items-center justify-center rounded-full border transition active:scale-95 ${
+                      canScrollSeasonDown ? 'cursor-pointer' : 'cursor-default opacity-60'
                     }`}
+                    style={canScrollSeasonDown ? glass.iconButton : { ...glass.iconButton, opacity: 0.6 }}
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                       <path d="M6 9l6 6 6-6" />
@@ -722,11 +919,18 @@ function WatchOptionsModal({
                     return (
                       <div
                         key={season.id || season.season_number}
-                        className={`w-full rounded-xl border px-4 py-3 transition ${
-                          active
-                            ? 'border-red-400 bg-red-600/15 text-red-300 shadow-[0_0_18px_rgba(239,68,68,0.18)]'
-                            : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
-                        }`}
+                        className="w-full rounded-2xl border px-4 py-3 transition"
+                        style={active ? glass.surfaceActive : glass.surface}
+                        onMouseEnter={(e) => {
+                          if (!active) {
+                            e.currentTarget.style.borderColor = 'var(--theme-accent-border)';
+                            e.currentTarget.style.boxShadow =
+                              '0 14px 30px rgba(0,0,0,0.2), inset 0 0 16px color-mix(in srgb, var(--theme-accent-glow) 24%, transparent)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          Object.assign(e.currentTarget.style, active ? glass.surfaceActive : glass.surface);
+                        }}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <button
@@ -738,7 +942,10 @@ function WatchOptionsModal({
                             }}
                             className="min-w-0 flex-1 cursor-pointer text-left"
                           >
-                            <div className="flex items-center gap-2 text-sm font-medium">
+                            <div
+                              className="flex items-center gap-2 text-sm font-medium"
+                              style={{ color: active ? 'var(--theme-accent-text)' : 'white' }}
+                            >
                               <span>{season.name || `Season ${season.season_number}`}</span>
                             </div>
                             <div className="mt-1 text-xs text-gray-400">
@@ -775,7 +982,7 @@ function WatchOptionsModal({
           </div>
 
           <div className="px-5 py-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
               Episodes
             </p>
 
@@ -793,7 +1000,9 @@ function WatchOptionsModal({
 
             {selectedSeason && seasonError && !loadingSeason && (
               <div className="flex min-h-[320px] items-center justify-center">
-                <p className="text-sm text-red-300">{seasonError}</p>
+                <p className="text-sm" style={{ color: 'var(--theme-accent-text)' }}>
+                  {seasonError}
+                </p>
               </div>
             )}
 
@@ -806,7 +1015,16 @@ function WatchOptionsModal({
                     return (
                       <div
                         key={episode.id || episode.episode_number}
-                        className="group rounded-xl border border-white/10 bg-black/20 p-4 transition hover:border-red-400/70 hover:shadow-[0_0_20px_rgba(239,68,68,0.16)]"
+                        className="group rounded-2xl border p-4 transition"
+                        style={glass.surface}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = 'var(--theme-accent-border)';
+                          e.currentTarget.style.boxShadow =
+                            '0 0 20px color-mix(in srgb, var(--theme-accent-glow) 40%, transparent)';
+                        }}
+                        onMouseLeave={(e) => {
+                          Object.assign(e.currentTarget.style, glass.surface);
+                        }}
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex min-w-0 items-start gap-2">
@@ -822,7 +1040,7 @@ function WatchOptionsModal({
                               href={`/watch?type=tv&id=${showId}&season=${selectedSeason}&episode=${episode.episode_number}`}
                               className="min-w-0 block cursor-pointer"
                             >
-                              <div className="text-sm font-semibold text-white transition group-hover:text-red-300">
+                              <div className="text-sm font-semibold text-white transition group-hover:text-[var(--theme-accent-text)]">
                                 Episode {episode.episode_number}: {episode.name}
                               </div>
 
@@ -860,6 +1078,7 @@ function WatchOptionsModal({
 function CastCarousel({ cast }) {
   const scrollRef = useRef(null);
   const [currentPage, setCurrentPage] = useState(0);
+  const glass = useGlassStyles();
 
   const cardsPerPage = 10;
   const totalPages = Math.max(1, Math.ceil(cast.length / cardsPerPage));
@@ -904,9 +1123,9 @@ function CastCarousel({ cast }) {
 
   if (!cast.length) {
     return (
-      <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-        <div className="border-b border-red-500/25 bg-red-600/10 px-6 py-4">
-          <h2 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400">
+      <div className="overflow-hidden rounded-3xl border-[1.5px]" style={glass.panel}>
+        <div className="border-b px-6 py-4" style={glass.panelHeader}>
+          <h2 className="text-lg font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
             Full Cast
           </h2>
         </div>
@@ -919,9 +1138,9 @@ function CastCarousel({ cast }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-      <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-6 py-4">
-        <h2 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400">
+    <div className="overflow-hidden rounded-3xl border-[1.5px]" style={glass.panel}>
+      <div className="flex items-center justify-between border-b px-6 py-4" style={glass.panelHeader}>
+        <h2 className="text-lg font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
           Full Cast
         </h2>
 
@@ -930,11 +1149,10 @@ function CastCarousel({ cast }) {
             type="button"
             onClick={() => goToPage(currentPage - 1)}
             disabled={!canScrollLeft}
-            className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
-              canScrollLeft
-                ? 'bg-black/25 text-gray-300 cursor-pointer hover:text-white hover:shadow-inner hover:shadow-red-500/60'
-                : 'bg-black/15 text-gray-500 opacity-60'
+            className={`flex h-9 w-9 items-center justify-center rounded-full border transition active:scale-95 ${
+              canScrollLeft ? 'cursor-pointer' : 'cursor-default opacity-60'
             }`}
+            style={canScrollLeft ? glass.iconButton : { ...glass.iconButton, opacity: 0.6 }}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path d="M15 6l-6 6 6 6" />
@@ -945,11 +1163,10 @@ function CastCarousel({ cast }) {
             type="button"
             onClick={() => goToPage(currentPage + 1)}
             disabled={!canScrollRight}
-            className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
-              canScrollRight
-                ? 'bg-black/25 text-gray-300 cursor-pointer hover:text-white hover:shadow-inner hover:shadow-red-500/60'
-                : 'bg-black/15 text-gray-500 opacity-60'
+            className={`flex h-9 w-9 items-center justify-center rounded-full border transition active:scale-95 ${
+              canScrollRight ? 'cursor-pointer' : 'cursor-default opacity-60'
             }`}
+            style={canScrollRight ? glass.iconButton : { ...glass.iconButton, opacity: 0.6 }}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path d="M9 6l6 6-6 6" />
@@ -976,7 +1193,18 @@ function CastCarousel({ cast }) {
               >
                 {pageItems.map((person) => (
                   <div key={`${person.id}-${person.cast_id || person.credit_id}`} className="group min-w-0">
-                    <div className="relative overflow-hidden rounded-xl border-[1.5px] border-white/10 bg-black/20 transition duration-300 group-hover:border-red-400/80 group-hover:shadow-[0_0_20px_rgba(239,68,68,0.24)]">
+                    <div
+                      className="relative overflow-hidden rounded-2xl border-[1.5px] transition duration-300"
+                      style={glass.surface}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--theme-accent-border)';
+                        e.currentTarget.style.boxShadow =
+                          '0 0 20px color-mix(in srgb, var(--theme-accent-glow) 45%, transparent)';
+                      }}
+                      onMouseLeave={(e) => {
+                        Object.assign(e.currentTarget.style, glass.surface);
+                      }}
+                    >
                       <div className="aspect-[2/2.6] w-full bg-gray-800">
                         <img
                           src={person.profile_path ? `${PROFILE_BASE}${person.profile_path}` : CAST_PLACEHOLDER}
@@ -987,7 +1215,7 @@ function CastCarousel({ cast }) {
                     </div>
 
                     <div className="mt-2">
-                      <div className="line-clamp-1 text-xs font-medium text-white transition group-hover:text-red-300">
+                      <div className="line-clamp-1 text-xs font-medium text-white transition group-hover:text-[var(--theme-accent-text)]">
                         {person.name}
                       </div>
                       <div className="mt-1 line-clamp-2 text-[11px] text-gray-400">
@@ -1018,6 +1246,7 @@ function SimilarCarousel({
 }) {
   const scrollRef = useRef(null);
   const [currentPage, setCurrentPage] = useState(0);
+  const glass = useGlassStyles();
 
   const cardsPerPage = 6;
   const totalPages = Math.max(1, Math.ceil(items.length / cardsPerPage));
@@ -1062,9 +1291,9 @@ function SimilarCarousel({
 
   if (!items.length) {
     return (
-      <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-        <div className="border-b border-red-500/25 bg-red-600/10 px-6 py-4">
-          <h2 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400">
+      <div className="overflow-hidden rounded-3xl border-[1.5px]" style={glass.panel}>
+        <div className="border-b px-6 py-4" style={glass.panelHeader}>
+          <h2 className="text-lg font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
             Similar {type === 'movie' ? 'Movies' : 'Shows'}
           </h2>
         </div>
@@ -1077,9 +1306,9 @@ function SimilarCarousel({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-      <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-6 py-4">
-        <h2 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400">
+    <div className="overflow-hidden rounded-3xl border-[1.5px]" style={glass.panel}>
+      <div className="flex items-center justify-between border-b px-6 py-4" style={glass.panelHeader}>
+        <h2 className="text-lg font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
           Similar {type === 'movie' ? 'Movies' : 'Shows'}
         </h2>
 
@@ -1088,11 +1317,10 @@ function SimilarCarousel({
             type="button"
             onClick={() => goToPage(currentPage - 1)}
             disabled={!canScrollLeft}
-            className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
-              canScrollLeft
-                ? 'bg-black/25 text-gray-300 cursor-pointer hover:text-white hover:shadow-inner hover:shadow-red-500/60'
-                : 'bg-black/15 text-gray-500 opacity-60'
+            className={`flex h-9 w-9 items-center justify-center rounded-full border transition active:scale-95 ${
+              canScrollLeft ? 'cursor-pointer' : 'cursor-default opacity-60'
             }`}
+            style={canScrollLeft ? glass.iconButton : { ...glass.iconButton, opacity: 0.6 }}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path d="M15 6l-6 6 6 6" />
@@ -1103,11 +1331,10 @@ function SimilarCarousel({
             type="button"
             onClick={() => goToPage(currentPage + 1)}
             disabled={!canScrollRight}
-            className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
-              canScrollRight
-                ? 'bg-black/25 text-gray-300 cursor-pointer hover:text-white hover:shadow-inner hover:shadow-red-500/60'
-                : 'bg-black/15 text-gray-500 opacity-60'
+            className={`flex h-9 w-9 items-center justify-center rounded-full border transition active:scale-95 ${
+              canScrollRight ? 'cursor-pointer' : 'cursor-default opacity-60'
             }`}
+            style={canScrollRight ? glass.iconButton : { ...glass.iconButton, opacity: 0.6 }}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path d="M9 6l6 6-6 6" />
@@ -1128,14 +1355,25 @@ function SimilarCarousel({
             );
 
             return (
-              <div key={pageIndex} className="grid min-w-full grid-cols-6 gap-4 px-6 py-5">
+              <div key={pageIndex} className="grid min-w-full grid-cols-2 gap-4 px-6 py-5 md:grid-cols-4 xl:grid-cols-6">
                 {pageItems.map((item) => {
                   const bookmarkKey = `${type}-${item.id}`;
                   const isBookmarked = bookmarkedIds.has(bookmarkKey);
 
                   return (
                     <Link key={item.id} href={`/${type}/${item.id}`} className="group min-w-0 cursor-pointer">
-                      <div className="relative overflow-hidden rounded-xl border-[1.5px] border-white/10 bg-black/20 transition duration-300 group-hover:border-red-400/80 group-hover:shadow-[0_0_24px_rgba(239,68,68,0.28)]">
+                      <div
+                        className="relative overflow-hidden rounded-2xl border-[1.5px] transition duration-300"
+                        style={glass.surface}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = 'var(--theme-accent-border)';
+                          e.currentTarget.style.boxShadow =
+                            '0 0 24px color-mix(in srgb, var(--theme-accent-glow) 55%, transparent)';
+                        }}
+                        onMouseLeave={(e) => {
+                          Object.assign(e.currentTarget.style, glass.surface);
+                        }}
+                      >
                         <SimilarCardBadges
                           item={item}
                           isBookmarked={isBookmarked}
@@ -1158,7 +1396,7 @@ function SimilarCarousel({
                       </div>
 
                       <div className="mt-2">
-                        <div className="line-clamp-1 text-sm font-medium text-white transition group-hover:text-red-300">
+                        <div className="line-clamp-1 text-sm font-medium text-white transition group-hover:text-[var(--theme-accent-text)]">
                           {item.title || item.name || 'Untitled'}
                         </div>
                         <div className="mt-1 text-xs text-gray-400">
@@ -1194,6 +1432,7 @@ export default function DetailPageContent({ id, type }) {
   const [continueEpisode, setContinueEpisode] = useState(null);
   const [manualUnwatchedKeys, setManualUnwatchedKeys] = useState(new Set());
   const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
+  const glass = useGlassStyles();
 
   useEffect(() => {
     const auth = getAuth();
@@ -1541,10 +1780,10 @@ export default function DetailPageContent({ id, type }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black text-white">
+      <div className="min-h-screen text-white" style={{ background: 'var(--theme-bg)' }}>
         <Navbar />
-        <main className="px-8 pb-10 pt-24">
-          <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-10 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
+        <main className="px-4 pb-10 pt-20 sm:px-6 sm:pt-24 lg:px-8">
+          <div className="overflow-hidden rounded-3xl border-[1.5px] p-8 sm:p-10" style={glass.panel}>
             <p className="text-lg text-gray-300">Loading details...</p>
           </div>
         </main>
@@ -1554,11 +1793,13 @@ export default function DetailPageContent({ id, type }) {
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-black text-white">
+      <div className="min-h-screen text-white" style={{ background: 'var(--theme-bg)' }}>
         <Navbar />
-        <main className="px-8 pb-10 pt-24">
-          <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-10 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <p className="text-lg text-red-300">{error || 'Title not found.'}</p>
+        <main className="px-4 pb-10 pt-20 sm:px-6 sm:pt-24 lg:px-8">
+          <div className="overflow-hidden rounded-3xl border-[1.5px] p-8 sm:p-10" style={glass.panel}>
+            <p className="text-lg" style={{ color: 'var(--theme-accent-text)' }}>
+              {error || 'Title not found.'}
+            </p>
           </div>
         </main>
       </div>
@@ -1566,11 +1807,11 @@ export default function DetailPageContent({ id, type }) {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen text-white" style={{ background: 'var(--theme-bg)' }}>
       <Navbar />
 
-      <main className="px-8 pb-10 pt-24">
-        <section className="relative overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
+      <main className="px-4 pb-10 pt-20 sm:px-6 sm:pt-24 lg:px-8">
+        <section className="relative overflow-hidden rounded-3xl border-[1.5px]" style={glass.panel}>
           {data.backdrop_path && (
             <div
               className="absolute inset-0 bg-cover bg-center"
@@ -1580,12 +1821,38 @@ export default function DetailPageContent({ id, type }) {
             />
           )}
 
-          <div className="absolute inset-0 bg-black/70" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(239,68,68,0.12),transparent_35%)]" />
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                'linear-gradient(180deg, rgba(3,6,12,0.28), rgba(3,6,12,0.62) 24%, rgba(3,6,12,0.84) 100%)',
+            }}
+          />
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                'radial-gradient(circle at top, color-mix(in srgb, var(--theme-accent) 18%, transparent), transparent 38%)',
+            }}
+          />
+          <div
+            className="absolute inset-0"
+            style={{
+              backdropFilter: 'blur(4px)',
+              WebkitBackdropFilter: 'blur(4px)',
+            }}
+          />
 
-          <div className="relative z-10 grid gap-8 px-8 py-8 lg:grid-cols-[300px_1fr]">
+          <div className="relative z-10 grid gap-8 px-4 py-6 sm:px-6 sm:py-8 lg:grid-cols-[300px_1fr] lg:px-8">
             <div className="mx-auto w-full max-w-[300px]">
-              <div className="overflow-hidden rounded-2xl border-[1.5px] border-white/10 bg-black/20 shadow-[0_0_30px_rgba(239,68,68,0.16)]">
+              <div
+                className="overflow-hidden rounded-3xl border-[1.5px]"
+                style={{
+                  ...glass.surface,
+                  boxShadow:
+                    '0 0 34px color-mix(in srgb, var(--theme-accent-glow) 42%, transparent), 0 16px 32px rgba(0,0,0,0.28)',
+                }}
+              >
                 {data.poster_path ? (
                   <img
                     src={`${POSTER_BASE}${data.poster_path}`}
@@ -1601,17 +1868,20 @@ export default function DetailPageContent({ id, type }) {
             </div>
 
             <div className="flex flex-col justify-end">
-              <div className="inline-flex w-fit rounded-full border border-red-500/30 bg-red-600/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-red-300">
+              <div
+                className="inline-flex w-fit rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]"
+                style={glass.chip}
+              >
                 {type === 'movie' ? 'Movie' : 'TV Show'}
               </div>
 
-              <h1 className="mt-4 text-4xl font-bold md:text-6xl">{title}</h1>
+              <h1 className="mt-4 text-3xl font-bold sm:text-4xl md:text-5xl lg:text-6xl">{title}</h1>
 
               <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-gray-300">
                 <span>{releaseYear}</span>
-                <span className="text-red-400">•</span>
+                <span style={{ color: 'var(--theme-accent-text)' }}>•</span>
                 <span>{runtimeText}</span>
-                <span className="text-red-400">•</span>
+                <span style={{ color: 'var(--theme-accent-text)' }}>•</span>
                 <span>{data.vote_average ? `${data.vote_average.toFixed(1)}/10` : 'No rating'}</span>
               </div>
 
@@ -1620,7 +1890,8 @@ export default function DetailPageContent({ id, type }) {
                   {data.genres.map((genre) => (
                     <span
                       key={genre.id}
-                      className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs font-medium text-gray-200"
+                      className="rounded-full border px-3 py-1 text-xs font-medium"
+                      style={glass.surface}
                     >
                       {genre.name}
                     </span>
@@ -1631,7 +1902,10 @@ export default function DetailPageContent({ id, type }) {
               <div className="mt-6 flex flex-wrap gap-3">
                 {type === 'movie' ? (
                   <Link href={`/watch?type=movie&id=${id}`} className="cursor-pointer">
-                    <span className="flex h-11 items-center justify-center gap-2 rounded-md bg-red-600 px-5 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60">
+                    <span
+                      className="flex h-11 items-center justify-center gap-2 rounded-xl border px-5 text-sm font-semibold transition active:scale-95"
+                      style={glass.primaryButton}
+                    >
                       <svg
                         className="h-4 w-4 flex-shrink-0"
                         fill="currentColor"
@@ -1647,7 +1921,10 @@ export default function DetailPageContent({ id, type }) {
                   <>
                     {continueSeasonHref ? (
                       <Link href={continueSeasonHref} className="cursor-pointer">
-                        <span className="flex h-11 items-center justify-center gap-2 rounded-md bg-red-600 px-5 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60">
+                        <span
+                          className="flex h-11 items-center justify-center gap-2 rounded-xl border px-5 text-sm font-semibold transition active:scale-95"
+                          style={glass.primaryButton}
+                        >
                           <svg
                             className="h-4 w-4 flex-shrink-0"
                             fill="currentColor"
@@ -1664,7 +1941,8 @@ export default function DetailPageContent({ id, type }) {
                     <button
                       type="button"
                       onClick={() => setWatchOptionsOpen(true)}
-                      className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-md bg-red-600 px-5 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60"
+                      className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border px-5 text-sm font-semibold transition active:scale-95"
+                      style={glass.primaryButton}
                     >
                       <svg
                         className="h-4 w-4 flex-shrink-0"
@@ -1683,7 +1961,8 @@ export default function DetailPageContent({ id, type }) {
                   <button
                     type="button"
                     onClick={() => setTrailerOpen(true)}
-                    className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-md bg-red-600 px-5 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60"
+                    className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border px-5 text-sm font-semibold transition active:scale-95"
+                    style={glass.primaryButton}
                   >
                     <svg
                       className="h-4 w-4 flex-shrink-0"
@@ -1715,9 +1994,9 @@ export default function DetailPageContent({ id, type }) {
         </section>
 
         <section className="mt-8 grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <div className="border-b border-red-500/25 bg-red-600/10 px-6 py-4">
-              <h2 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400">
+          <div className="overflow-hidden rounded-3xl border-[1.5px]" style={glass.panel}>
+            <div className="border-b px-6 py-4" style={glass.panelHeader}>
+              <h2 className="text-lg font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                 Overview
               </h2>
             </div>
@@ -1729,35 +2008,35 @@ export default function DetailPageContent({ id, type }) {
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <div className="border-b border-red-500/25 bg-red-600/10 px-6 py-4">
-              <h2 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-400">
+          <div className="overflow-hidden rounded-3xl border-[1.5px]" style={glass.panel}>
+            <div className="border-b px-6 py-4" style={glass.panelHeader}>
+              <h2 className="text-lg font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                 Details
               </h2>
             </div>
 
             <div className="space-y-4 px-6 py-5">
-              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-red-400">Original Title</p>
+              <div className="rounded-2xl border p-4" style={glass.surface}>
+                <p className="text-xs uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>Original Title</p>
                 <p className="mt-2 text-base text-white">
                   {data.original_title || data.original_name || 'Unknown'}
                 </p>
               </div>
 
-              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-red-400">Language</p>
+              <div className="rounded-2xl border p-4" style={glass.surface}>
+                <p className="text-xs uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>Language</p>
                 <p className="mt-2 text-base text-white">
                   {data.original_language?.toUpperCase() || 'Unknown'}
                 </p>
               </div>
 
-              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-red-400">Status</p>
+              <div className="rounded-2xl border p-4" style={glass.surface}>
+                <p className="text-xs uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>Status</p>
                 <p className="mt-2 text-base text-white">{data.status || 'Unknown'}</p>
               </div>
 
-              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-red-400">
+              <div className="rounded-2xl border p-4" style={glass.surface}>
+                <p className="text-xs uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                   {type === 'movie' ? 'Runtime' : 'Episode Runtime'}
                 </p>
                 <p className="mt-2 text-base text-white">{runtimeText}</p>
@@ -1799,12 +2078,9 @@ export default function DetailPageContent({ id, type }) {
         onToggleSeason={handleToggleSeason}
       />
 
-      <footer className="px-8 pb-8 pt-2 text-center text-sm text-gray-400">
+      <footer className="px-4 pb-8 pt-2 text-center text-sm text-gray-400 sm:px-6 lg:px-8">
         <p>This site does not host or store any media.</p>
-
-        <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
-          
-        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500"></div>
       </footer>
     </div>
   );

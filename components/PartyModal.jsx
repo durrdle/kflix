@@ -1,4 +1,3 @@
-// components/PartyModal.jsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -30,6 +29,7 @@ export default function PartyModal({ open, onClose, onJoinParty, onCreateParty }
 
   useEffect(() => {
     let cancelled = false;
+    let pulseTimer;
 
     const loadCode = async () => {
       if (mode !== 'create') return;
@@ -37,11 +37,11 @@ export default function PartyModal({ open, onClose, onJoinParty, onCreateParty }
       try {
         setWarning('');
         const code = await generateUniquePartyCode();
+
         if (!cancelled) {
           setJoinCode(code);
           setPulse(true);
-          const timer = setTimeout(() => setPulse(false), 220);
-          return () => clearTimeout(timer);
+          pulseTimer = setTimeout(() => setPulse(false), 220);
         }
       } catch {
         if (!cancelled) {
@@ -54,6 +54,7 @@ export default function PartyModal({ open, onClose, onJoinParty, onCreateParty }
 
     return () => {
       cancelled = true;
+      if (pulseTimer) clearTimeout(pulseTimer);
     };
   }, [mode]);
 
@@ -70,14 +71,69 @@ export default function PartyModal({ open, onClose, onJoinParty, onCreateParty }
 
   if (!open) return null;
 
-  const navIconClass =
-    'flex h-8 w-8 items-center justify-center rounded-full bg-black/25 backdrop-blur-md text-gray-300 transition active:scale-95 hover:text-white hover:shadow-inner hover:shadow-red-500/50 cursor-pointer';
+  const glassPanelStyle = {
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-panel-from) 82%, rgba(255,255,255,0.06)), color-mix(in srgb, var(--theme-panel-to) 92%, rgba(255,255,255,0.02)))',
+    borderColor: pulse
+      ? 'var(--theme-accent-border)'
+      : 'color-mix(in srgb, var(--theme-accent-border) 74%, rgba(255,255,255,0.08))',
+    boxShadow: pulse
+      ? '0 0 26px color-mix(in srgb, var(--theme-accent-glow) 55%, transparent), 0 20px 46px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.08)'
+      : '0 20px 46px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(255,255,255,0.02)',
+    backdropFilter: 'blur(22px) saturate(150%)',
+    WebkitBackdropFilter: 'blur(22px) saturate(150%)',
+  };
 
-  const primaryButtonClass =
-    'w-44 h-9 rounded-md bg-red-600 text-white text-sm font-semibold transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60 cursor-pointer flex items-center justify-center gap-2';
+  const glassHeaderStyle = {
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent-soft) 88%, rgba(255,255,255,0.04)), color-mix(in srgb, var(--theme-accent-soft) 68%, transparent))',
+    borderColor: 'var(--theme-accent-border)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+    backdropFilter: 'blur(14px)',
+    WebkitBackdropFilter: 'blur(14px)',
+  };
 
-  const inputClass =
-    'w-52 h-10 px-4 rounded-md bg-gray-800 border border-white/10 text-white text-sm text-center focus:outline-none focus:border-red-500/50 focus:shadow-[0_0_10px_rgba(255,0,0,0.25)]';
+  const glassSurfaceStyle = {
+    borderColor: 'color-mix(in srgb, var(--theme-muted-border) 92%, rgba(255,255,255,0.06))',
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-muted-bg) 82%, rgba(255,255,255,0.05)), color-mix(in srgb, var(--theme-muted-bg-strong) 90%, rgba(255,255,255,0.02)))',
+    boxShadow:
+      '0 12px 28px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.07)',
+    backdropFilter: 'blur(16px) saturate(145%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(145%)',
+  };
+
+  const glassGhostButtonStyle = {
+    borderColor: 'color-mix(in srgb, var(--theme-muted-border) 92%, rgba(255,255,255,0.08))',
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-muted-bg) 78%, rgba(255,255,255,0.05)), color-mix(in srgb, var(--theme-muted-bg-strong) 88%, rgba(255,255,255,0.02)))',
+    boxShadow:
+      '0 10px 20px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.08)',
+    color: 'var(--theme-text)',
+    backdropFilter: 'blur(16px) saturate(140%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(140%)',
+  };
+
+  const glassAccentButtonStyle = {
+    borderColor: 'color-mix(in srgb, var(--theme-accent-border) 90%, rgba(255,255,255,0.06))',
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent) 86%, rgba(255,255,255,0.12)), color-mix(in srgb, var(--theme-accent-hover) 90%, rgba(0,0,0,0.05)))',
+    boxShadow:
+      '0 14px 28px color-mix(in srgb, var(--theme-accent-glow) 40%, transparent), inset 0 1px 0 rgba(255,255,255,0.16)',
+    color: 'var(--theme-accent-contrast)',
+    backdropFilter: 'blur(16px) saturate(150%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(150%)',
+  };
+
+  const warningStyle = {
+    borderColor: 'var(--theme-accent-border)',
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent-soft) 88%, rgba(255,255,255,0.04)), color-mix(in srgb, var(--theme-accent-soft) 68%, transparent))',
+    color: 'var(--theme-accent-text)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+    backdropFilter: 'blur(14px)',
+    WebkitBackdropFilter: 'blur(14px)',
+  };
 
   const handleJoin = async () => {
     if (inputCode.length !== 6 || working || !userId) return;
@@ -119,15 +175,17 @@ export default function PartyModal({ open, onClose, onJoinParty, onCreateParty }
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 px-3 backdrop-blur-sm sm:px-4"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`h-[290px] w-[400px] overflow-hidden rounded-xl border border-red-500/40 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_10px_30px_rgba(0,0,0,0.45)] transition-all duration-200 ${
-          pulse ? 'ring-1 ring-red-500/60 shadow-[0_0_18px_rgba(239,68,68,0.25)]' : ''
-        }`}
+        className="w-full max-w-[430px] overflow-hidden rounded-3xl border-[1.5px]"
+        style={glassPanelStyle}
       >
-        <div className="relative flex items-center justify-between border-b border-red-500/20 bg-red-600/10 px-5 py-3">
+        <div
+          className="relative flex items-center justify-between border-b px-4 py-3 sm:px-5"
+          style={glassHeaderStyle}
+        >
           <div className="flex items-center gap-2">
             {mode !== 'default' ? (
               <button
@@ -136,7 +194,8 @@ export default function PartyModal({ open, onClose, onJoinParty, onCreateParty }
                   setWarning('');
                   setInputCode('');
                 }}
-                className={navIconClass}
+                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border transition active:scale-95"
+                style={glassGhostButtonStyle}
                 type="button"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -144,113 +203,183 @@ export default function PartyModal({ open, onClose, onJoinParty, onCreateParty }
                 </svg>
               </button>
             ) : (
-              <div className="h-8 w-8" />
+              <div className="h-9 w-9" />
             )}
           </div>
 
-          <div className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold uppercase tracking-[0.2em] text-red-400">
+          <div className="absolute left-1/2 -translate-x-1/2 text-sm font-semibold uppercase tracking-[0.18em] sm:text-base" style={{ color: 'var(--theme-accent-text)' }}>
             Party Menu
           </div>
 
-          <button onClick={onClose} className={navIconClass} type="button">
+          <button
+            onClick={onClose}
+            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border transition active:scale-95"
+            style={glassGhostButtonStyle}
+            type="button"
+          >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path d="M6 6l12 12M18 6L6 18" />
             </svg>
           </button>
         </div>
 
-        <div className="flex h-[calc(100%-57px)] items-center justify-center px-6 py-4">
+        <div className="px-4 py-5 sm:px-5 sm:py-6">
           {mode === 'default' && (
-            <div className="flex w-full flex-col items-center justify-center gap-3">
-              <button
-                onClick={() => {
-                  setWarning('');
-                  setMode('join');
-                }}
-                className={primaryButtonClass}
-                type="button"
-              >
-                <span>Join</span>
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M9 6l6 6-6 6" />
-                </svg>
-              </button>
+            <div className="space-y-3">
+              <div className="rounded-2xl border p-4" style={glassSurfaceStyle}>
+                <p className="text-sm leading-6 text-gray-200">
+                  Start a new party or join an existing one with a code.
+                </p>
+              </div>
 
-              <button
-                onClick={() => {
-                  setWarning('');
-                  setMode('create');
-                }}
-                className={primaryButtonClass}
-                type="button"
-              >
-                <span>Create</span>
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-                  <path d="M12 6v12M6 12h12" />
-                </svg>
-              </button>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <button
+                  onClick={() => {
+                    setWarning('');
+                    setMode('join');
+                  }}
+                  className="flex h-12 cursor-pointer items-center justify-center gap-2 rounded-2xl border text-sm font-semibold transition active:scale-95"
+                  style={glassAccentButtonStyle}
+                  type="button"
+                >
+                  <span>Join</span>
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path d="M9 6l6 6-6 6" />
+                  </svg>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setWarning('');
+                    setMode('create');
+                  }}
+                  className="flex h-12 cursor-pointer items-center justify-center gap-2 rounded-2xl border text-sm font-semibold transition active:scale-95"
+                  style={glassGhostButtonStyle}
+                  type="button"
+                >
+                  <span>Create</span>
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                    <path d="M12 6v12M6 12h12" />
+                  </svg>
+                </button>
+              </div>
             </div>
           )}
 
           {mode === 'join' && (
-            <div className="flex w-full flex-col items-center justify-center gap-3">
-              <input
-                value={inputCode}
-                onChange={(e) => {
-                  setWarning('');
-                  setInputCode(e.target.value.replace(/\D/g, '').slice(0, 6));
-                }}
-                placeholder="Enter 6-digit code"
-                className={inputClass}
-              />
+            <div className="space-y-4">
+              <div className="rounded-2xl border p-4" style={glassSurfaceStyle}>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
+                  Enter Party Code
+                </p>
+
+                <input
+                  value={inputCode}
+                  onChange={(e) => {
+                    setWarning('');
+                    setInputCode(e.target.value.replace(/\D/g, '').slice(0, 6));
+                  }}
+                  placeholder="Enter 6-digit code"
+                  className="mt-3 h-14 w-full rounded-2xl border px-4 text-center text-base font-semibold tracking-[0.22em] text-[var(--theme-text)] outline-none placeholder:tracking-normal placeholder:text-[var(--theme-muted-text)]"
+                  style={glassSurfaceStyle}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--theme-accent-border)';
+                    e.currentTarget.style.boxShadow =
+                      '0 0 14px color-mix(in srgb, var(--theme-accent-glow) 50%, transparent), inset 0 1px 0 rgba(255,255,255,0.07)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor =
+                      'color-mix(in srgb, var(--theme-muted-border) 92%, rgba(255,255,255,0.06))';
+                    e.currentTarget.style.boxShadow =
+                      '0 12px 28px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.07)';
+                  }}
+                />
+              </div>
 
               {warning && (
-                <div className="w-56 rounded-md border border-red-500/30 bg-red-600/10 px-3 py-2 text-center text-xs text-red-300">
+                <div className="rounded-2xl border px-4 py-3 text-center text-sm" style={warningStyle}>
                   {warning}
                 </div>
               )}
 
-              <button
-                onClick={handleJoin}
-                className={`${primaryButtonClass} ${
-                  inputCode.length !== 6 || working
-                    ? 'cursor-not-allowed opacity-50 hover:bg-red-600 hover:shadow-none'
-                    : ''
-                }`}
-                disabled={inputCode.length !== 6 || working}
-                type="button"
-              >
-                <span>{working ? 'Joining...' : 'Join Party'}</span>
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7-11-7z" />
-                </svg>
-              </button>
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                <button
+                  onClick={() => {
+                    setMode('default');
+                    setWarning('');
+                    setInputCode('');
+                  }}
+                  className="flex h-11 items-center justify-center rounded-2xl border px-4 text-sm font-semibold transition active:scale-95"
+                  style={glassGhostButtonStyle}
+                  type="button"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={handleJoin}
+                  className="flex h-11 items-center justify-center gap-2 rounded-2xl border px-5 text-sm font-semibold transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                  style={glassAccentButtonStyle}
+                  disabled={inputCode.length !== 6 || working}
+                  type="button"
+                >
+                  <span>{working ? 'Joining...' : 'Join Party'}</span>
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7-11-7z" />
+                  </svg>
+                </button>
+              </div>
             </div>
           )}
 
           {mode === 'create' && (
-            <div className="flex w-full flex-col items-center justify-center gap-3">
-              <div className={`${inputClass} flex items-center justify-center font-semibold tracking-[0.2em]`}>
-                {joinCode || '......'}
+            <div className="space-y-4">
+              <div className="rounded-2xl border p-4" style={glassSurfaceStyle}>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
+                  Your Party Code
+                </p>
+
+                <div
+                  className="mt-3 flex h-14 items-center justify-center rounded-2xl border text-xl font-semibold tracking-[0.28em]"
+                  style={glassSurfaceStyle}
+                >
+                  {joinCode || '......'}
+                </div>
               </div>
 
               {warning && (
-                <div className="w-56 rounded-md border border-red-500/30 bg-red-600/10 px-3 py-2 text-center text-xs text-red-300">
+                <div className="rounded-2xl border px-4 py-3 text-center text-sm" style={warningStyle}>
                   {warning}
                 </div>
               )}
 
-              <button
-                onClick={handleCreate}
-                className={`${primaryButtonClass} ${working || !joinCode ? 'cursor-not-allowed opacity-50' : ''}`}
-                disabled={working || !joinCode}
-                type="button"
-              >
-                <span>{working ? 'Starting...' : 'Start Party'}</span>
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7-11-7z" />
-                </svg>
-              </button>
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                <button
+                  onClick={() => {
+                    setMode('default');
+                    setWarning('');
+                    setJoinCode('');
+                  }}
+                  className="flex h-11 items-center justify-center rounded-2xl border px-4 text-sm font-semibold transition active:scale-95"
+                  style={glassGhostButtonStyle}
+                  type="button"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={handleCreate}
+                  className="flex h-11 items-center justify-center gap-2 rounded-2xl border px-5 text-sm font-semibold transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                  style={glassAccentButtonStyle}
+                  disabled={working || !joinCode}
+                  type="button"
+                >
+                  <span>{working ? 'Starting...' : 'Start Party'}</span>
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7-11-7z" />
+                  </svg>
+                </button>
+              </div>
             </div>
           )}
         </div>

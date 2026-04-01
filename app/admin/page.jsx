@@ -39,6 +39,64 @@ export default function AdminPage() {
 
   const [revealedUsers, setRevealedUsers] = useState({});
 
+  const glassPanelStyle = {
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-panel-from) 80%, rgba(255,255,255,0.06)), color-mix(in srgb, var(--theme-panel-to) 92%, rgba(255,255,255,0.02)))',
+    borderColor: 'color-mix(in srgb, var(--theme-accent-border) 74%, rgba(255,255,255,0.08))',
+    boxShadow:
+      '0 20px 46px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(255,255,255,0.02)',
+    backdropFilter: 'blur(22px) saturate(150%)',
+    WebkitBackdropFilter: 'blur(22px) saturate(150%)',
+  };
+
+  const glassHeaderStyle = {
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent-soft) 88%, rgba(255,255,255,0.05)), color-mix(in srgb, var(--theme-accent-soft) 58%, transparent))',
+    borderColor: 'color-mix(in srgb, var(--theme-accent-border-soft) 90%, rgba(255,255,255,0.05))',
+  };
+
+  const glassCardStyle = {
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-muted-bg) 82%, rgba(255,255,255,0.05)), color-mix(in srgb, var(--theme-muted-bg-strong) 90%, rgba(255,255,255,0.02)))',
+    borderColor: 'color-mix(in srgb, var(--theme-muted-border) 92%, rgba(255,255,255,0.06))',
+    boxShadow:
+      '0 12px 28px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.07)',
+    backdropFilter: 'blur(16px) saturate(145%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(145%)',
+  };
+
+  const glassAccentButtonStyle = {
+    borderColor: 'color-mix(in srgb, var(--theme-accent-border) 90%, rgba(255,255,255,0.06))',
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent) 86%, rgba(255,255,255,0.12)), color-mix(in srgb, var(--theme-accent-hover) 90%, rgba(0,0,0,0.05)))',
+    boxShadow:
+      '0 14px 28px color-mix(in srgb, var(--theme-accent-glow) 40%, transparent), inset 0 1px 0 rgba(255,255,255,0.16)',
+    color: 'var(--theme-accent-contrast)',
+    backdropFilter: 'blur(16px) saturate(150%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(150%)',
+  };
+
+  const glassGhostButtonStyle = {
+    borderColor: 'color-mix(in srgb, var(--theme-muted-border) 92%, rgba(255,255,255,0.08))',
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-muted-bg) 78%, rgba(255,255,255,0.05)), color-mix(in srgb, var(--theme-muted-bg-strong) 88%, rgba(255,255,255,0.02)))',
+    boxShadow:
+      '0 10px 20px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.08)',
+    color: 'var(--theme-text)',
+    backdropFilter: 'blur(16px) saturate(140%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(140%)',
+  };
+
+  const statusChipOnlineStyle = {
+    borderColor: 'rgba(34,197,94,0.34)',
+    background:
+      'linear-gradient(180deg, rgba(34,197,94,0.16), rgba(21,128,61,0.12))',
+    color: '#86efac',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
+  };
+
   useEffect(() => {
     const maintenanceRef = ref(db, 'siteSettings/maintenance');
 
@@ -121,12 +179,21 @@ export default function AdminPage() {
 
   if (!adminReady) {
     return (
-      <div className="min-h-screen bg-black text-white">
+      <div className="min-h-screen text-white" style={{ background: 'var(--theme-bg)' }}>
         <Navbar />
         <section className="px-3 pt-20 sm:px-4 sm:pt-24 lg:px-8">
-          <div className="overflow-hidden rounded-2xl border-[1.5px] border-yellow-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <div className="border-b border-yellow-500/25 bg-yellow-500/10 px-4 py-4 sm:px-6">
-              <h1 className="text-xl font-semibold uppercase tracking-[0.16em] text-yellow-300 sm:text-2xl">
+          <div
+            className="overflow-hidden rounded-3xl border-[1.5px]"
+            style={glassPanelStyle}
+          >
+            <div
+              className="border-b px-4 py-4 sm:px-6"
+              style={glassHeaderStyle}
+            >
+              <h1
+                className="text-xl font-semibold uppercase tracking-[0.16em] sm:text-2xl"
+                style={{ color: 'var(--theme-accent-text)' }}
+              >
                 KFlix Admin
               </h1>
             </div>
@@ -142,11 +209,21 @@ export default function AdminPage() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-black text-white">
+      <div className="min-h-screen text-white" style={{ background: 'var(--theme-bg)' }}>
+        <Navbar />
         <section className="px-3 pt-20 sm:px-4 sm:pt-24 lg:px-8">
-          <div className="overflow-hidden rounded-2xl border-[1.5px] border-yellow-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <div className="border-b border-yellow-500/25 bg-yellow-500/10 px-4 py-4 sm:px-6">
-              <h1 className="text-xl font-semibold uppercase tracking-[0.16em] text-yellow-300 sm:text-2xl">
+          <div
+            className="overflow-hidden rounded-3xl border-[1.5px]"
+            style={glassPanelStyle}
+          >
+            <div
+              className="border-b px-4 py-4 sm:px-6"
+              style={glassHeaderStyle}
+            >
+              <h1
+                className="text-xl font-semibold uppercase tracking-[0.16em] sm:text-2xl"
+                style={{ color: 'var(--theme-accent-text)' }}
+              >
                 Access Denied
               </h1>
             </div>
@@ -163,33 +240,49 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen text-white" style={{ background: 'var(--theme-bg)' }}>
       <Navbar />
 
-      <section className="space-y-6 px-3 pt-20 pb-8 sm:px-4 sm:pt-24 lg:px-8">
-        <div className="overflow-hidden rounded-2xl border-[1.5px] border-yellow-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-          <div className="border-b border-yellow-500/25 bg-yellow-500/10 px-4 py-4 sm:px-6">
-            <h1 className="text-xl font-semibold uppercase tracking-[0.16em] text-yellow-300 sm:text-2xl">
+      <section className="space-y-6 px-3 pb-8 pt-20 sm:px-4 sm:pt-24 lg:px-8">
+        <div
+          className="overflow-hidden rounded-3xl border-[1.5px]"
+          style={glassPanelStyle}
+        >
+          <div
+            className="border-b px-4 py-4 sm:px-6"
+            style={glassHeaderStyle}
+          >
+            <h1
+              className="text-xl font-semibold uppercase tracking-[0.16em] sm:text-2xl"
+              style={{ color: 'var(--theme-accent-text)' }}
+            >
               KFlix Admin Panel
             </h1>
           </div>
 
           <div className="grid gap-4 px-4 py-5 sm:px-6 md:grid-cols-3">
-            <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-yellow-300/80">
+            <div className="rounded-2xl border p-4" style={glassCardStyle}>
+              <p
+                className="text-xs font-semibold uppercase tracking-[0.16em]"
+                style={{ color: 'var(--theme-accent-text)' }}
+              >
                 Maintenance
               </p>
               <p
-                className={`mt-2 text-2xl font-bold ${
-                  maintenanceEnabled ? 'text-yellow-300' : 'text-green-400'
-                }`}
+                className="mt-2 text-2xl font-bold"
+                style={{
+                  color: maintenanceEnabled ? 'var(--theme-accent-text)' : '#86efac',
+                }}
               >
                 {maintenanceEnabled ? 'Enabled' : 'Disabled'}
               </p>
             </div>
 
-            <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-yellow-300/80">
+            <div className="rounded-2xl border p-4" style={glassCardStyle}>
+              <p
+                className="text-xs font-semibold uppercase tracking-[0.16em]"
+                style={{ color: 'var(--theme-accent-text)' }}
+              >
                 Online Users
               </p>
               <p className="mt-2 text-2xl font-bold text-white">
@@ -197,8 +290,11 @@ export default function AdminPage() {
               </p>
             </div>
 
-            <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-yellow-300/80">
+            <div className="rounded-2xl border p-4" style={glassCardStyle}>
+              <p
+                className="text-xs font-semibold uppercase tracking-[0.16em]"
+                style={{ color: 'var(--theme-accent-text)' }}
+              >
                 Last Maintenance Update
               </p>
               <p className="mt-2 text-sm font-medium text-white">
@@ -209,15 +305,24 @@ export default function AdminPage() {
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-          <div className="overflow-hidden rounded-2xl border-[1.5px] border-yellow-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <div className="border-b border-yellow-500/25 bg-yellow-500/10 px-4 py-4 sm:px-6">
-              <h2 className="text-lg font-semibold uppercase tracking-[0.16em] text-yellow-300">
+          <div
+            className="overflow-hidden rounded-3xl border-[1.5px]"
+            style={glassPanelStyle}
+          >
+            <div
+              className="border-b px-4 py-4 sm:px-6"
+              style={glassHeaderStyle}
+            >
+              <h2
+                className="text-lg font-semibold uppercase tracking-[0.16em]"
+                style={{ color: 'var(--theme-accent-text)' }}
+              >
                 Maintenance Mode
               </h2>
             </div>
 
             <div className="space-y-4 px-4 py-5 sm:px-6">
-              <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
+              <div className="rounded-2xl border p-4" style={glassCardStyle}>
                 <p className="text-sm text-gray-200">
                   When enabled, all regular users are forced onto the KFlix
                   maintenance page. Admins still bypass it so they can turn it off.
@@ -225,14 +330,18 @@ export default function AdminPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-yellow-300">
+                <label
+                  className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em]"
+                  style={{ color: 'var(--theme-accent-text)' }}
+                >
                   Maintenance Message
                 </label>
                 <textarea
                   value={maintenanceMessage}
                   onChange={(e) => setMaintenanceMessage(e.target.value)}
                   rows={5}
-                  className="w-full rounded-xl border border-yellow-500/20 bg-black/25 px-4 py-3 text-sm text-white outline-none transition placeholder:text-gray-500 focus:border-yellow-400/60"
+                  className="w-full rounded-2xl border px-4 py-3 text-sm text-white outline-none transition placeholder:text-gray-500"
+                  style={glassCardStyle}
                   placeholder="KFlix is currently undergoing maintenance."
                 />
               </div>
@@ -242,7 +351,8 @@ export default function AdminPage() {
                   type="button"
                   onClick={() => saveMaintenanceState(true)}
                   disabled={savingMaintenance}
-                  className="flex h-11 items-center justify-center rounded-md bg-yellow-500/80 px-5 text-sm font-semibold text-black transition active:scale-95 hover:bg-yellow-400 disabled:cursor-not-allowed disabled:opacity-70"
+                  className="flex h-11 items-center justify-center rounded-xl border px-5 text-sm font-semibold transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-70"
+                  style={glassAccentButtonStyle}
                 >
                   {savingMaintenance ? 'Saving...' : 'Enable Maintenance'}
                 </button>
@@ -251,13 +361,14 @@ export default function AdminPage() {
                   type="button"
                   onClick={() => saveMaintenanceState(false)}
                   disabled={savingMaintenance}
-                  className="flex h-11 items-center justify-center rounded-md border border-yellow-500/30 bg-yellow-500/10 px-5 text-sm font-semibold text-yellow-200 transition active:scale-95 hover:bg-yellow-500/15 disabled:cursor-not-allowed disabled:opacity-70"
+                  className="flex h-11 items-center justify-center rounded-xl border px-5 text-sm font-semibold transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-70"
+                  style={glassGhostButtonStyle}
                 >
                   {savingMaintenance ? 'Saving...' : 'Disable Maintenance'}
                 </button>
               </div>
 
-              <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4 text-sm text-gray-200">
+              <div className="rounded-2xl border p-4 text-sm text-gray-200" style={glassCardStyle}>
                 <p>
                   <span className="text-white">Current state:</span>{' '}
                   {maintenanceEnabled ? 'Enabled' : 'Disabled'}
@@ -270,16 +381,25 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border-[1.5px] border-yellow-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <div className="border-b border-yellow-500/25 bg-yellow-500/10 px-4 py-4 sm:px-6">
-              <h2 className="text-lg font-semibold uppercase tracking-[0.16em] text-yellow-300">
+          <div
+            className="overflow-hidden rounded-3xl border-[1.5px]"
+            style={glassPanelStyle}
+          >
+            <div
+              className="border-b px-4 py-4 sm:px-6"
+              style={glassHeaderStyle}
+            >
+              <h2
+                className="text-lg font-semibold uppercase tracking-[0.16em]"
+                style={{ color: 'var(--theme-accent-text)' }}
+              >
                 Online Users
               </h2>
             </div>
 
             <div className="max-h-[620px] space-y-3 overflow-y-auto px-4 py-5 sm:px-6">
               {onlineUsers.length === 0 ? (
-                <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
+                <div className="rounded-2xl border p-4" style={glassCardStyle}>
                   <p className="text-sm text-gray-400">
                     No tracked online users yet.
                   </p>
@@ -300,7 +420,8 @@ export default function AdminPage() {
                   return (
                     <div
                       key={userUid}
-                      className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4"
+                      className="rounded-2xl border p-4"
+                      style={glassCardStyle}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
@@ -315,7 +436,8 @@ export default function AdminPage() {
                               <button
                                 type="button"
                                 onClick={() => toggleRevealUser(userUid)}
-                                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-black/25 text-yellow-200 backdrop-blur-md transition active:scale-95 hover:text-white hover:shadow-inner hover:shadow-yellow-500/50"
+                                className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border transition active:scale-95"
+                                style={glassGhostButtonStyle}
                                 aria-label={isRevealed ? 'Hide email and UID' : 'Show email and UID'}
                                 title={isRevealed ? 'Hide email and UID' : 'Show email and UID'}
                               >
@@ -346,15 +468,21 @@ export default function AdminPage() {
                                 )}
                               </button>
 
-                              <span className="rounded-full border border-green-400/30 bg-green-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-green-300">
+                              <span
+                                className="rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]"
+                                style={statusChipOnlineStyle}
+                              >
                                 Online
                               </span>
                             </div>
                           </div>
 
                           <div className="mt-3 flex flex-col gap-2">
-                            <div className="rounded-lg border border-yellow-500/20 bg-black/20 px-3 py-2">
-                              <p className="text-[10px] uppercase tracking-[0.18em] text-yellow-300">
+                            <div className="rounded-xl border px-3 py-2" style={glassCardStyle}>
+                              <p
+                                className="text-[10px] uppercase tracking-[0.18em]"
+                                style={{ color: 'var(--theme-accent-text)' }}
+                              >
                                 Email
                               </p>
                               <p className="mt-1 break-all text-xs text-white">
@@ -362,8 +490,11 @@ export default function AdminPage() {
                               </p>
                             </div>
 
-                            <div className="rounded-lg border border-yellow-500/20 bg-black/20 px-3 py-2">
-                              <p className="text-[10px] uppercase tracking-[0.18em] text-yellow-300">
+                            <div className="rounded-xl border px-3 py-2" style={glassCardStyle}>
+                              <p
+                                className="text-[10px] uppercase tracking-[0.18em]"
+                                style={{ color: 'var(--theme-accent-text)' }}
+                              >
                                 Unique User ID
                               </p>
                               <p className="mt-1 break-all text-xs text-white">

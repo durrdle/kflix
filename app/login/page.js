@@ -1,79 +1,59 @@
-// app/login/page.js
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { auth } from '../firebaseConfig';
 import {
   browserSessionPersistence,
   setPersistence,
   signInWithEmailAndPassword,
 } from 'firebase/auth';
+import { get, ref } from 'firebase/database';
+import { db } from '@/lib/firebaseParty';
 import { useRouter } from 'next/navigation';
 
-const THEME_STYLES = {
-  lava: {
-    accent: '#dc2626',
-    accentText: '#f87171',
-    border: 'rgba(239, 68, 68, 0.5)',
-    borderSoft: 'rgba(239, 68, 68, 0.25)',
-    panelGlow: '0 12px 35px rgba(0,0,0,0.55)',
-    buttonGlow: 'rgba(239, 68, 68, 0.6)',
-    orb: 'rgba(220, 38, 38, 0.12)',
-    radial: 'rgba(239, 68, 68, 0.08)',
-    focus: 'rgba(255, 0, 0, 0.25)',
-  },
-  midnight: {
-    accent: '#2563eb',
-    accentText: '#60a5fa',
-    border: 'rgba(59, 130, 246, 0.45)',
-    borderSoft: 'rgba(59, 130, 246, 0.22)',
-    panelGlow: '0 12px 35px rgba(0,0,0,0.6)',
-    buttonGlow: 'rgba(59, 130, 246, 0.55)',
-    orb: 'rgba(37, 99, 235, 0.12)',
-    radial: 'rgba(59, 130, 246, 0.08)',
-    focus: 'rgba(59, 130, 246, 0.25)',
-  },
-  crimson: {
-    accent: '#be123c',
-    accentText: '#fb7185',
-    border: 'rgba(244, 63, 94, 0.45)',
-    borderSoft: 'rgba(244, 63, 94, 0.22)',
-    panelGlow: '0 12px 35px rgba(0,0,0,0.6)',
-    buttonGlow: 'rgba(244, 63, 94, 0.55)',
-    orb: 'rgba(190, 18, 60, 0.12)',
-    radial: 'rgba(244, 63, 94, 0.08)',
-    focus: 'rgba(244, 63, 94, 0.25)',
-  },
-  neon: {
-    accent: '#65a30d',
-    accentText: '#a3e635',
-    border: 'rgba(163, 230, 53, 0.45)',
-    borderSoft: 'rgba(163, 230, 53, 0.22)',
-    panelGlow: '0 12px 35px rgba(0,0,0,0.6)',
-    buttonGlow: 'rgba(163, 230, 53, 0.55)',
-    orb: 'rgba(101, 163, 13, 0.12)',
-    radial: 'rgba(163, 230, 53, 0.08)',
-    focus: 'rgba(163, 230, 53, 0.25)',
-  },
-};
+const ALLOWED_THEMES = ['lava', 'midnight', 'crimson', 'neon', 'noir'];
+
+function isValidTheme(theme) {
+  return ALLOWED_THEMES.includes(String(theme || ''));
+}
 
 function resolveStoredTheme() {
-  if (typeof window === 'undefined') return 'lava';
+  if (typeof window === 'undefined') return 'noir';
 
   const candidates = [
     localStorage.getItem('kflix_theme'),
     localStorage.getItem('kflix_selected_theme'),
     localStorage.getItem('theme'),
+    document.documentElement.getAttribute('data-theme'),
     document.documentElement.getAttribute('data-kflix-theme'),
   ];
 
-  const found = candidates.find((value) => value && THEME_STYLES[value]);
-  return found || 'lava';
+  const found = candidates.find((value) => isValidTheme(value));
+  return found || 'noir';
+}
+
+function applyTheme(theme) {
+  const nextTheme = isValidTheme(theme) ? theme : 'noir';
+
+  if (typeof document !== 'undefined') {
+    document.documentElement.setAttribute('data-theme', nextTheme);
+  }
+
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('kflix_theme', nextTheme);
+      localStorage.setItem('kflix_selected_theme', nextTheme);
+      localStorage.setItem('theme', nextTheme);
+    } catch {}
+
+    window.dispatchEvent(new Event('kflix-theme-updated'));
+  }
+
+  return nextTheme;
 }
 
 export default function LoginPage() {
-  const [themeId, setThemeId] = useState('lava');
+  const [themeId, setThemeId] = useState('noir');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -81,77 +61,175 @@ export default function LoginPage() {
 
   const router = useRouter();
 
+  const glassShellStyle = {
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-panel-from) 82%, rgba(255,255,255,0.06)), color-mix(in srgb, var(--theme-panel-to) 92%, rgba(255,255,255,0.02)))',
+    borderColor: 'color-mix(in srgb, var(--theme-accent-border) 74%, rgba(255,255,255,0.08))',
+    boxShadow:
+      '0 24px 56px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(255,255,255,0.02)',
+    backdropFilter: 'blur(24px) saturate(155%)',
+    WebkitBackdropFilter: 'blur(24px) saturate(155%)',
+  };
+
+  const glassHeaderStyle = {
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent-soft) 90%, rgba(255,255,255,0.05)), color-mix(in srgb, var(--theme-accent-soft) 58%, transparent))',
+    borderColor: 'color-mix(in srgb, var(--theme-accent-border-soft) 90%, rgba(255,255,255,0.05))',
+  };
+
+  const glassInputStyle = {
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-muted-bg) 82%, rgba(255,255,255,0.05)), color-mix(in srgb, var(--theme-muted-bg-strong) 90%, rgba(255,255,255,0.02)))',
+    borderColor: 'color-mix(in srgb, var(--theme-muted-border) 92%, rgba(255,255,255,0.06))',
+    color: 'var(--theme-text)',
+    boxShadow:
+      '0 10px 22px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.07)',
+    backdropFilter: 'blur(16px) saturate(145%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(145%)',
+  };
+
+  const glassButtonStyle = {
+    borderColor: 'color-mix(in srgb, var(--theme-accent-border) 90%, rgba(255,255,255,0.06))',
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent) 86%, rgba(255,255,255,0.12)), color-mix(in srgb, var(--theme-accent-hover) 90%, rgba(0,0,0,0.05)))',
+    boxShadow:
+      '0 14px 28px color-mix(in srgb, var(--theme-accent-glow) 40%, transparent), inset 0 1px 0 rgba(255,255,255,0.16)',
+    color: 'var(--theme-accent-contrast)',
+    backdropFilter: 'blur(16px) saturate(150%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(150%)',
+  };
+
+  const glassButtonDisabledStyle = {
+    borderColor: 'color-mix(in srgb, var(--theme-accent-border) 55%, rgba(255,255,255,0.05))',
+    background: 'var(--theme-accent-disabled-bg)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+    color: 'var(--theme-accent-disabled-text)',
+  };
+
+  const errorStyle = {
+    border: '1px solid var(--theme-accent-border)',
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent-soft) 92%, rgba(255,255,255,0.04)), color-mix(in srgb, var(--theme-accent-soft) 70%, transparent))',
+    color: 'var(--theme-accent-text)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+    backdropFilter: 'blur(14px)',
+    WebkitBackdropFilter: 'blur(14px)',
+  };
+
   useEffect(() => {
     const syncTheme = () => {
-      setThemeId(resolveStoredTheme());
+      const nextTheme = applyTheme(resolveStoredTheme());
+      setThemeId(nextTheme);
     };
 
     syncTheme();
     window.addEventListener('storage', syncTheme);
+    window.addEventListener('kflix-theme-updated', syncTheme);
 
     return () => {
       window.removeEventListener('storage', syncTheme);
+      window.removeEventListener('kflix-theme-updated', syncTheme);
     };
   }, []);
 
-  const theme = useMemo(() => THEME_STYLES[themeId] || THEME_STYLES.lava, [themeId]);
-
   const handleLogin = async (e) => {
     e.preventDefault();
+
+    if (loading) return;
+
     setError('');
     setLoading(true);
 
     try {
       await setPersistence(auth, browserSessionPersistence);
-      await signInWithEmailAndPassword(auth, email, password);
-      router.push('/');
-    } catch {
+
+      const credential = await signInWithEmailAndPassword(
+        auth,
+        email.trim(),
+        password
+      );
+
+      let resolvedTheme = resolveStoredTheme();
+
+      try {
+        const themeSnap = await get(ref(db, `users/${credential.user.uid}/profile/theme`));
+        const profileTheme = themeSnap.exists() ? String(themeSnap.val() || '') : '';
+
+        if (isValidTheme(profileTheme)) {
+          resolvedTheme = profileTheme;
+        }
+      } catch (themeError) {
+        console.error('Failed to fetch theme after login:', themeError);
+      }
+
+      const applied = applyTheme(resolvedTheme);
+      setThemeId(applied);
+
+      router.replace('/');
+
+      setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
+      }, 1200);
+    } catch (loginError) {
+      console.error('Login failed:', loginError);
       setError('Invalid email or password.');
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen overflow-hidden bg-black text-white">
+    <div
+      className="min-h-screen overflow-hidden"
+      style={{
+        background: 'var(--theme-bg)',
+        color: 'var(--theme-text)',
+      }}
+      data-theme-page={themeId}
+    >
       <div className="relative flex min-h-screen items-center justify-center px-4 py-8 sm:px-6 sm:py-10">
         <div className="pointer-events-none absolute inset-0">
           <div
             className="absolute left-1/2 top-1/2 h-[320px] w-[320px] -translate-x-1/2 -translate-y-1/2 rounded-full blur-[120px] sm:h-[420px] sm:w-[420px]"
-            style={{ backgroundColor: theme.orb }}
+            style={{ backgroundColor: 'var(--theme-accent-soft)' }}
           />
           <div
             className="absolute inset-0"
             style={{
-              background: `radial-gradient(circle at top, ${theme.radial}, transparent 35%)`,
+              background:
+                'radial-gradient(circle at top, color-mix(in srgb, var(--theme-accent-soft) 95%, transparent), transparent 35%)',
             }}
           />
         </div>
 
-        <Link
+        <a
           href="/"
-          className="absolute left-4 top-5 text-2xl font-bold transition hover:scale-105 sm:left-8 sm:top-8 sm:text-3xl"
-          style={{ color: theme.accent }}
+          className="absolute left-4 top-5 cursor-pointer leading-none sm:left-8 sm:top-8"
+          style={{
+            color: 'var(--theme-accent-text)',
+            fontFamily: 'GeomGraphic, Arial, Helvetica, sans-serif',
+            fontWeight: 700,
+            fontStyle: 'italic',
+            fontSize: 'clamp(1.5rem, 2.3vw, 2rem)',
+            letterSpacing: '0.02em',
+            textShadow: '0 2px 10px color-mix(in srgb, var(--theme-accent-glow) 28%, transparent)',
+          }}
         >
-          KFlix
-        </Link>
+          KFlix Streaming
+        </a>
 
         <div
-          className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border-[1.5px] bg-gradient-to-b from-gray-800 to-gray-900"
-          style={{
-            borderColor: theme.border,
-            boxShadow: theme.panelGlow,
-          }}
+          className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border-[1.5px]"
+          style={glassShellStyle}
         >
           <div
             className="border-b px-5 py-4 sm:px-6"
-            style={{
-              borderColor: theme.borderSoft,
-              backgroundColor: `${theme.accent}1a`,
-            }}
+            style={glassHeaderStyle}
           >
             <h1
               className="text-base font-semibold uppercase tracking-[0.18em] sm:text-lg md:text-xl"
-              style={{ color: theme.accentText }}
+              style={{ color: 'var(--theme-accent-text)' }}
             >
               Login
             </h1>
@@ -161,7 +239,7 @@ export default function LoginPage() {
             <div>
               <label
                 className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] sm:text-xs"
-                style={{ color: theme.accentText }}
+                style={{ color: 'var(--theme-accent-text)' }}
               >
                 Email
               </label>
@@ -170,26 +248,25 @@ export default function LoginPage() {
                 placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-11 w-full rounded-md border border-white/10 bg-black/20 px-4 text-sm text-white placeholder:text-gray-400 focus:outline-none"
-                style={{
-                  boxShadow: 'none',
-                }}
+                className="h-11 w-full rounded-xl border px-4 text-sm placeholder:text-gray-400 focus:outline-none"
+                style={glassInputStyle}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = theme.border;
-                  e.currentTarget.style.boxShadow = `0 0 10px ${theme.focus}`;
+                  e.currentTarget.style.borderColor = 'var(--theme-accent-border)';
+                  e.currentTarget.style.boxShadow =
+                    '0 0 12px color-mix(in srgb, var(--theme-accent-glow) 42%, transparent), inset 0 1px 0 rgba(255,255,255,0.08)';
                 }}
                 onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
-                  e.currentTarget.style.boxShadow = 'none';
+                  Object.assign(e.currentTarget.style, glassInputStyle);
                 }}
                 required
+                autoComplete="email"
               />
             </div>
 
             <div>
               <label
                 className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] sm:text-xs"
-                style={{ color: theme.accentText }}
+                style={{ color: 'var(--theme-accent-text)' }}
               >
                 Password
               </label>
@@ -198,30 +275,25 @@ export default function LoginPage() {
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-11 w-full rounded-md border border-white/10 bg-black/20 px-4 text-sm text-white placeholder:text-gray-400 focus:outline-none"
-                style={{
-                  boxShadow: 'none',
-                }}
+                className="h-11 w-full rounded-xl border px-4 text-sm placeholder:text-gray-400 focus:outline-none"
+                style={glassInputStyle}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = theme.border;
-                  e.currentTarget.style.boxShadow = `0 0 10px ${theme.focus}`;
+                  e.currentTarget.style.borderColor = 'var(--theme-accent-border)';
+                  e.currentTarget.style.boxShadow =
+                    '0 0 12px color-mix(in srgb, var(--theme-accent-glow) 42%, transparent), inset 0 1px 0 rgba(255,255,255,0.08)';
                 }}
                 onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
-                  e.currentTarget.style.boxShadow = 'none';
+                  Object.assign(e.currentTarget.style, glassInputStyle);
                 }}
                 required
+                autoComplete="current-password"
               />
             </div>
 
             {error && (
               <div
-                className="rounded-md px-4 py-3 text-sm"
-                style={{
-                  border: `1px solid ${theme.borderSoft}`,
-                  backgroundColor: `${theme.accent}1a`,
-                  color: theme.accentText,
-                }}
+                className="rounded-xl px-4 py-3 text-sm"
+                style={errorStyle}
               >
                 {error}
               </div>
@@ -230,23 +302,30 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="flex h-11 w-full items-center justify-center rounded-md text-sm font-semibold text-white transition active:scale-95"
-              style={{
-                backgroundColor: loading ? `${theme.accent}b3` : theme.accent,
-              }}
+              className="flex h-11 w-full items-center justify-center rounded-xl border text-sm font-semibold transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-80"
+              style={loading ? { ...glassButtonStyle, ...glassButtonDisabledStyle } : glassButtonStyle}
               onMouseEnter={(e) => {
                 if (!loading) {
-                  e.currentTarget.style.boxShadow = `inset 0 0 12px ${theme.buttonGlow}`;
+                  e.currentTarget.style.filter = 'brightness(1.05)';
+                  e.currentTarget.style.boxShadow =
+                    '0 16px 32px color-mix(in srgb, var(--theme-accent-glow) 46%, transparent), inset 0 1px 0 rgba(255,255,255,0.18)';
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = 'none';
+                e.currentTarget.style.filter = 'none';
+                Object.assign(
+                  e.currentTarget.style,
+                  loading ? { ...glassButtonStyle, ...glassButtonDisabledStyle } : glassButtonStyle
+                );
               }}
             >
               {loading ? 'Logging In...' : 'Log In'}
             </button>
 
-            <p className="pt-1 text-center text-sm leading-6 text-gray-400">
+            <p
+              className="pt-1 text-center text-sm leading-6"
+              style={{ color: 'var(--theme-muted-text)' }}
+            >
               Contact Ser Wallace to get your account set up.
             </p>
           </form>

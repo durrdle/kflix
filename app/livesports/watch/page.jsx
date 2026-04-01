@@ -120,6 +120,79 @@ function LiveSportsWatchContent() {
     return withAutoplay(normalized);
   }, [activeStream]);
 
+  const glassPanelStyle = {
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-panel-from) 82%, rgba(255,255,255,0.06)), color-mix(in srgb, var(--theme-panel-to) 92%, rgba(255,255,255,0.02)))',
+    borderColor: 'color-mix(in srgb, var(--theme-accent-border) 74%, rgba(255,255,255,0.08))',
+    boxShadow:
+      '0 20px 46px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(255,255,255,0.02)',
+    backdropFilter: 'blur(22px) saturate(150%)',
+    WebkitBackdropFilter: 'blur(22px) saturate(150%)',
+  };
+
+  const glassSurfaceStyle = {
+    borderColor: 'color-mix(in srgb, var(--theme-muted-border) 92%, rgba(255,255,255,0.06))',
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-muted-bg) 82%, rgba(255,255,255,0.05)), color-mix(in srgb, var(--theme-muted-bg-strong) 90%, rgba(255,255,255,0.02)))',
+    boxShadow:
+      '0 12px 28px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.07)',
+    backdropFilter: 'blur(16px) saturate(145%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(145%)',
+  };
+
+  const glassGhostButtonStyle = {
+    borderColor: 'color-mix(in srgb, var(--theme-muted-border) 92%, rgba(255,255,255,0.08))',
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-muted-bg) 78%, rgba(255,255,255,0.05)), color-mix(in srgb, var(--theme-muted-bg-strong) 88%, rgba(255,255,255,0.02)))',
+    boxShadow:
+      '0 10px 20px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.08)',
+    color: 'var(--theme-text)',
+    backdropFilter: 'blur(16px) saturate(140%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(140%)',
+  };
+
+  const glassActiveButtonStyle = {
+    borderColor: 'var(--theme-accent-border)',
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent) 16%, rgba(255,255,255,0.10)), color-mix(in srgb, var(--theme-accent-soft) 90%, rgba(255,255,255,0.04)))',
+    color: 'var(--theme-accent-text)',
+    boxShadow:
+      '0 0 18px color-mix(in srgb, var(--theme-accent-glow) 44%, transparent), inset 0 1px 0 rgba(255,255,255,0.12)',
+    backdropFilter: 'blur(16px) saturate(145%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(145%)',
+  };
+
+  const glassAccentButtonStyle = {
+    borderColor: 'color-mix(in srgb, var(--theme-accent-border) 90%, rgba(255,255,255,0.06))',
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent) 86%, rgba(255,255,255,0.12)), color-mix(in srgb, var(--theme-accent-hover) 90%, rgba(0,0,0,0.05)))',
+    boxShadow:
+      '0 14px 28px color-mix(in srgb, var(--theme-accent-glow) 40%, transparent), inset 0 1px 0 rgba(255,255,255,0.16)',
+    color: 'var(--theme-accent-contrast)',
+    backdropFilter: 'blur(16px) saturate(150%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(150%)',
+  };
+
+  const glassNoticeStyle = {
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent-soft) 88%, rgba(255,255,255,0.04)), color-mix(in srgb, var(--theme-accent-soft) 68%, transparent))',
+    borderColor: 'var(--theme-accent-border)',
+    color: 'var(--theme-accent-text)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+    backdropFilter: 'blur(14px)',
+    WebkitBackdropFilter: 'blur(14px)',
+  };
+
+  const successNoticeStyle = {
+    borderColor: 'rgba(34, 197, 94, 0.26)',
+    background:
+      'linear-gradient(180deg, rgba(34, 197, 94, 0.14), rgba(21, 128, 61, 0.10))',
+    color: '#bbf7d0',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+    backdropFilter: 'blur(14px)',
+    WebkitBackdropFilter: 'blur(14px)',
+  };
+
   useEffect(() => {
     const auth = getAuth();
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -337,11 +410,13 @@ function LiveSportsWatchContent() {
 
   if (loading && !streams.length) {
     return (
-      <div className="flex min-h-screen flex-col overflow-hidden bg-black text-white">
+      <div className="flex min-h-screen flex-col overflow-hidden text-white" style={{ background: 'var(--theme-bg)' }}>
         <Navbar />
 
         <main className="flex min-h-0 flex-1 items-center justify-center px-4 pt-20 sm:px-6 sm:pt-24 lg:px-8">
-          <p className="text-base text-gray-300 sm:text-lg">Loading stream...</p>
+          <div className="w-full max-w-5xl rounded-3xl border-[1.5px] px-6 py-8 text-center" style={glassPanelStyle}>
+            <p className="text-base sm:text-lg" style={{ color: 'var(--theme-muted-text)' }}>Loading stream...</p>
+          </div>
         </main>
 
         <Footer />
@@ -351,17 +426,18 @@ function LiveSportsWatchContent() {
 
   if (error && !streams.length) {
     return (
-      <div className="flex min-h-screen flex-col overflow-hidden bg-black text-white">
+      <div className="flex min-h-screen flex-col overflow-hidden text-white" style={{ background: 'var(--theme-bg)' }}>
         <Navbar />
 
         <main className="flex min-h-0 flex-1 items-center justify-center px-4 pt-20 sm:px-6 sm:pt-24 lg:px-8">
-          <div className="text-center">
-            <p className="text-base text-red-300 sm:text-lg">{error}</p>
+          <div className="w-full max-w-5xl rounded-3xl border-[1.5px] px-6 py-8 text-center" style={glassPanelStyle}>
+            <p className="text-base sm:text-lg" style={{ color: 'var(--theme-accent-text)' }}>{error}</p>
 
             <div className="mt-6">
               <Link
                 href="/livesports"
-                className="inline-flex h-11 items-center justify-center rounded-md bg-red-600 px-5 text-sm font-semibold text-white transition hover:bg-red-700"
+                className="inline-flex h-11 cursor-pointer items-center justify-center rounded-xl border px-5 text-sm font-semibold transition active:scale-95"
+                style={glassAccentButtonStyle}
               >
                 Go Back
               </Link>
@@ -376,13 +452,16 @@ function LiveSportsWatchContent() {
 
   return (
     <>
-      <div className="flex min-h-screen flex-col overflow-hidden bg-black text-white">
+      <div className="flex min-h-screen flex-col overflow-hidden text-white" style={{ background: 'var(--theme-bg)' }}>
         <Navbar />
 
         <main className="flex min-h-0 flex-1 flex-col px-4 pb-3 pt-20 sm:px-6 sm:pb-2 sm:pt-24 lg:px-8">
           <section className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col">
             {syncNotice && (
-              <div className="mb-3 rounded-xl border border-green-500/25 bg-green-500/10 px-4 py-3 text-sm text-green-200">
+              <div
+                className="mb-4 rounded-2xl border px-4 py-3 text-sm"
+                style={successNoticeStyle}
+              >
                 {syncNotice}
               </div>
             )}
@@ -398,11 +477,8 @@ function LiveSportsWatchContent() {
                         key={`${source.source || 'source'}-${source.id || index}`}
                         type="button"
                         onClick={() => handleSourceSelect(index)}
-                        className={`rounded-md border px-3 py-2 text-xs font-semibold transition active:scale-95 ${
-                          active
-                            ? 'border-red-400 bg-red-600/15 text-red-300 shadow-[0_0_18px_rgba(239,68,68,0.18)]'
-                            : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
-                        }`}
+                        className="cursor-pointer rounded-xl border px-3 py-2 text-xs font-semibold transition active:scale-95"
+                        style={active ? glassActiveButtonStyle : glassGhostButtonStyle}
                       >
                         {buildSourceLabel(source, index)}
                       </button>
@@ -419,11 +495,8 @@ function LiveSportsWatchContent() {
                         key={`${stream.id || index}-${stream.streamNo || index}`}
                         type="button"
                         onClick={() => handleStreamSelect(index)}
-                        className={`rounded-md border px-3 py-2 text-xs font-semibold transition active:scale-95 ${
-                          active
-                            ? 'border-red-400 bg-red-600/15 text-red-300 shadow-[0_0_18px_rgba(239,68,68,0.18)]'
-                            : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
-                        }`}
+                        className="cursor-pointer rounded-xl border px-3 py-2 text-xs font-semibold transition active:scale-95"
+                        style={active ? glassActiveButtonStyle : glassGhostButtonStyle}
                       >
                         {buildStreamLabel(stream, index)}
                       </button>
@@ -433,9 +506,19 @@ function LiveSportsWatchContent() {
               </div>
             </div>
 
-            <div className="relative flex min-h-0 flex-1 overflow-visible rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-2 shadow-[0_12px_35px_rgba(0,0,0,0.55)] sm:p-3">
-              <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border-[1.5px] border-white/10 bg-black/20 shadow-[0_0_30px_rgba(239,68,68,0.16)]">
-                <div className="relative z-10 aspect-video w-full self-center bg-black">
+            <div
+              className="relative flex min-h-0 flex-1 overflow-visible rounded-3xl border-[1.5px] p-2 sm:p-3"
+              style={glassPanelStyle}
+            >
+              <div
+                className="flex min-h-0 flex-1 overflow-hidden rounded-2xl border-[1.5px]"
+                style={{
+                  ...glassSurfaceStyle,
+                  boxShadow:
+                    '0 0 34px color-mix(in srgb, var(--theme-accent-glow) 42%, transparent), 0 16px 32px rgba(0,0,0,0.28)',
+                }}
+              >
+                <div className="relative z-10 aspect-video w-full self-center" style={{ background: '#000000' }}>
                   <iframe
                     key={`${embedUrl}-${iframeKey}`}
                     src={embedUrl}
@@ -455,10 +538,23 @@ function LiveSportsWatchContent() {
 
       {noticeOpen && (
         <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 px-3 backdrop-blur-sm sm:px-4">
-          <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-yellow-500/35 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <div className="border-b border-yellow-500/20 bg-yellow-500/10 px-4 py-3 sm:px-5">
+          <div
+            className="w-full max-w-2xl overflow-hidden rounded-3xl border-[1.5px]"
+            style={glassPanelStyle}
+          >
+            <div
+              className="border-b px-4 py-3 sm:px-5"
+              style={glassNoticeStyle}
+            >
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full border border-yellow-400/30 bg-yellow-500/15 text-yellow-200">
+                <div
+                  className="flex h-9 w-9 items-center justify-center rounded-full border text-yellow-200"
+                  style={{
+                    borderColor: 'rgba(250, 204, 21, 0.28)',
+                    background:
+                      'linear-gradient(180deg, rgba(250, 204, 21, 0.14), rgba(161, 98, 7, 0.10))',
+                  }}
+                >
                   <svg
                     className="h-4 w-4"
                     fill="none"
@@ -472,15 +568,15 @@ function LiveSportsWatchContent() {
                   </svg>
                 </div>
 
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-yellow-300">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                   Important Notice
                 </p>
               </div>
             </div>
 
             <div className="space-y-4 px-4 py-4 sm:space-y-5 sm:px-5 sm:py-5">
-              <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
-                <p className="text-sm font-semibold text-yellow-200">
+              <div className="rounded-2xl border p-4" style={glassSurfaceStyle}>
+                <p className="text-sm font-semibold" style={{ color: 'var(--theme-accent-text)' }}>
                   1.) Some servers may not be functioning properly, or may be experiencing issues.
                 </p>
 
@@ -488,13 +584,16 @@ function LiveSportsWatchContent() {
                   The sources are external (third party) and therefore not affected by KFlix.
                 </p>
 
-                <div className="mt-3 rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm text-gray-300">
+                <div
+                  className="mt-3 rounded-xl border px-4 py-3 text-sm text-gray-300"
+                  style={glassSurfaceStyle}
+                >
                   • If you receive a playback error, try other servers, or try using a VPN and reload the site.
                 </div>
               </div>
 
-              <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
-                <p className="text-sm font-semibold text-yellow-200">
+              <div className="rounded-2xl border p-4" style={glassSurfaceStyle}>
+                <p className="text-sm font-semibold" style={{ color: 'var(--theme-accent-text)' }}>
                   2.) Be aware, using an adblocker like uBlock Origin or similar is highly suggested.
                 </p>
 
@@ -507,7 +606,8 @@ function LiveSportsWatchContent() {
                 <button
                   type="button"
                   onClick={handleNoticeNotUnderstood}
-                  className="flex h-10 w-full items-center justify-center rounded-md bg-black/25 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-yellow-400/20 sm:w-auto"
+                  className="flex h-10 w-full items-center justify-center rounded-xl border px-4 text-sm font-semibold transition active:scale-95 sm:w-auto"
+                  style={glassGhostButtonStyle}
                 >
                   I Don’t Understand
                 </button>
@@ -515,7 +615,8 @@ function LiveSportsWatchContent() {
                 <button
                   type="button"
                   onClick={handleNoticeUnderstood}
-                  className="flex h-10 w-full items-center justify-center rounded-md bg-yellow-500/80 px-5 text-sm font-semibold text-black transition active:scale-95 hover:bg-yellow-400 sm:w-auto"
+                  className="flex h-10 w-full items-center justify-center rounded-xl border px-5 text-sm font-semibold transition active:scale-95 sm:w-auto"
+                  style={glassAccentButtonStyle}
                 >
                   I Understand
                 </button>
@@ -530,11 +631,10 @@ function LiveSportsWatchContent() {
 
 function Footer() {
   return (
-    <footer className="shrink-0 px-4 pb-6 pt-2 text-center text-sm text-gray-400 sm:px-6 lg:px-8">
+    <footer className="shrink-0 px-4 pb-6 pt-2 text-center text-sm sm:px-6 lg:px-8" style={{ color: 'var(--theme-muted-text)' }}>
       <p>This site does not host or store any media.</p>
 
-      <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-gray-500 sm:text-sm">
-        
+      <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs sm:text-sm" style={{ color: 'var(--theme-muted-text)' }}>
       </div>
     </footer>
   );
@@ -542,7 +642,7 @@ function Footer() {
 
 export default function LiveSportsWatchPage() {
   return (
-    <Suspense fallback={<div className="h-screen bg-black text-white" />}>
+    <Suspense fallback={<div className="h-screen text-white" style={{ background: 'var(--theme-bg)' }} />}>
       <LiveSportsWatchContent />
     </Suspense>
   );

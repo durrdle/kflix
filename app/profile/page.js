@@ -118,6 +118,7 @@ const THEME_OPTIONS = [
   { id: 'midnight', label: 'KFlix - Midnight' },
   { id: 'crimson', label: 'KFlix - Crimson' },
   { id: 'neon', label: 'KFlix - Neon' },
+  { id: 'noir', label: 'KFlix - Noir' },
 ];
 
 function AvatarBubble({ avatarId, size = 'large' }) {
@@ -131,7 +132,7 @@ function AvatarBubble({ avatarId, size = 'large' }) {
 
   return (
     <div
-      className={`${sizeClass} flex items-center justify-center rounded-full border-[1.5px] bg-black/30 shadow-[0_0_20px_rgba(239,68,68,0.18)]`}
+      className={`${sizeClass} flex items-center justify-center rounded-full border-[1.5px] bg-black/30 shadow-[0_0_20px_rgba(0,0,0,0.25)]`}
       style={{
         backgroundImage: avatar.gradient,
         borderColor: avatar.ring,
@@ -151,9 +152,21 @@ function SavedBadgeButton({ onClick }) {
         e.stopPropagation();
         onClick?.();
       }}
-      className="pointer-events-auto absolute left-2 top-2 z-20 inline-flex min-h-[28px] items-center justify-center rounded-md border border-red-400/70 bg-red-600/90 px-2 py-1 text-[10px] font-bold tracking-[0.08em] text-white shadow-[0_0_14px_rgba(239,68,68,0.35)] backdrop-blur-md transition hover:bg-red-700 active:scale-95"
+      className="pointer-events-auto absolute left-2 top-2 z-20 inline-flex min-h-[28px] cursor-pointer items-center justify-center rounded-md border px-2 py-1 text-[10px] font-bold tracking-[0.08em] backdrop-blur-md transition active:scale-95"
+      style={{
+        borderColor: 'var(--theme-accent-border)',
+        backgroundColor: 'var(--theme-accent)',
+        boxShadow: '0 0 14px var(--theme-accent-glow)',
+        color: 'var(--theme-accent-contrast)',
+      }}
       title="Remove bookmark"
       aria-label="Remove bookmark"
+      onMouseEnter={(e) => {
+        e.currentTarget.style.backgroundColor = 'var(--theme-accent-hover)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.backgroundColor = 'var(--theme-accent)';
+      }}
     >
       <svg
         className="h-3 w-3 flex-shrink-0"
@@ -214,9 +227,21 @@ function BookmarkedSection({ items, onRemoveBookmark }) {
   }, [maxPage]);
 
   return (
-    <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)] lg:col-span-2">
-      <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-4 py-3 sm:px-6 sm:py-4">
-        <h3 className="pr-3 text-base font-semibold uppercase tracking-[0.16em] text-red-400 sm:text-lg sm:tracking-[0.18em]">
+    <div
+      className="overflow-hidden rounded-2xl border-[1.5px] shadow-[0_12px_35px_rgba(0,0,0,0.55)] lg:col-span-2"
+      style={{
+        borderColor: 'var(--theme-accent-border)',
+        backgroundImage: 'linear-gradient(to bottom, var(--theme-panel-from), var(--theme-panel-to))',
+      }}
+    >
+      <div
+        className="flex items-center justify-between border-b px-4 py-3 sm:px-6 sm:py-4"
+        style={{
+          borderColor: 'rgba(255,255,255,0.06)',
+          backgroundColor: 'var(--theme-accent-soft)',
+        }}
+      >
+        <h3 className="pr-3 text-base font-semibold uppercase tracking-[0.16em] sm:text-lg sm:tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
           Bookmarked Movies / Shows
         </h3>
 
@@ -227,10 +252,12 @@ function BookmarkedSection({ items, onRemoveBookmark }) {
               onClick={() => goToPage(currentPage - 1)}
               disabled={!canScrollLeft}
               className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
-                canScrollLeft
-                  ? 'cursor-pointer bg-black/25 text-gray-300 hover:text-white hover:shadow-inner hover:shadow-red-500/50'
-                  : 'cursor-not-allowed bg-black/15 text-gray-500 opacity-60'
+                canScrollLeft ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
               }`}
+              style={{
+                backgroundColor: canScrollLeft ? 'var(--theme-muted-bg)' : 'rgba(0,0,0,0.12)',
+                color: canScrollLeft ? '#d1d5db' : '#6b7280',
+              }}
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M15 6l-6 6 6 6" />
@@ -242,10 +269,12 @@ function BookmarkedSection({ items, onRemoveBookmark }) {
               onClick={() => goToPage(currentPage + 1)}
               disabled={!canScrollRight}
               className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
-                canScrollRight
-                  ? 'cursor-pointer bg-black/25 text-gray-300 hover:text-white hover:shadow-inner hover:shadow-red-500/50'
-                  : 'cursor-not-allowed bg-black/15 text-gray-500 opacity-60'
+                canScrollRight ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
               }`}
+              style={{
+                backgroundColor: canScrollRight ? 'var(--theme-muted-bg)' : 'rgba(0,0,0,0.12)',
+                color: canScrollRight ? '#d1d5db' : '#6b7280',
+              }}
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M9 6l6 6-6 6" />
@@ -277,12 +306,18 @@ function BookmarkedSection({ items, onRemoveBookmark }) {
                       <a
                         key={`${item.id || index}-${item.type || 'movie'}`}
                         href={`/${item.type || 'movie'}/${item.id}`}
-                        className="group min-w-0"
+                        className="group min-w-0 cursor-pointer"
                       >
-                        <div className="relative overflow-hidden rounded-lg border-[1.5px] border-white/10 bg-black/20 transition duration-300 group-hover:border-red-400/90 group-hover:shadow-[0_0_30px_rgba(239,68,68,0.45)]">
+                        <div
+                          className="relative overflow-hidden rounded-lg border-[1.5px] bg-black/20 transition duration-300"
+                          style={{ borderColor: 'var(--theme-muted-border)' }}
+                        >
                           <SavedBadgeButton onClick={() => onRemoveBookmark?.(item)} />
 
-                          <div className="absolute inset-0 bg-red-500/10 opacity-0 blur-xl transition duration-300 group-hover:opacity-100" />
+                          <div
+                            className="absolute inset-0 opacity-0 blur-xl transition duration-300 group-hover:opacity-100"
+                            style={{ backgroundColor: 'var(--theme-accent-soft)' }}
+                          />
 
                           <div className="relative aspect-[2/3] w-full bg-gray-800">
                             {item.poster_path ? (
@@ -300,7 +335,7 @@ function BookmarkedSection({ items, onRemoveBookmark }) {
                         </div>
 
                         <div className="mt-2 sm:mt-3">
-                          <div className="line-clamp-1 text-xs font-medium text-white transition group-hover:text-red-300 sm:text-sm">
+                          <div className="line-clamp-1 text-xs font-medium text-white transition group-hover:text-[color:var(--theme-accent-text)] sm:text-sm">
                             {item.title || item.name || 'Untitled'}
                           </div>
                           <div className="mt-1 text-[11px] text-gray-400 sm:text-xs">
@@ -353,7 +388,7 @@ function ProfilePageContent() {
   const [canScrollAvatarLeft, setCanScrollAvatarLeft] = useState(false);
   const [canScrollAvatarRight, setCanScrollAvatarRight] = useState(false);
 
-  const [selectedTheme, setSelectedTheme] = useState('lava');
+  const [selectedTheme, setSelectedTheme] = useState('noir');
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -400,12 +435,19 @@ function ProfilePageContent() {
         (user.email ? user.email.split('@')[0] : 'User');
 
       const resolvedAvatar = profile.avatarId || 'ember';
-      const resolvedTheme = profile.theme || 'lava';
+      const resolvedTheme = profile.theme || 'noir';
 
       setProfileName(resolvedName);
       setDraftName((prev) => (editingName ? prev : resolvedName));
       setSelectedAvatar(resolvedAvatar);
       setSelectedTheme(resolvedTheme);
+
+      if (typeof document !== 'undefined') {
+        document.documentElement.setAttribute('data-theme', resolvedTheme);
+      }
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('kflix_theme', resolvedTheme);
+      }
     });
 
     return () => unsubscribe();
@@ -510,8 +552,34 @@ function ProfilePageContent() {
   }, [user]);
 
   const currentThemeLabel = useMemo(() => {
-    return THEME_OPTIONS.find((theme) => theme.id === selectedTheme)?.label || 'KFlix - Lava';
+    return THEME_OPTIONS.find((theme) => theme.id === selectedTheme)?.label || 'KFlix - Noir';
   }, [selectedTheme]);
+
+  const panelStyle = {
+    borderColor: 'var(--theme-accent-border)',
+    backgroundImage: 'linear-gradient(to bottom, var(--theme-panel-from), var(--theme-panel-to))',
+  };
+
+  const panelHeaderStyle = {
+    borderColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'var(--theme-accent-soft)',
+  };
+
+  const softCardStyle = {
+    borderColor: 'var(--theme-muted-border)',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  };
+
+  const accentButtonStyle = {
+    backgroundColor: 'var(--theme-accent)',
+    border: '1px solid var(--theme-accent-border)',
+    color: 'var(--theme-accent-contrast)',
+  };
+
+  const ghostButtonStyle = {
+    backgroundColor: 'var(--theme-muted-bg)',
+    border: '1px solid var(--theme-muted-border)',
+  };
 
   const handleSaveName = async () => {
     const cleaned = draftName.trim().slice(0, 24);
@@ -572,6 +640,11 @@ function ProfilePageContent() {
     const nextTheme = e.target.value;
 
     try {
+      document.documentElement.setAttribute('data-theme', nextTheme);
+      localStorage.setItem('kflix_theme', nextTheme);
+
+      setSelectedTheme(nextTheme);
+
       await update(ref(db, `users/${user.uid}/profile`), {
         theme: nextTheme,
       });
@@ -668,12 +741,15 @@ function ProfilePageContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black text-white">
+      <div className="min-h-screen bg-[color:var(--theme-bg)] text-[color:var(--theme-text)]">
         <Suspense fallback={<div className="h-20" />}>
           <Navbar />
         </Suspense>
         <div className="px-3 pb-8 pt-20 sm:px-6 sm:pb-10 sm:pt-28 lg:px-8">
-          <div className="mx-auto w-full rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-6 text-center shadow-[0_12px_35px_rgba(0,0,0,0.55)] sm:p-10">
+          <div
+            className="mx-auto w-full rounded-2xl border-[1.5px] p-6 text-center shadow-[0_12px_35px_rgba(0,0,0,0.55)] sm:p-10"
+            style={panelStyle}
+          >
             <p className="text-base text-gray-300 sm:text-lg">Loading profile...</p>
           </div>
         </div>
@@ -682,16 +758,19 @@ function ProfilePageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-[color:var(--theme-bg)] text-[color:var(--theme-text)]">
       <Suspense fallback={<div className="h-20" />}>
         <Navbar />
       </Suspense>
 
       <main className="px-3 pb-8 pt-20 sm:px-6 sm:pb-10 sm:pt-24 lg:px-8">
         <div className="space-y-6 sm:space-y-8">
-          <section className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <div className="border-b border-red-500/25 bg-red-600/10 px-4 py-3 sm:px-6 sm:py-4">
-              <h1 className="text-lg font-semibold uppercase tracking-[0.16em] text-red-400 sm:text-xl md:text-2xl">
+          <section
+            className="overflow-hidden rounded-2xl border-[1.5px] shadow-[0_12px_35px_rgba(0,0,0,0.55)]"
+            style={panelStyle}
+          >
+            <div className="border-b px-4 py-3 sm:px-6 sm:py-4" style={panelHeaderStyle}>
+              <h1 className="text-lg font-semibold uppercase tracking-[0.16em] sm:text-xl md:text-2xl" style={{ color: 'var(--theme-accent-text)' }}>
                 Profile
               </h1>
             </div>
@@ -703,7 +782,8 @@ function ProfilePageContent() {
                 <button
                   type="button"
                   onClick={() => setAvatarModalOpen(true)}
-                  className="absolute right-0 top-0 flex h-9 w-9 items-center justify-center rounded-full bg-black/35 text-gray-200 backdrop-blur-md transition active:scale-95 hover:text-white hover:shadow-inner hover:shadow-red-500/50"
+                  className="absolute right-0 top-0 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-gray-200 backdrop-blur-md transition active:scale-95 hover:text-white"
+                  style={ghostButtonStyle}
                   aria-label="Edit avatar"
                   title="Edit avatar"
                 >
@@ -721,7 +801,8 @@ function ProfilePageContent() {
                       type="text"
                       value={draftName}
                       onChange={(e) => setDraftName(e.target.value)}
-                      className="h-11 w-full rounded-md border border-white/10 bg-black/20 px-4 text-lg font-bold text-white focus:border-red-500/50 focus:outline-none focus:shadow-[0_0_10px_rgba(255,0,0,0.25)] sm:min-w-[220px] sm:w-auto sm:text-xl md:text-2xl"
+                      className="h-11 w-full rounded-md border bg-black/20 px-4 text-lg font-bold text-white focus:outline-none sm:min-w-[220px] sm:w-auto sm:text-xl md:text-2xl"
+                      style={{ borderColor: 'var(--theme-accent-border)' }}
                       maxLength={24}
                       autoFocus
                     />
@@ -730,7 +811,8 @@ function ProfilePageContent() {
                       <button
                         type="button"
                         onClick={handleSaveName}
-                        className="flex h-10 flex-1 items-center justify-center rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60 sm:flex-none"
+                        className="flex h-10 flex-1 cursor-pointer items-center justify-center rounded-md px-4 text-sm font-semibold transition active:scale-95 sm:flex-none"
+                        style={accentButtonStyle}
                       >
                         Save
                       </button>
@@ -738,7 +820,8 @@ function ProfilePageContent() {
                       <button
                         type="button"
                         onClick={handleCancelNameEdit}
-                        className="flex h-10 flex-1 items-center justify-center rounded-md bg-black/20 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/30 hover:shadow-inner hover:shadow-red-500/40 sm:flex-none"
+                        className="flex h-10 flex-1 cursor-pointer items-center justify-center rounded-md px-4 text-sm font-semibold text-white transition active:scale-95 sm:flex-none"
+                        style={ghostButtonStyle}
                       >
                         Cancel
                       </button>
@@ -756,7 +839,8 @@ function ProfilePageContent() {
                         setDraftName(profileName);
                         setEditingName(true);
                       }}
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-black/25 text-gray-300 backdrop-blur-md transition active:scale-95 hover:text-white hover:shadow-inner hover:shadow-red-500/50"
+                      className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-gray-300 backdrop-blur-md transition active:scale-95 hover:text-white"
+                      style={ghostButtonStyle}
                       aria-label="Edit name"
                       title="Edit name"
                     >
@@ -774,16 +858,19 @@ function ProfilePageContent() {
           </section>
 
           <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:gap-8">
-            <div className="h-full overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-              <div className="border-b border-red-500/25 bg-red-600/10 px-4 py-3 sm:px-6 sm:py-4">
-                <h3 className="text-base font-semibold uppercase tracking-[0.16em] text-red-400 sm:text-lg sm:tracking-[0.18em]">
+            <div
+              className="h-full overflow-hidden rounded-2xl border-[1.5px] shadow-[0_12px_35px_rgba(0,0,0,0.55)]"
+              style={panelStyle}
+            >
+              <div className="border-b px-4 py-3 sm:px-6 sm:py-4" style={panelHeaderStyle}>
+                <h3 className="text-base font-semibold uppercase tracking-[0.16em] sm:text-lg sm:tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                   Account Details
                 </h3>
               </div>
 
               <div className="grid gap-4 px-4 py-5 sm:px-6 sm:py-6 md:grid-cols-2">
-                <div className="rounded-xl border border-white/10 bg-black/20 p-4 md:col-span-2">
-                  <p className="text-xs uppercase tracking-[0.18em] text-red-400">Change Password</p>
+                <div className="rounded-xl border p-4 md:col-span-2" style={softCardStyle}>
+                  <p className="text-xs uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>Change Password</p>
 
                   <form onSubmit={handleChangePassword} className="mt-4 space-y-3">
                     <input
@@ -791,7 +878,8 @@ function ProfilePageContent() {
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
                       placeholder="Current password"
-                      className="w-full rounded-xl border border-white/10 bg-gray-900 px-4 py-3 text-sm text-white outline-none transition placeholder:text-gray-500 focus:border-red-500/60 focus:ring-2 focus:ring-red-500/20"
+                      className="w-full rounded-xl border bg-black/35 px-4 py-3 text-sm text-white outline-none transition placeholder:text-gray-500"
+                      style={{ borderColor: 'var(--theme-muted-border)' }}
                     />
 
                     <input
@@ -799,7 +887,8 @@ function ProfilePageContent() {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="New password"
-                      className="w-full rounded-xl border border-white/10 bg-gray-900 px-4 py-3 text-sm text-white outline-none transition placeholder:text-gray-500 focus:border-red-500/60 focus:ring-2 focus:ring-red-500/20"
+                      className="w-full rounded-xl border bg-black/35 px-4 py-3 text-sm text-white outline-none transition placeholder:text-gray-500"
+                      style={{ borderColor: 'var(--theme-muted-border)' }}
                     />
 
                     <input
@@ -807,7 +896,8 @@ function ProfilePageContent() {
                       value={confirmNewPassword}
                       onChange={(e) => setConfirmNewPassword(e.target.value)}
                       placeholder="Confirm new password"
-                      className="w-full rounded-xl border border-white/10 bg-gray-900 px-4 py-3 text-sm text-white outline-none transition placeholder:text-gray-500 focus:border-red-500/60 focus:ring-2 focus:ring-red-500/20"
+                      className="w-full rounded-xl border bg-black/35 px-4 py-3 text-sm text-white outline-none transition placeholder:text-gray-500"
+                      style={{ borderColor: 'var(--theme-muted-border)' }}
                     />
 
                     {passwordSuccess && (
@@ -817,7 +907,7 @@ function ProfilePageContent() {
                     )}
 
                     {passwordError && (
-                      <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                      <div className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: 'var(--theme-accent-border)', backgroundColor: 'var(--theme-accent-soft)', color: 'var(--theme-accent-text)' }}>
                         {passwordError}
                       </div>
                     )}
@@ -825,19 +915,18 @@ function ProfilePageContent() {
                     <button
                       type="submit"
                       disabled={passwordLoading}
-                      className={`inline-flex h-11 w-full items-center justify-center rounded-xl px-5 text-sm font-semibold text-white transition active:scale-95 sm:w-auto ${
-                        passwordLoading
-                          ? 'cursor-not-allowed bg-red-900/50 opacity-70'
-                          : 'bg-red-600 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60'
+                      className={`inline-flex h-11 w-full items-center justify-center rounded-xl px-5 text-sm font-semibold transition active:scale-95 sm:w-auto ${
+                        passwordLoading ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'
                       }`}
+                      style={accentButtonStyle}
                     >
                       {passwordLoading ? 'Changing Password...' : 'Change Password'}
                     </button>
                   </form>
                 </div>
 
-                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-red-400">Email</p>
+                <div className="rounded-xl border p-4" style={softCardStyle}>
+                  <p className="text-xs uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>Email</p>
 
                   <div className="mt-2 flex items-center justify-between gap-3">
                     <p className="min-w-0 break-all text-sm text-white sm:text-base">
@@ -848,7 +937,8 @@ function ProfilePageContent() {
                       <button
                         type="button"
                         onClick={() => setShowEmail((prev) => !prev)}
-                        className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-black/25 text-gray-300 backdrop-blur-md transition active:scale-95 hover:text-white hover:shadow-inner hover:shadow-red-500/50"
+                        className="flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-full text-gray-300 backdrop-blur-md transition active:scale-95 hover:text-white"
+                        style={ghostButtonStyle}
                         aria-label={showEmail ? 'Hide email' : 'Show email'}
                         title={showEmail ? 'Hide email' : 'Show email'}
                       >
@@ -870,8 +960,8 @@ function ProfilePageContent() {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-red-400">Unique User ID</p>
+                <div className="rounded-xl border p-4" style={softCardStyle}>
+                  <p className="text-xs uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>Unique User ID</p>
 
                   <div className="mt-2 flex items-center justify-between gap-3">
                     <p className="min-w-0 break-all text-sm text-white sm:text-base">
@@ -882,7 +972,8 @@ function ProfilePageContent() {
                       <button
                         type="button"
                         onClick={() => setShowUserId((prev) => !prev)}
-                        className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-black/25 text-gray-300 backdrop-blur-md transition active:scale-95 hover:text-white hover:shadow-inner hover:shadow-red-500/50"
+                        className="flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-full text-gray-300 backdrop-blur-md transition active:scale-95 hover:text-white"
+                        style={ghostButtonStyle}
                         aria-label={showUserId ? 'Hide user ID' : 'Show user ID'}
                         title={showUserId ? 'Hide user ID' : 'Show user ID'}
                       >
@@ -907,42 +998,49 @@ function ProfilePageContent() {
             </div>
 
             <div className="flex min-h-full flex-col gap-6">
-              <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-                <div className="border-b border-red-500/25 bg-red-600/10 px-4 py-3 sm:px-6 sm:py-4">
-                  <h3 className="text-base font-semibold uppercase tracking-[0.16em] text-red-400 sm:text-lg sm:tracking-[0.18em]">
+              <div
+                className="overflow-hidden rounded-2xl border-[1.5px] shadow-[0_12px_35px_rgba(0,0,0,0.55)]"
+                style={panelStyle}
+              >
+                <div className="border-b px-4 py-3 sm:px-6 sm:py-4" style={panelHeaderStyle}>
+                  <h3 className="text-base font-semibold uppercase tracking-[0.16em] sm:text-lg sm:tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                     Party Status
                   </h3>
                 </div>
 
                 <div className="space-y-4 px-4 py-5 sm:px-6">
-                  <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-red-400">Current Status</p>
+                  <div className="rounded-xl border p-4" style={softCardStyle}>
+                    <p className="text-xs uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>Current Status</p>
                     <p className="mt-2 text-base text-white">{inParty ? 'In a party' : 'Not in a party'}</p>
                   </div>
 
-                  <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-red-400">Current Party Code</p>
+                  <div className="rounded-xl border p-4" style={softCardStyle}>
+                    <p className="text-xs uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>Current Party Code</p>
                     <p className="mt-2 break-all text-base text-white">{partyCode || 'None'}</p>
                   </div>
                 </div>
               </div>
 
-              <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-                <div className="border-b border-red-500/25 bg-red-600/10 px-4 py-3 sm:px-6 sm:py-4">
-                  <h3 className="text-base font-semibold uppercase tracking-[0.16em] text-red-400 sm:text-lg sm:tracking-[0.18em]">
+              <div
+                className="overflow-hidden rounded-2xl border-[1.5px] shadow-[0_12px_35px_rgba(0,0,0,0.55)]"
+                style={panelStyle}
+              >
+                <div className="border-b px-4 py-3 sm:px-6 sm:py-4" style={panelHeaderStyle}>
+                  <h3 className="text-base font-semibold uppercase tracking-[0.16em] sm:text-lg sm:tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                     Preferences
                   </h3>
                 </div>
 
                 <div className="space-y-4 px-4 py-5 sm:px-6 sm:py-6">
-                  <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-red-400">Theme</p>
+                  <div className="rounded-xl border p-4" style={softCardStyle}>
+                    <p className="text-xs uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>Theme</p>
 
                     <div className="mt-3">
                       <select
                         value={selectedTheme}
                         onChange={handleThemeChange}
-                        className="w-full rounded-xl border border-white/10 bg-gray-900 px-4 py-3 text-sm text-white outline-none transition focus:border-red-500/60 focus:ring-2 focus:ring-red-500/20"
+                        className="w-full rounded-xl border bg-black/35 px-4 py-3 text-sm text-white outline-none transition"
+                        style={{ borderColor: 'var(--theme-muted-border)' }}
                       >
                         {THEME_OPTIONS.map((theme) => (
                           <option key={theme.id} value={theme.id}>
@@ -970,17 +1068,19 @@ function ProfilePageContent() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-[780px] overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]"
+            className="w-full max-w-[780px] overflow-hidden rounded-2xl border-[1.5px] shadow-[0_12px_35px_rgba(0,0,0,0.55)]"
+            style={panelStyle}
           >
-            <div className="flex items-center justify-between border-b border-red-500/25 bg-red-600/10 px-4 py-3 sm:px-6 sm:py-4">
-              <h3 className="text-base font-semibold uppercase tracking-[0.16em] text-red-400 sm:text-lg sm:tracking-[0.18em]">
+            <div className="flex items-center justify-between border-b px-4 py-3 sm:px-6 sm:py-4" style={panelHeaderStyle}>
+              <h3 className="text-base font-semibold uppercase tracking-[0.16em] sm:text-lg sm:tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                 Choose Avatar
               </h3>
 
               <button
                 type="button"
                 onClick={() => setAvatarModalOpen(false)}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-black/25 text-gray-300 backdrop-blur-md transition active:scale-95 hover:text-white hover:shadow-inner hover:shadow-red-500/50"
+                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-gray-300 backdrop-blur-md transition active:scale-95 hover:text-white"
+                style={ghostButtonStyle}
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path d="M6 6l12 12M18 6L6 18" />
@@ -998,10 +1098,12 @@ function ProfilePageContent() {
                     onClick={() => scrollAvatars('left')}
                     disabled={!canScrollAvatarLeft}
                     className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
-                      canScrollAvatarLeft
-                        ? 'cursor-pointer bg-black/25 text-gray-300 hover:text-white hover:shadow-inner hover:shadow-red-500/50'
-                        : 'cursor-not-allowed bg-black/15 text-gray-500 opacity-60'
+                      canScrollAvatarLeft ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
                     }`}
+                    style={{
+                      backgroundColor: canScrollAvatarLeft ? 'var(--theme-muted-bg)' : 'rgba(0,0,0,0.12)',
+                      color: canScrollAvatarLeft ? '#d1d5db' : '#6b7280',
+                    }}
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                       <path d="M15 6l-6 6 6 6" />
@@ -1013,10 +1115,12 @@ function ProfilePageContent() {
                     onClick={() => scrollAvatars('right')}
                     disabled={!canScrollAvatarRight}
                     className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md transition active:scale-95 ${
-                      canScrollAvatarRight
-                        ? 'cursor-pointer bg-black/25 text-gray-300 hover:text-white hover:shadow-inner hover:shadow-red-500/50'
-                        : 'cursor-not-allowed bg-black/15 text-gray-500 opacity-60'
+                      canScrollAvatarRight ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
                     }`}
+                    style={{
+                      backgroundColor: canScrollAvatarRight ? 'var(--theme-muted-bg)' : 'rgba(0,0,0,0.12)',
+                      color: canScrollAvatarRight ? '#d1d5db' : '#6b7280',
+                    }}
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                       <path d="M9 6l6 6-6 6" />
@@ -1038,17 +1142,17 @@ function ProfilePageContent() {
                         key={avatar.id}
                         type="button"
                         onClick={() => chooseAvatar(avatar.id)}
-                        className={`group min-w-[130px] rounded-2xl border-[1.5px] bg-black/20 p-3 text-center transition duration-300 sm:min-w-[150px] sm:p-4 ${
-                          active
-                            ? 'border-red-400/90 shadow-[0_0_24px_rgba(239,68,68,0.32)]'
-                            : 'border-white/10 hover:border-red-400/70 hover:shadow-[0_0_22px_rgba(239,68,68,0.18)]'
-                        }`}
+                        className="group min-w-[130px] cursor-pointer rounded-2xl border-[1.5px] bg-black/20 p-3 text-center transition duration-300 sm:min-w-[150px] sm:p-4"
+                        style={{
+                          borderColor: active ? 'var(--theme-accent-border)' : 'var(--theme-muted-border)',
+                          boxShadow: active ? '0 0 24px var(--theme-accent-glow)' : 'none',
+                        }}
                       >
                         <div className="flex justify-center">
                           <AvatarBubble avatarId={avatar.id} size="card" />
                         </div>
 
-                        <p className="mt-3 text-sm font-medium text-white transition group-hover:text-red-300 sm:mt-4">
+                        <p className="mt-3 text-sm font-medium text-white transition group-hover:text-[color:var(--theme-accent-text)] sm:mt-4">
                           {avatar.name}
                         </p>
                       </button>
@@ -1065,7 +1169,6 @@ function ProfilePageContent() {
         <p>This site does not host or store any media.</p>
 
         <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
-          
         </div>
       </footer>
     </div>

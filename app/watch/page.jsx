@@ -69,7 +69,7 @@ function getEmbedUrl({ type, id, season, episode, startAt = 0, autoPlay = true }
   params.set('fullscreenButton', 'true');
   params.set('chromecast', 'true');
   params.set('sub', '0');
-  params.set('server', type === 'movie' ? 'Alpha' : 'Oscar');
+  params.set('server', type === 'movie' ? 'Alpha' : 'Alpha');
 
   if (Number.isFinite(startAt) && startAt > 0) {
     params.set('startAt', String(Math.max(0, Math.floor(startAt))));
@@ -218,6 +218,67 @@ function resolveNextTvEpisode(heroData, season, episode) {
   return null;
 }
 
+function createContinueWatchingItem({
+  type,
+  heroData,
+  episodeData,
+  season,
+  episode,
+  episodeName,
+  currentTime,
+  isPlaying,
+}) {
+  if (!type || !heroData) return null;
+
+  const watchedSeconds = Math.max(0, Math.floor(safeNumber(currentTime, 0)));
+
+  let totalRuntimeSeconds = 0;
+
+  if (type === 'movie') {
+    totalRuntimeSeconds = safeNumber(heroData.runtime, 0) * 60;
+  } else if (type === 'tv') {
+    totalRuntimeSeconds =
+      safeNumber(episodeData?.runtime, 0) * 60 ||
+      safeNumber(heroData?.episode_run_time?.[0], 0) * 60;
+  }
+
+  const remainingSeconds =
+    totalRuntimeSeconds > 0 ? Math.max(0, totalRuntimeSeconds - watchedSeconds) : null;
+
+  const activeSeason = type === 'tv' ? safeNumber(season, '') : null;
+  const activeEpisode = type === 'tv' ? safeNumber(episode, '') : null;
+
+  return {
+    id: heroData.id,
+    media_type: type,
+    type,
+    title: heroData.title || heroData.name || 'Untitled',
+    name: heroData.name || heroData.title || 'Untitled',
+    poster_path: heroData.poster_path || null,
+    backdrop_path: heroData.backdrop_path || null,
+    release_date: heroData.release_date || null,
+    first_air_date: heroData.first_air_date || null,
+    vote_average: heroData.vote_average ?? null,
+
+    season: type === 'tv' ? activeSeason : null,
+    episode: type === 'tv' ? activeEpisode : null,
+    nextSeason: null,
+    nextEpisode: null,
+    episode_name: type === 'tv' ? episodeName || episodeData?.name || '' : '',
+    episode_runtime: type === 'tv' ? safeNumber(episodeData?.runtime, 0) : null,
+
+    currentTime: watchedSeconds,
+    totalRuntime: totalRuntimeSeconds,
+    remainingTime: remainingSeconds,
+    progress:
+      totalRuntimeSeconds > 0
+        ? Math.min(100, Math.max(0, (watchedSeconds / totalRuntimeSeconds) * 100))
+        : 0,
+    isPlaying: Boolean(isPlaying),
+    updatedAt: Date.now(),
+  };
+}
+
 async function saveContinueWatchingItem({
   uid,
   type,
@@ -341,6 +402,60 @@ async function saveContinueWatchingItem({
   }
 }
 
+async function advanceTvProgressAtomically({
+  uid,
+  showId,
+  heroData,
+  previousSeason,
+  previousEpisode,
+  nextSeason,
+  nextEpisode,
+  nextEpisodeName,
+  isPlaying = true,
+}) {
+  const safePreviousSeason = safeNumber(previousSeason, 0);
+  const safePreviousEpisode = safeNumber(previousEpisode, 0);
+  const safeNextSeason = safeNumber(nextSeason, 0);
+  const safeNextEpisode = safeNumber(nextEpisode, 0);
+
+  if (
+    !uid ||
+    !showId ||
+    !heroData ||
+    safePreviousSeason <= 0 ||
+    safePreviousEpisode <= 0 ||
+    safeNextSeason <= 0 ||
+    safeNextEpisode <= 0
+  ) {
+    return;
+  }
+
+  const watchedKey = buildEpisodeKey(showId, safePreviousSeason, safePreviousEpisode);
+  const continueKey = buildContinueWatchingKey('tv', showId);
+  const continueItem = createContinueWatchingItem({
+    type: 'tv',
+    heroData,
+    episodeData: null,
+    season: safeNextSeason,
+    episode: safeNextEpisode,
+    episodeName: nextEpisodeName || '',
+    currentTime: 0,
+    isPlaying,
+  });
+
+  if (!continueItem) return;
+
+  const updates = {
+    [`users/${uid}/watchedEpisodes/${watchedKey}`]: true,
+    [`users/${uid}/continueWatching/${continueKey}`]: continueItem,
+  };
+
+  await update(ref(db), updates);
+
+  window.dispatchEvent(new Event('kflix-watched-episode-updated'));
+  window.dispatchEvent(new Event('kflix-continue-watching-updated'));
+}
+
 function WatchPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -357,6 +472,7 @@ function WatchPageContent() {
   const lastHandledRemotePlaybackRef = useRef('');
   const suppressBroadcastUntilRef = useRef(0);
   const initialResumeAppliedRef = useRef(false);
+  const lastEpisodeTransitionSignatureRef = useRef('');
 
   const latestUserIdRef = useRef('');
   const latestHeroDataRef = useRef(null);
@@ -410,6 +526,78 @@ function WatchPageContent() {
   );
 
   const isHost = Boolean(currentMember?.isHost);
+
+  const glassPanelStyle = {
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-panel-from) 82%, rgba(255,255,255,0.06)), color-mix(in srgb, var(--theme-panel-to) 92%, rgba(255,255,255,0.02)))',
+    borderColor: 'color-mix(in srgb, var(--theme-accent-border) 74%, rgba(255,255,255,0.08))',
+    boxShadow:
+      '0 20px 46px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(255,255,255,0.02)',
+    backdropFilter: 'blur(22px) saturate(150%)',
+    WebkitBackdropFilter: 'blur(22px) saturate(150%)',
+  };
+
+  const glassSurfaceStyle = {
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-muted-bg) 82%, rgba(255,255,255,0.05)), color-mix(in srgb, var(--theme-muted-bg-strong) 90%, rgba(255,255,255,0.02)))',
+    borderColor: 'color-mix(in srgb, var(--theme-muted-border) 92%, rgba(255,255,255,0.06))',
+    boxShadow:
+      '0 12px 28px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.07)',
+    backdropFilter: 'blur(16px) saturate(145%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(145%)',
+  };
+
+  const glassAccentButtonStyle = {
+    borderColor: 'color-mix(in srgb, var(--theme-accent-border) 90%, rgba(255,255,255,0.06))',
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent) 86%, rgba(255,255,255,0.12)), color-mix(in srgb, var(--theme-accent-hover) 90%, rgba(0,0,0,0.05)))',
+    boxShadow:
+      '0 14px 28px color-mix(in srgb, var(--theme-accent-glow) 40%, transparent), inset 0 1px 0 rgba(255,255,255,0.16)',
+    color: 'var(--theme-accent-contrast)',
+    backdropFilter: 'blur(16px) saturate(150%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(150%)',
+  };
+
+  const glassGhostButtonStyle = {
+    borderColor: 'color-mix(in srgb, var(--theme-muted-border) 92%, rgba(255,255,255,0.08))',
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-muted-bg) 78%, rgba(255,255,255,0.05)), color-mix(in srgb, var(--theme-muted-bg-strong) 88%, rgba(255,255,255,0.02)))',
+    boxShadow:
+      '0 10px 20px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.08)',
+    color: 'var(--theme-text)',
+    backdropFilter: 'blur(16px) saturate(140%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(140%)',
+  };
+
+  const glassNoticeStyle = {
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent-soft) 88%, rgba(255,255,255,0.04)), color-mix(in srgb, var(--theme-accent-soft) 68%, transparent))',
+    borderColor: 'var(--theme-accent-border)',
+    color: 'var(--theme-accent-text)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+    backdropFilter: 'blur(14px)',
+    WebkitBackdropFilter: 'blur(14px)',
+  };
+
+  const successNoticeStyle = {
+    borderColor: 'rgba(34, 197, 94, 0.26)',
+    background:
+      'linear-gradient(180deg, rgba(34, 197, 94, 0.14), rgba(21, 128, 61, 0.10))',
+    color: '#bbf7d0',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+    backdropFilter: 'blur(14px)',
+    WebkitBackdropFilter: 'blur(14px)',
+  };
+
+  const warningNoticeStyle = {
+    borderColor: 'rgba(234, 179, 8, 0.24)',
+    background:
+      'linear-gradient(180deg, rgba(234, 179, 8, 0.14), rgba(161, 98, 7, 0.10))',
+    color: '#fef3c7',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+    backdropFilter: 'blur(14px)',
+    WebkitBackdropFilter: 'blur(14px)',
+  };
 
   const embedUrl = useMemo(() => {
     return getEmbedUrl({
@@ -719,6 +907,7 @@ function WatchPageContent() {
 
   useEffect(() => {
     lastHandledRemotePlaybackRef.current = '';
+    lastEpisodeTransitionSignatureRef.current = '';
     initialResumeAppliedRef.current = false;
   }, [type, id, season, episode, initialTimeParam, initialAutoplayParam]);
 
@@ -788,7 +977,7 @@ function WatchPageContent() {
   }, [partyCode, userId, isHost, type, id, season, episode]);
 
   useEffect(() => {
-    const handleMessage = (event) => {
+    const handleMessage = async (event) => {
       if (!VIDFAST_ORIGINS.includes(event.origin) || !event.data) {
         return;
       }
@@ -841,21 +1030,71 @@ function WatchPageContent() {
         nextEpisodeNumber > 0 &&
         (previousSeason !== nextSeasonNumber || previousEpisode !== nextEpisodeNumber);
 
-      if (hasEpisodeTransition) {
-        markEpisodeWatched({
-          uid: userId,
-          showId: id,
-          season: previousSeason,
-          episode: previousEpisode,
-        });
-      }
-
       if (type === 'tv') {
         liveTvProgressRef.current = {
           season: liveSeason,
           episode: liveEpisode,
           episodeName: liveEpisodeName,
         };
+      }
+
+      if (hasEpisodeTransition && userId && id && heroData) {
+        const transitionSignature = [
+          id,
+          previousSeason,
+          previousEpisode,
+          nextSeasonNumber,
+          nextEpisodeNumber,
+        ].join('|');
+
+        if (transitionSignature !== lastEpisodeTransitionSignatureRef.current) {
+          lastEpisodeTransitionSignatureRef.current = transitionSignature;
+
+          try {
+            if (saveContinueWatchingTimeoutRef.current) {
+              clearTimeout(saveContinueWatchingTimeoutRef.current);
+              saveContinueWatchingTimeoutRef.current = null;
+            }
+
+            await advanceTvProgressAtomically({
+              uid: userId,
+              showId: id,
+              heroData,
+              previousSeason,
+              previousEpisode,
+              nextSeason: nextSeasonNumber,
+              nextEpisode: nextEpisodeNumber,
+              nextEpisodeName: liveEpisodeName,
+              isPlaying: true,
+            });
+          } catch (transitionError) {
+            console.error('Failed to advance TV progress atomically:', transitionError);
+
+            try {
+              await markEpisodeWatched({
+                uid: userId,
+                showId: id,
+                season: previousSeason,
+                episode: previousEpisode,
+              });
+
+              await saveContinueWatchingItem({
+                uid: userId,
+                type,
+                id,
+                heroData,
+                episodeData: null,
+                season: nextSeasonNumber,
+                episode: nextEpisodeNumber,
+                episodeName: liveEpisodeName,
+                currentTime: 0,
+                isPlaying: true,
+              });
+            } catch (fallbackError) {
+              console.error('Fallback episode transition save failed:', fallbackError);
+            }
+          }
+        }
       }
 
       const currentTime = hasEpisodeTransition ? 0 : rawCurrentTime;
@@ -875,10 +1114,7 @@ function WatchPageContent() {
           });
         }
 
-        if (!hasEpisodeTransition) {
-          queueSaveContinueWatching(currentTime, true);
-        }
-
+        queueSaveContinueWatching(currentTime, true);
         return;
       }
 
@@ -897,10 +1133,7 @@ function WatchPageContent() {
           });
         }
 
-        if (!hasEpisodeTransition) {
-          queueSaveContinueWatching(currentTime, false);
-        }
-
+        queueSaveContinueWatching(currentTime, false);
         return;
       }
 
@@ -918,10 +1151,7 @@ function WatchPageContent() {
           });
         }
 
-        if (!hasEpisodeTransition) {
-          queueSaveContinueWatching(currentTime, latestPlaybackRef.current.isPlaying);
-        }
-
+        queueSaveContinueWatching(currentTime, latestPlaybackRef.current.isPlaying);
         return;
       }
 
@@ -945,8 +1175,7 @@ function WatchPageContent() {
         if (
           autoplayUnlocked &&
           initialResumeAppliedRef.current &&
-          !pendingInitialSyncRef.current &&
-          !hasEpisodeTransition
+          !pendingInitialSyncRef.current
         ) {
           queueSaveContinueWatching(currentTime, playing);
         }
@@ -1221,7 +1450,7 @@ function WatchPageContent() {
     };
   };
 
-    const handleNoticeNotUnderstood = () => {
+  const handleNoticeNotUnderstood = () => {
     if (typeof window !== 'undefined') {
       const referrer = document.referrer || '';
       const sameOriginReferrer =
@@ -1251,20 +1480,30 @@ function WatchPageContent() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen flex-col bg-black text-white">
+      <div
+        className="flex min-h-screen flex-col"
+        style={{ background: 'var(--theme-bg)', color: 'var(--theme-text)' }}
+      >
         <Navbar />
 
         <main className="flex flex-1 items-center justify-center px-4 pb-4 pt-20 sm:px-6 sm:pt-24 lg:px-8">
-          <div className="w-full max-w-6xl overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-6 shadow-[0_12px_35px_rgba(0,0,0,0.55)] sm:p-8">
-            <p className="text-base text-gray-300 sm:text-lg">Loading watch page...</p>
+          <div className="w-full max-w-6xl overflow-hidden rounded-3xl border-[1.5px] p-6 sm:p-8" style={glassPanelStyle}>
+            <p className="text-base sm:text-lg" style={{ color: 'var(--theme-muted-text)' }}>
+              Loading watch page...
+            </p>
           </div>
         </main>
 
-        <footer className="px-4 pb-8 pt-2 text-center text-sm text-gray-400 sm:px-6 lg:px-8">
+        <footer
+          className="px-4 pb-8 pt-2 text-center text-sm sm:px-6 lg:px-8"
+          style={{ color: 'var(--theme-muted-text)' }}
+        >
           <p>This site does not host or store any media.</p>
 
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-gray-500 sm:text-sm">
-            
+          <div
+            className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs sm:text-sm"
+            style={{ color: 'var(--theme-muted-text)' }}
+          >
           </div>
         </footer>
       </div>
@@ -1273,17 +1512,23 @@ function WatchPageContent() {
 
   if (error || !heroData) {
     return (
-      <div className="flex min-h-screen flex-col bg-black text-white">
+      <div
+        className="flex min-h-screen flex-col"
+        style={{ background: 'var(--theme-bg)', color: 'var(--theme-text)' }}
+      >
         <Navbar />
 
         <main className="flex flex-1 items-center justify-center px-4 pb-4 pt-20 sm:px-6 sm:pt-24 lg:px-8">
-          <div className="w-full max-w-6xl overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-6 text-center shadow-[0_12px_35px_rgba(0,0,0,0.55)] sm:p-8">
-            <p className="text-base text-red-300 sm:text-lg">{error || 'Unable to load this page.'}</p>
+          <div className="w-full max-w-6xl overflow-hidden rounded-3xl border-[1.5px] p-6 text-center sm:p-8" style={glassPanelStyle}>
+            <p className="text-base sm:text-lg" style={{ color: 'var(--theme-accent-text)' }}>
+              {error || 'Unable to load this page.'}
+            </p>
 
             <div className="mt-6">
               <Link
                 href="/"
-                className="inline-flex h-11 items-center justify-center rounded-md bg-red-600 px-5 text-sm font-semibold text-white transition hover:bg-red-700"
+                className="inline-flex h-11 cursor-pointer items-center justify-center rounded-xl border px-5 text-sm font-semibold transition active:scale-95"
+                style={glassAccentButtonStyle}
               >
                 Go Home
               </Link>
@@ -1291,11 +1536,16 @@ function WatchPageContent() {
           </div>
         </main>
 
-        <footer className="px-4 pb-8 pt-2 text-center text-sm text-gray-400 sm:px-6 lg:px-8">
+        <footer
+          className="px-4 pb-8 pt-2 text-center text-sm sm:px-6 lg:px-8"
+          style={{ color: 'var(--theme-muted-text)' }}
+        >
           <p>This site does not host or store any media.</p>
 
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-gray-500 sm:text-sm">
-            
+          <div
+            className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs sm:text-sm"
+            style={{ color: 'var(--theme-muted-text)' }}
+          >
           </div>
         </footer>
       </div>
@@ -1304,26 +1554,42 @@ function WatchPageContent() {
 
   return (
     <>
-      <div className="flex min-h-screen flex-col bg-black text-white">
+      <div
+        className="flex min-h-screen flex-col"
+        style={{ background: 'var(--theme-bg)', color: 'var(--theme-text)' }}
+      >
         <Navbar />
 
         <main className="flex flex-1 items-center justify-center px-4 pb-4 pt-20 sm:px-6 sm:pt-24 lg:px-8">
           <section className="w-full max-w-6xl">
             {syncNotice && (
-              <div className="mb-4 rounded-xl border border-green-500/25 bg-green-500/10 px-4 py-3 text-sm text-green-200">
+              <div
+                className="mb-4 rounded-2xl border px-4 py-3 text-sm"
+                style={successNoticeStyle}
+              >
                 {syncNotice}
               </div>
             )}
 
             {showAutoplayHint && (
-              <div className="mb-4 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-100">
+              <div
+                className="mb-4 rounded-2xl border px-4 py-3 text-sm"
+                style={warningNoticeStyle}
+              >
                 Autoplay was requested. Playback will start after you confirm the notice.
               </div>
             )}
 
-            <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 p-2 shadow-[0_12px_35px_rgba(0,0,0,0.55)] sm:p-3">
-              <div className="overflow-hidden rounded-xl border-[1.5px] border-white/10 bg-black/20 shadow-[0_0_30px_rgba(239,68,68,0.16)]">
-                <div className="aspect-video w-full bg-black">
+            <div className="overflow-hidden rounded-3xl border-[1.5px] p-2 sm:p-3" style={glassPanelStyle}>
+              <div
+                className="overflow-hidden rounded-2xl border-[1.5px] p-0"
+                style={{
+                  ...glassSurfaceStyle,
+                  boxShadow:
+                    '0 0 34px color-mix(in srgb, var(--theme-accent-glow) 42%, transparent), 0 16px 32px rgba(0,0,0,0.28)',
+                }}
+              >
+                <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black">
                   {embedUrl ? (
                     <iframe
                       key={iframeKey}
@@ -1354,7 +1620,10 @@ function WatchPageContent() {
                       }}
                     />
                   ) : (
-                    <div className="flex h-full items-center justify-center px-4 text-center text-sm text-gray-400 sm:px-6">
+                    <div
+                      className="flex h-full items-center justify-center px-4 text-center text-sm sm:px-6"
+                      style={{ color: 'var(--theme-muted-text)' }}
+                    >
                       Unable to build a valid player URL for this media.
                     </div>
                   )}
@@ -1364,21 +1633,39 @@ function WatchPageContent() {
           </section>
         </main>
 
-        <footer className="px-4 pb-8 pt-2 text-center text-sm text-gray-400 sm:px-6 lg:px-8">
+        <footer
+          className="px-4 pb-8 pt-2 text-center text-sm sm:px-6 lg:px-8"
+          style={{ color: 'var(--theme-muted-text)' }}
+        >
           <p>This site does not host or store any media.</p>
 
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-gray-500 sm:text-sm">
-            
+          <div
+            className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs sm:text-sm"
+            style={{ color: 'var(--theme-muted-text)' }}
+          >
           </div>
         </footer>
       </div>
 
       {noticeOpen && (
         <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 px-3 backdrop-blur-sm sm:px-4">
-          <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-yellow-500/35 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <div className="border-b border-yellow-500/20 bg-yellow-500/10 px-4 py-3 sm:px-5">
+          <div
+            className="w-full max-w-2xl overflow-hidden rounded-3xl border-[1.5px]"
+            style={glassPanelStyle}
+          >
+            <div
+              className="border-b px-4 py-3 sm:px-5"
+              style={glassNoticeStyle}
+            >
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full border border-yellow-400/30 bg-yellow-500/15 text-yellow-200">
+                <div
+                  className="flex h-9 w-9 items-center justify-center rounded-full border text-yellow-200"
+                  style={{
+                    borderColor: 'rgba(250, 204, 21, 0.28)',
+                    background:
+                      'linear-gradient(180deg, rgba(250, 204, 21, 0.14), rgba(161, 98, 7, 0.10))',
+                  }}
+                >
                   <svg
                     className="h-4 w-4"
                     fill="none"
@@ -1392,15 +1679,15 @@ function WatchPageContent() {
                   </svg>
                 </div>
 
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-yellow-300">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                   Important Notice
                 </p>
               </div>
             </div>
 
             <div className="space-y-4 px-4 py-4 sm:space-y-5 sm:px-5 sm:py-5">
-              <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
-                <p className="text-sm font-semibold text-yellow-200">
+              <div className="rounded-2xl border p-4" style={glassSurfaceStyle}>
+                <p className="text-sm font-semibold" style={{ color: 'var(--theme-accent-text)' }}>
                   1.) Some servers may not be functioning properly, or may be experiencing issues.
                 </p>
 
@@ -1408,13 +1695,16 @@ function WatchPageContent() {
                   The sources are external (third party) and therefore not affected by KFlix.
                 </p>
 
-                <div className="mt-3 rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm text-gray-300">
+                <div
+                  className="mt-3 rounded-xl border px-4 py-3 text-sm text-gray-300"
+                  style={glassSurfaceStyle}
+                >
                   • If you receive a playback error, try other servers, or try using a VPN and reload the site.
                 </div>
               </div>
 
-              <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
-                <p className="text-sm font-semibold text-yellow-200">
+              <div className="rounded-2xl border p-4" style={glassSurfaceStyle}>
+                <p className="text-sm font-semibold" style={{ color: 'var(--theme-accent-text)' }}>
                   2.) Be aware, using an adblocker like uBlock Origin or similar is highly suggested.
                 </p>
 
@@ -1427,7 +1717,8 @@ function WatchPageContent() {
                 <button
                   type="button"
                   onClick={handleNoticeNotUnderstood}
-                  className="flex h-10 w-full items-center justify-center rounded-md bg-black/25 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-yellow-400/20 sm:w-auto"
+                  className="flex h-10 w-full items-center justify-center rounded-xl border px-4 text-sm font-semibold transition active:scale-95 sm:w-auto"
+                  style={glassGhostButtonStyle}
                 >
                   I Don’t Understand
                 </button>
@@ -1435,7 +1726,8 @@ function WatchPageContent() {
                 <button
                   type="button"
                   onClick={handleNoticeUnderstood}
-                  className="flex h-10 w-full items-center justify-center rounded-md bg-yellow-500/80 px-5 text-sm font-semibold text-black transition active:scale-95 hover:bg-yellow-400 sm:w-auto"
+                  className="flex h-10 w-full items-center justify-center rounded-xl border px-5 text-sm font-semibold transition active:scale-95 sm:w-auto"
+                  style={glassAccentButtonStyle}
                 >
                   I Understand
                 </button>
@@ -1450,7 +1742,7 @@ function WatchPageContent() {
 
 export default function WatchPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-black text-white" />}>
+    <Suspense fallback={<div className="min-h-screen text-white" style={{ background: 'var(--theme-bg)' }} />}>
       <WatchPageContent />
     </Suspense>
   );

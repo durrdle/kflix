@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import { get, off, onValue, ref } from 'firebase/database';
@@ -96,6 +95,74 @@ export default function Navbar() {
   const isLiveSportsWatchPage = pathname === '/livesports/watch';
   const isAdminPage = pathname === '/admin';
   const isActivePartyPlaybackPage = isWatchPage || isLiveSportsWatchPage;
+
+  const glassPanelStyle = {
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-navbar-bg) 88%, rgba(255,255,255,0.05)), color-mix(in srgb, var(--theme-navbar-bg) 94%, rgba(0,0,0,0.04)))',
+    border: '1px solid color-mix(in srgb, var(--theme-accent-border) 60%, rgba(255,255,255,0.06))',
+    boxShadow:
+      '0 18px 44px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.09), inset 0 -1px 0 rgba(255,255,255,0.02)',
+    backdropFilter: 'blur(20px) saturate(150%)',
+    WebkitBackdropFilter: 'blur(20px) saturate(150%)',
+  };
+
+  const glassDropdownStyle = {
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-panel-from) 80%, rgba(255,255,255,0.07)), color-mix(in srgb, var(--theme-panel-to) 90%, rgba(255,255,255,0.02)))',
+    border: '1px solid color-mix(in srgb, var(--theme-accent-border) 68%, rgba(255,255,255,0.08))',
+    boxShadow:
+      '0 22px 50px rgba(0,0,0,0.44), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(255,255,255,0.03)',
+    backdropFilter: 'blur(22px) saturate(155%)',
+    WebkitBackdropFilter: 'blur(22px) saturate(155%)',
+  };
+
+  const ghostButtonStyle = {
+    borderColor: 'color-mix(in srgb, var(--theme-muted-border) 92%, rgba(255,255,255,0.08))',
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-muted-bg) 78%, rgba(255,255,255,0.05)), color-mix(in srgb, var(--theme-muted-bg-strong) 88%, rgba(255,255,255,0.02)))',
+    boxShadow:
+      'inset 0 1px 0 rgba(255,255,255,0.08), 0 10px 20px rgba(0,0,0,0.16)',
+    backdropFilter: 'blur(16px) saturate(140%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(140%)',
+  };
+
+  const accentButtonStyle = {
+    borderColor: 'color-mix(in srgb, var(--theme-accent-border) 90%, rgba(255,255,255,0.06))',
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent) 86%, rgba(255,255,255,0.12)), color-mix(in srgb, var(--theme-accent-hover) 90%, rgba(0,0,0,0.05)))',
+    boxShadow:
+      '0 12px 26px color-mix(in srgb, var(--theme-accent-glow) 40%, transparent), inset 0 1px 0 rgba(255,255,255,0.16)',
+    color: 'var(--theme-accent-contrast)',
+    backdropFilter: 'blur(16px) saturate(145%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(145%)',
+  };
+
+  const accentButtonDisabledStyle = {
+    borderColor: 'color-mix(in srgb, var(--theme-accent-border) 55%, rgba(255,255,255,0.05))',
+    background: 'var(--theme-accent-disabled-bg)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+    color: 'var(--theme-accent-disabled-text)',
+  };
+
+  const yellowGlassButtonStyle = {
+    borderColor: 'rgba(250, 204, 21, 0.34)',
+    background:
+      'linear-gradient(180deg, rgba(250, 204, 21, 0.82), rgba(234, 179, 8, 0.72))',
+    boxShadow:
+      '0 12px 24px rgba(250, 204, 21, 0.2), inset 0 1px 0 rgba(255,255,255,0.2)',
+    color: '#111111',
+    backdropFilter: 'blur(16px) saturate(145%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(145%)',
+  };
+
+  const themedButtonClass =
+    'cursor-pointer rounded-xl border backdrop-blur-md transition duration-200 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/20';
+
+  const themedGhostButtonClass =
+    `${themedButtonClass} text-white/90 hover:text-white hover:border-[color:var(--theme-accent-border)]`;
+
+  const themedAccentButtonClass =
+    `${themedButtonClass} hover:brightness-[1.04]`;
 
   const armInitialPartyFollow = () => {
     localStorage.setItem('kflix_party_auto_follow_armed', 'true');
@@ -628,12 +695,7 @@ export default function Navbar() {
   }, [results, searchOpen]);
 
   useEffect(() => {
-    const handleBodyLock = () => {
-      document.body.style.overflow = mobileMenuOpen ? 'hidden' : '';
-    };
-
-    handleBodyLock();
-
+    document.body.style.overflow = mobileMenuOpen ? 'hidden' : '';
     return () => {
       document.body.style.overflow = '';
     };
@@ -720,7 +782,7 @@ export default function Navbar() {
   const handleLogoClick = () => {
     if (pathname === targetHref) {
       setLogoClick(true);
-      setTimeout(() => setLogoClick(false), 300);
+      setTimeout(() => setLogoClick(false), 520);
     }
   };
 
@@ -794,6 +856,19 @@ export default function Navbar() {
     try {
       setSigningOut(true);
 
+      const preservedTheme =
+        localStorage.getItem('kflix_theme') ||
+        localStorage.getItem('kflix_selected_theme') ||
+        localStorage.getItem('theme') ||
+        document.documentElement.getAttribute('data-theme') ||
+        'noir';
+
+      document.documentElement.setAttribute('data-theme', preservedTheme);
+      localStorage.setItem('kflix_theme', preservedTheme);
+      localStorage.setItem('kflix_selected_theme', preservedTheme);
+      localStorage.setItem('theme', preservedTheme);
+      window.dispatchEvent(new Event('kflix-theme-updated'));
+
       const auth = getAuth(app);
       const currentUserId = auth.currentUser?.uid;
       const activePartyCode = partyCode || localStorage.getItem('kflix_current_party_code') || '';
@@ -824,6 +899,13 @@ export default function Navbar() {
       persistCurrentPartyState('', false);
 
       await signOut(auth);
+
+      document.documentElement.setAttribute('data-theme', preservedTheme);
+      localStorage.setItem('kflix_theme', preservedTheme);
+      localStorage.setItem('kflix_selected_theme', preservedTheme);
+      localStorage.setItem('theme', preservedTheme);
+      window.dispatchEvent(new Event('kflix-theme-updated'));
+
       setMobileMenuOpen(false);
       router.push('/login');
     } catch (error) {
@@ -929,29 +1011,51 @@ export default function Navbar() {
 
   const logoNode = (
     <div
-      className={`relative h-10 w-[130px] transition sm:h-12 sm:w-[160px] ${
-        logoClick ? 'scale-110 brightness-125' : 'hover:scale-105'
-      }`}
+      className="flex h-10 items-center px-1 sm:h-11"
+      style={{
+        color: 'var(--theme-accent-text)',
+        fontFamily: 'GeomGraphicW03-Bold-Italic, sans-serif',
+        fontWeight: 700,
+        fontStyle: 'italic',
+        textShadow: '0 2px 10px color-mix(in srgb, var(--theme-accent-glow) 28%, transparent)',
+      }}
     >
-      <Image
-        src="/images/kflix-header.png"
-        alt="KFlix"
-        fill
-        priority
-        className="object-contain object-left"
-        sizes="(max-width: 640px) 130px, 160px"
-      />
+      <span className="text-[1.5rem] leading-none sm:text-[1.8rem]">
+        KFlix Streaming
+      </span>
     </div>
   );
 
   return (
     <>
+      <style jsx global>{`
+        @keyframes kflixLogoPulse {
+          0% {
+            transform: scale(1) rotate(0deg);
+            opacity: 1;
+          }
+          28% {
+            transform: scale(0.92) rotate(-1deg);
+            opacity: 0.9;
+          }
+          58% {
+            transform: scale(1.08) rotate(1deg);
+            opacity: 1;
+          }
+          100% {
+            transform: scale(1) rotate(0deg);
+            opacity: 1;
+          }
+        }
+      `}</style>
+
       <nav
-        className={`fixed left-0 top-0 z-50 flex h-16 w-full items-center justify-between px-4 transition-all duration-300 sm:h-20 sm:px-8 ${
+        className={`fixed left-0 top-0 z-50 flex h-16 w-full items-center justify-between px-4 transition-all duration-300 sm:h-20 sm:px-6 lg:px-8 ${
           navVisible
             ? 'translate-y-0 opacity-100'
             : 'pointer-events-none -translate-y-full opacity-0'
         }`}
+        style={glassPanelStyle}
       >
         <div className="flex items-center">
           {pathname === targetHref ? (
@@ -960,6 +1064,9 @@ export default function Navbar() {
               onClick={handleLogoClick}
               className="cursor-pointer bg-transparent p-0"
               aria-label="KFlix home"
+              style={{
+                animation: logoClick ? 'kflixLogoPulse 0.52s ease' : 'none',
+              }}
             >
               {logoNode}
             </button>
@@ -967,6 +1074,7 @@ export default function Navbar() {
             <Link
               href={targetHref}
               aria-label="KFlix home"
+              className="cursor-pointer"
               onClick={() => {
                 if (isWatchPage) {
                   flushWatchProgressBeforeNav();
@@ -983,7 +1091,8 @@ export default function Navbar() {
             <button
               type="button"
               onClick={handleBackClick}
-              className="flex h-10 w-10 items-center justify-center rounded-md bg-black/25 text-white backdrop-blur-md transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
+              className={`flex h-10 w-10 items-center justify-center ${themedGhostButtonClass}`}
+              style={ghostButtonStyle}
               aria-label="Go back"
               title="Back"
             >
@@ -996,7 +1105,8 @@ export default function Navbar() {
           <button
             type="button"
             onClick={() => setMobileMenuOpen(true)}
-            className="flex h-10 w-10 items-center justify-center rounded-md bg-black/25 text-white backdrop-blur-md transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
+            className={`flex h-10 w-10 items-center justify-center ${themedGhostButtonClass}`}
+            style={ghostButtonStyle}
             aria-label="Open menu"
             title="Open menu"
           >
@@ -1006,17 +1116,16 @@ export default function Navbar() {
           </button>
         </div>
 
-        <div className="absolute left-1/2 hidden w-full max-w-[720px] -translate-x-1/2 items-center gap-2 px-4 lg:flex">
+        <div className="absolute left-1/2 hidden w-full max-w-[560px] -translate-x-1/2 items-center gap-2 px-4 lg:flex">
           {isSearchPage && (
             <div ref={filterRef} className="relative">
               <button
                 type="button"
                 onClick={() => setFilterOpen((prev) => !prev)}
-                className={`flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold text-white backdrop-blur-md transition active:scale-95 ${
-                  filterActive
-                    ? 'bg-red-600 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60'
-                    : 'bg-black/25 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40'
+                className={`flex h-10 items-center gap-2 px-4 text-sm font-semibold ${
+                  filterActive ? themedAccentButtonClass : themedGhostButtonClass
                 }`}
+                style={filterActive ? accentButtonStyle : ghostButtonStyle}
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path d="M4 6h16" />
@@ -1027,18 +1136,25 @@ export default function Navbar() {
               </button>
 
               <div
-                className={`absolute left-0 top-full mt-2 w-[360px] overflow-hidden rounded-lg border border-red-500/40 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_10px_30px_rgba(0,0,0,0.45)] transition-all duration-200 ${
+                className={`absolute left-0 top-full mt-3 w-[360px] overflow-hidden rounded-2xl transition-all duration-200 ${
                   filterOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-2 opacity-0'
                 }`}
+                style={glassDropdownStyle}
               >
-                <div className="flex items-center justify-between border-b border-red-500/20 bg-red-600/10 px-4 py-3">
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                <div
+                  className="flex items-center justify-between border-b px-4 py-3"
+                  style={{
+                    borderColor: 'rgba(255,255,255,0.06)',
+                    backgroundColor: 'var(--theme-accent-soft)',
+                  }}
+                >
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                     Search Filters
                   </span>
                   <button
                     type="button"
                     onClick={resetFilters}
-                    className="text-xs font-medium text-gray-300 transition hover:text-red-300"
+                    className="cursor-pointer text-xs font-medium text-gray-300 transition hover:text-[color:var(--theme-accent-text)]"
                   >
                     Reset
                   </button>
@@ -1046,7 +1162,7 @@ export default function Navbar() {
 
                 <div className="space-y-5 px-4 py-4">
                   <div>
-                    <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                       Content Type
                     </label>
                     <div className="grid grid-cols-3 gap-2">
@@ -1059,11 +1175,12 @@ export default function Navbar() {
                           key={option.value}
                           type="button"
                           onClick={() => setDraftType(option.value)}
-                          className={`rounded-md border px-3 py-2 text-sm font-medium transition ${
+                          className={`cursor-pointer rounded-xl border px-3 py-2 text-sm font-medium transition ${
                             draftType === option.value
-                              ? 'border-red-400 bg-red-600/15 text-red-300'
-                              : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
+                              ? 'shadow-[0_0_18px_var(--theme-accent-glow)]'
+                              : 'text-white hover:text-[color:var(--theme-accent-text)]'
                           }`}
+                          style={draftType === option.value ? accentButtonStyle : ghostButtonStyle}
                         >
                           {option.label}
                         </button>
@@ -1072,7 +1189,7 @@ export default function Navbar() {
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                       Sort By
                     </label>
                     <div className="grid grid-cols-3 gap-2">
@@ -1085,11 +1202,12 @@ export default function Navbar() {
                           key={option.value}
                           type="button"
                           onClick={() => setDraftSort(option.value)}
-                          className={`rounded-md border px-3 py-2 text-sm font-medium transition ${
+                          className={`cursor-pointer rounded-xl border px-3 py-2 text-sm font-medium transition ${
                             draftSort === option.value
-                              ? 'border-red-400 bg-red-600/15 text-red-300'
-                              : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
+                              ? 'shadow-[0_0_18px_var(--theme-accent-glow)]'
+                              : 'text-white hover:text-[color:var(--theme-accent-text)]'
                           }`}
+                          style={draftSort === option.value ? accentButtonStyle : ghostButtonStyle}
                         >
                           {option.label}
                         </button>
@@ -1098,7 +1216,7 @@ export default function Navbar() {
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                       Minimum TMDB Rating
                     </label>
                     <div className="grid grid-cols-3 gap-2">
@@ -1107,11 +1225,12 @@ export default function Navbar() {
                           key={rating}
                           type="button"
                           onClick={() => setDraftMinRating(rating)}
-                          className={`rounded-md border px-3 py-2 text-sm font-medium transition ${
+                          className={`cursor-pointer rounded-xl border px-3 py-2 text-sm font-medium transition ${
                             draftMinRating === rating
-                              ? 'border-red-400 bg-red-600/15 text-red-300'
-                              : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
+                              ? 'shadow-[0_0_18px_var(--theme-accent-glow)]'
+                              : 'text-white hover:text-[color:var(--theme-accent-text)]'
                           }`}
+                          style={draftMinRating === rating ? accentButtonStyle : ghostButtonStyle}
                         >
                           {rating === '0' ? 'Any' : `${rating}+`}
                         </button>
@@ -1120,7 +1239,7 @@ export default function Navbar() {
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                       Year Range
                     </label>
                     <div className="grid grid-cols-2 gap-2">
@@ -1131,7 +1250,8 @@ export default function Navbar() {
                         max="2100"
                         value={draftYearFrom}
                         onChange={(e) => setDraftYearFrom(e.target.value)}
-                        className="h-10 rounded-md border border-white/10 bg-black/20 px-3 text-sm text-white placeholder:text-gray-400 focus:border-red-500/50 focus:outline-none"
+                        className="h-10 rounded-xl border px-3 text-sm text-white placeholder:text-gray-400 focus:outline-none"
+                        style={ghostButtonStyle}
                       />
                       <input
                         type="number"
@@ -1140,7 +1260,8 @@ export default function Navbar() {
                         max="2100"
                         value={draftYearTo}
                         onChange={(e) => setDraftYearTo(e.target.value)}
-                        className="h-10 rounded-md border border-white/10 bg-black/20 px-3 text-sm text-white placeholder:text-gray-400 focus:border-red-500/50 focus:outline-none"
+                        className="h-10 rounded-xl border px-3 text-sm text-white placeholder:text-gray-400 focus:outline-none"
+                        style={ghostButtonStyle}
                       />
                     </div>
                   </div>
@@ -1149,14 +1270,16 @@ export default function Navbar() {
                     <button
                       type="button"
                       onClick={applyFilters}
-                      className="flex h-10 flex-1 items-center justify-center rounded-md bg-red-600 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60"
+                      className={`flex h-10 flex-1 items-center justify-center text-sm font-semibold ${themedAccentButtonClass}`}
+                      style={accentButtonStyle}
                     >
                       Apply Filters
                     </button>
                     <button
                       type="button"
                       onClick={() => setFilterOpen(false)}
-                      className="flex h-10 items-center justify-center rounded-md bg-black/25 px-4 text-sm font-semibold text-white backdrop-blur-md transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
+                      className={`flex h-10 items-center justify-center px-4 text-sm font-semibold ${themedGhostButtonClass}`}
+                      style={ghostButtonStyle}
                     >
                       Close
                     </button>
@@ -1167,33 +1290,67 @@ export default function Navbar() {
           )}
 
           <div ref={searchRef} className="relative flex-1">
-            <form onSubmit={handleSearch} className="flex h-9">
+            <form onSubmit={handleSearch} className="flex items-stretch">
               <input
                 type="text"
                 placeholder="Search..."
-                className={`h-full flex-1 rounded-l-md bg-white px-4 text-sm text-black transition-all duration-200 focus:outline-none ${
-                  focused ? 'shadow-[0_0_10px_rgba(255,0,0,0.6)]' : ''
+                className={`h-10 min-w-0 flex-1 rounded-l-xl border px-4 text-sm transition-all duration-200 placeholder:text-gray-500 focus:outline-none ${
+                  focused ? 'shadow-[0_0_16px_var(--theme-accent-glow)]' : ''
                 }`}
+                style={{
+                  background:
+                    'linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.90))',
+                  color: '#000000',
+                  borderColor: focused ? 'var(--theme-accent-border)' : 'rgba(255,255,255,0.22)',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8)',
+                }}
                 value={searchQuery}
                 onFocus={() => setFocused(true)}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
 
-              <button className="h-full rounded-r-md bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60">
-                Search
+              <button
+                type="submit"
+                className={`flex h-10 items-center gap-2 rounded-r-xl border px-4 text-sm font-semibold ${themedAccentButtonClass}`}
+                style={{
+                  ...accentButtonStyle,
+                  borderTopLeftRadius: 0,
+                  borderBottomLeftRadius: 0,
+                  marginLeft: '-1px',
+                }}
+              >
+                <span>Search</span>
+                <svg
+                  className="h-4 w-4 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="M20 20l-3.5-3.5" />
+                </svg>
               </button>
             </form>
 
             <div
-              className={`absolute left-0 top-full mt-2 w-full overflow-hidden rounded-lg border border-red-500/40 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_10px_30px_rgba(0,0,0,0.45)] transition-all duration-200 ${
+              className={`absolute left-0 top-full mt-3 w-full overflow-hidden rounded-2xl transition-all duration-200 ${
                 searchOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-2 opacity-0'
               } ${
-                resultsPulse ? 'ring-1 ring-red-500/60 shadow-[0_0_18px_rgba(239,68,68,0.25)]' : ''
+                resultsPulse ? 'ring-1 shadow-[0_0_20px_var(--theme-accent-glow)]' : ''
               }`}
+              style={glassDropdownStyle}
             >
               {searchOpen && (
-                <div className="flex items-center justify-between border-b border-red-500/20 bg-red-600/10 px-4 py-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                <div
+                  className="flex items-center justify-between border-b px-4 py-2.5"
+                  style={{
+                    borderColor: 'rgba(255,255,255,0.06)',
+                    backgroundColor: 'var(--theme-accent-soft)',
+                  }}
+                >
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                     Top Results
                   </span>
                   <span className="text-[11px] text-gray-300">{results.length} shown</span>
@@ -1206,7 +1363,8 @@ export default function Navbar() {
                     <button
                       type="button"
                       onClick={() => scrollResults('up')}
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60"
+                      className={`flex h-8 w-8 items-center justify-center rounded-full ${themedGhostButtonClass}`}
+                      style={ghostButtonStyle}
                     >
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path d="M6 15l6-6 6 6" />
@@ -1220,7 +1378,8 @@ export default function Navbar() {
                     <button
                       type="button"
                       onClick={() => scrollResults('down')}
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60"
+                      className={`flex h-8 w-8 items-center justify-center rounded-full ${themedGhostButtonClass}`}
+                      style={ghostButtonStyle}
                     >
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path d="M6 9l6 6 6-6" />
@@ -1237,17 +1396,25 @@ export default function Navbar() {
                     <Link
                       key={`${item.media_type}-${item.id}`}
                       href={item.media_type === 'movie' ? `/movie/${item.id}` : `/tv/${item.id}`}
+                      className="cursor-pointer"
                       onClick={() => {
                         setSearchOpen(false);
                         setFocused(false);
                       }}
                     >
                       <div
-                        className={`group flex cursor-pointer items-center gap-3 px-4 py-3 transition-all duration-200 hover:bg-red-600/12 ${
+                        className={`group flex cursor-pointer items-center gap-3 px-4 py-3 transition-all duration-200 ${
                           index !== results.length - 1 ? 'border-b border-white/5' : ''
                         }`}
+                        style={{ backgroundColor: 'transparent' }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--theme-accent-soft)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
                       >
-                        <div className="h-14 w-10 flex-shrink-0 overflow-hidden rounded bg-gray-700 ring-1 ring-white/10 transition group-hover:ring-red-400/50">
+                        <div className="h-14 w-10 flex-shrink-0 overflow-hidden rounded-lg bg-gray-700 ring-1 ring-white/10 transition group-hover:ring-[color:var(--theme-accent-border)]">
                           {item.poster_path ? (
                             <img
                               src={`${IMAGE_BASE}${item.poster_path}`}
@@ -1263,11 +1430,18 @@ export default function Navbar() {
 
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="truncate text-sm font-medium text-white transition group-hover:text-red-300">
+                            <span className="truncate text-sm font-medium text-white transition group-hover:text-[color:var(--theme-accent-text)]">
                               {item.title || item.name}
                             </span>
 
-                            <span className="rounded border border-red-500/20 bg-red-600/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-red-300">
+                            <span
+                              className="rounded-full border px-1.5 py-0.5 text-[10px] uppercase tracking-wide"
+                              style={{
+                                borderColor: 'var(--theme-accent-border)',
+                                backgroundColor: 'var(--theme-accent-soft)',
+                                color: 'var(--theme-accent-text)',
+                              }}
+                            >
                               {item.media_type}
                             </span>
                           </div>
@@ -1278,7 +1452,8 @@ export default function Navbar() {
                         </div>
 
                         <svg
-                          className="h-4 w-4 flex-shrink-0 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300"
+                          className="h-4 w-4 flex-shrink-0 transition group-hover:translate-x-0.5"
+                          style={{ color: 'var(--theme-accent-text)' }}
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="2"
@@ -1296,159 +1471,174 @@ export default function Navbar() {
         </div>
 
         <div className="ml-auto hidden items-center space-x-2 lg:flex">
-  {!isHomePage && (
-    <button
-      type="button"
-      onClick={handleBackClick}
-      className="flex h-9 items-center gap-2 rounded-md bg-black/25 px-4 text-sm font-semibold text-white backdrop-blur-md transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
-    >
-      <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-        <path d="M15 6l-6 6 6 6" />
-      </svg>
-      Back
-    </button>
-  )}
+          {!isHomePage && (
+            <button
+              type="button"
+              onClick={handleBackClick}
+              className={`flex h-10 items-center gap-2 px-4 text-sm font-semibold ${themedGhostButtonClass}`}
+              style={ghostButtonStyle}
+            >
+              <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M15 6l-6 6 6 6" />
+              </svg>
+              Back
+            </button>
+          )}
 
-  {isAdmin && !isAdminPage && (
-    <Link href="/admin">
-      <span className="flex h-9 items-center gap-2 rounded-md bg-yellow-500/80 px-4 text-sm font-semibold text-black transition active:scale-95 hover:bg-yellow-400 hover:shadow-inner hover:shadow-yellow-300/40">
-        Admin
-        <svg
-          className="h-4 w-4 flex-shrink-0"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          viewBox="0 0 24 24"
-        >
-          <path d="M12 3l7 4v5c0 5-3.5 8-7 9-3.5-1-7-4-7-9V7l7-4z" />
-        </svg>
-      </span>
-    </Link>
-  )}
+          {isAdmin && !isAdminPage && (
+            <Link href="/admin" className="cursor-pointer">
+              <span
+                className="flex h-10 cursor-pointer items-center gap-2 rounded-xl px-4 text-sm font-semibold transition active:scale-95"
+                style={yellowGlassButtonStyle}
+              >
+                Admin
+                <svg
+                  className="h-4 w-4 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12 3l7 4v5c0 5-3.5 8-7 9-3.5-1-7-4-7-9V7l7-4z" />
+                </svg>
+              </span>
+            </Link>
+          )}
 
-  {!isSearchPage && (
-    <div ref={browseRef} className="relative">
-      <button
-        onClick={() => setBrowseOpen(!browseOpen)}
-        className="flex h-9 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60"
-        type="button"
-      >
-        Browse
-        <svg className={`h-4 w-4 transition ${browseOpen ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-          <path d="M6 9l6 6 6-6" />
-        </svg>
-      </button>
+          {!isSearchPage && (
+            <div ref={browseRef} className="relative">
+              <button
+                onClick={() => setBrowseOpen(!browseOpen)}
+                className={`flex h-10 cursor-pointer items-center gap-2 px-4 text-sm font-semibold ${themedAccentButtonClass}`}
+                style={accentButtonStyle}
+                type="button"
+              >
+                Browse
+                <svg className={`h-4 w-4 transition ${browseOpen ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
 
-      <div
-        className={`absolute left-0 top-full mt-2 min-w-full overflow-hidden rounded-lg border border-red-500/40 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_10px_30px_rgba(0,0,0,0.45)] transition-all duration-200 ${
-          browseOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-2 opacity-0'
-        }`}
-      >
-        <div className="border-b border-red-500/20 bg-red-600/10 px-4 py-2">
-          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
-            Browse
-          </span>
+              <div
+                className={`absolute left-0 top-full mt-3 min-w-[220px] overflow-hidden rounded-2xl transition-all duration-200 ${
+                  browseOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none -translate-y-2 opacity-0'
+                }`}
+                style={glassDropdownStyle}
+              >
+                <div
+                  className="border-b px-4 py-2.5"
+                  style={{
+                    borderColor: 'rgba(255,255,255,0.06)',
+                    backgroundColor: 'var(--theme-accent-soft)',
+                  }}
+                >
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
+                    Browse
+                  </span>
+                </div>
+
+                <Link href="/search?type=movies" className="cursor-pointer">
+                  <div className="group flex cursor-pointer items-center justify-between px-4 py-3 transition-all duration-200 hover:text-[color:var(--theme-accent-text)]">
+                    <span className="text-sm font-medium text-white transition group-hover:text-[color:var(--theme-accent-text)]">
+                      Movies
+                    </span>
+                    <svg className="h-4 w-4 transition group-hover:translate-x-0.5" style={{ color: 'var(--theme-accent-text)' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path d="M9 6l6 6-6 6" />
+                    </svg>
+                  </div>
+                </Link>
+
+                <div className="border-t border-white/5" />
+
+                <Link href="/search?type=tv" className="cursor-pointer">
+                  <div className="group flex cursor-pointer items-center justify-between px-4 py-3 transition-all duration-200 hover:text-[color:var(--theme-accent-text)]">
+                    <span className="text-sm font-medium text-white transition group-hover:text-[color:var(--theme-accent-text)]">
+                      Shows
+                    </span>
+                    <svg className="h-4 w-4 transition group-hover:translate-x-0.5" style={{ color: 'var(--theme-accent-text)' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path d="M9 6l6 6-6 6" />
+                    </svg>
+                  </div>
+                </Link>
+
+                <div className="border-t border-white/5" />
+
+                <Link href="/search?type=tv&tab=anime" className="cursor-pointer">
+                  <div className="group flex cursor-pointer items-center justify-between px-4 py-3 transition-all duration-200 hover:text-[color:var(--theme-accent-text)]">
+                    <span className="text-sm font-medium text-white transition group-hover:text-[color:var(--theme-accent-text)]">
+                      Anime
+                    </span>
+                    <svg className="h-4 w-4 transition group-hover:translate-x-0.5" style={{ color: 'var(--theme-accent-text)' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path d="M9 6l6 6-6 6" />
+                    </svg>
+                  </div>
+                </Link>
+
+                <div className="border-t border-white/5" />
+
+                <Link href="/livesports" className="cursor-pointer">
+                  <div className="group flex cursor-pointer items-center justify-between px-4 py-3 transition-all duration-200 hover:text-[color:var(--theme-accent-text)]">
+                    <span className="text-sm font-medium text-white transition group-hover:text-[color:var(--theme-accent-text)]">
+                      Live Sports
+                    </span>
+                    <svg className="h-4 w-4 transition group-hover:translate-x-0.5" style={{ color: 'var(--theme-accent-text)' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path d="M9 6l6 6-6 6" />
+                    </svg>
+                  </div>
+                </Link>
+              </div>
+            </div>
+          )}
+
+          <button
+            onClick={handlePartyButtonClick}
+            className={`flex h-10 cursor-pointer items-center gap-2 rounded-xl px-4 text-sm font-semibold transition active:scale-95 ${
+              inParty ? 'shadow-[0_0_16px_var(--theme-accent-glow)]' : ''
+            }`}
+            style={accentButtonStyle}
+            type="button"
+          >
+            Party
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <circle cx="9" cy="7" r="3" />
+              <circle cx="15" cy="7" r="3" />
+              <path d="M4 20c0-3 3-5 5-5" />
+              <path d="M20 20c0-3-3-5-5-5" />
+            </svg>
+          </button>
+
+          {isProfilePage ? (
+            <button
+              onClick={handleSignOut}
+              disabled={signingOut}
+              className={`flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition active:scale-95 ${
+                signingOut ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'
+              }`}
+              style={signingOut ? { ...accentButtonStyle, ...accentButtonDisabledStyle } : accentButtonStyle}
+              type="button"
+            >
+              {signingOut ? 'Signing Out...' : 'Sign Out'}
+              <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4" />
+                <path d="M10 17l5-5-5-5" />
+                <path d="M15 12H3" />
+              </svg>
+            </button>
+          ) : (
+            <Link href="/profile" className="cursor-pointer">
+              <span
+                className="flex h-10 cursor-pointer items-center gap-2 rounded-xl px-4 text-sm font-semibold transition active:scale-95"
+                style={accentButtonStyle}
+              >
+                Profile
+                <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5z" />
+                  <path d="M2 22c0-4 4-7 10-7s10 3 10 7" />
+                </svg>
+              </span>
+            </Link>
+          )}
         </div>
-
-        <Link href="/search?type=movies">
-          <div className="group flex items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-red-600/12">
-            <span className="text-sm font-medium text-white transition group-hover:text-red-300">
-              Movies
-            </span>
-            <svg className="h-4 w-4 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M9 6l6 6-6 6" />
-            </svg>
-          </div>
-        </Link>
-
-        <div className="border-t border-white/5" />
-
-        <Link href="/search?type=tv">
-          <div className="group flex items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-red-600/12">
-            <span className="text-sm font-medium text-white transition group-hover:text-red-300">
-              Shows
-            </span>
-            <svg className="h-4 w-4 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M9 6l6 6-6 6" />
-            </svg>
-          </div>
-        </Link>
-
-        <div className="border-t border-white/5" />
-
-        <Link href="/search?type=tv&tab=anime">
-          <div className="group flex items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-red-600/12">
-            <span className="text-sm font-medium text-white transition group-hover:text-red-300">
-              Anime
-            </span>
-            <svg className="h-4 w-4 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M9 6l6 6-6 6" />
-            </svg>
-          </div>
-        </Link>
-
-        <div className="border-t border-white/5" />
-
-        <Link href="/livesports">
-          <div className="group flex items-center justify-between px-4 py-3 transition-all duration-200 hover:bg-red-600/12">
-            <span className="text-sm font-medium text-white transition group-hover:text-red-300">
-              Live Sports
-            </span>
-            <svg className="h-4 w-4 text-red-400/70 transition group-hover:translate-x-0.5 group-hover:text-red-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M9 6l6 6-6 6" />
-            </svg>
-          </div>
-        </Link>
-      </div>
-    </div>
-  )}
-
-  <button
-    onClick={handlePartyButtonClick}
-    className={`flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition active:scale-95 ${
-      inParty
-        ? 'bg-red-600 shadow-[0_0_14px_rgba(255,0,0,0.8)] hover:shadow-[0_0_18px_rgba(255,0,0,0.95)]'
-        : 'bg-red-600 hover:shadow-inner hover:shadow-red-500/60'
-    }`}
-    type="button"
-  >
-    Party
-    <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-      <circle cx="9" cy="7" r="3" />
-      <circle cx="15" cy="7" r="3" />
-      <path d="M4 20c0-3 3-5 5-5" />
-      <path d="M20 20c0-3-3-5-5-5" />
-    </svg>
-  </button>
-
-  {isProfilePage ? (
-    <button
-      onClick={handleSignOut}
-      disabled={signingOut}
-      className={`flex h-9 items-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition active:scale-95 ${
-        signingOut ? 'cursor-not-allowed bg-red-600/70' : 'bg-red-600 hover:shadow-inner hover:shadow-red-500/60'
-      }`}
-      type="button"
-    >
-      {signingOut ? 'Signing Out...' : 'Sign Out'}
-      <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-        <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4" />
-        <path d="M10 17l5-5-5-5" />
-        <path d="M15 12H3" />
-      </svg>
-    </button>
-  ) : (
-    <Link href="/profile">
-      <span className="flex h-9 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:shadow-inner hover:shadow-red-500/60">
-        Profile
-        <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-          <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5z" />
-          <path d="M2 22c0-4 4-7 10-7s10 3 10 7" />
-        </svg>
-      </span>
-    </Link>
-  )}
-</div>
       </nav>
 
       <div
@@ -1464,19 +1654,27 @@ export default function Navbar() {
         />
 
         <div
-          className={`absolute right-0 top-0 flex h-full w-[88vw] max-w-[380px] flex-col border-l border-red-500/30 bg-gradient-to-b from-gray-900 to-black shadow-[-10px_0_35px_rgba(0,0,0,0.55)] transition-transform duration-300 ${
+          className={`absolute right-0 top-0 flex h-full w-[88vw] max-w-[380px] flex-col transition-transform duration-300 ${
             mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
           }`}
+          style={glassDropdownStyle}
         >
-          <div className="flex items-center justify-between border-b border-red-500/20 bg-red-600/10 px-4 py-4">
-            <span className="text-sm font-semibold uppercase tracking-[0.18em] text-red-400">
+          <div
+            className="flex items-center justify-between border-b px-4 py-4"
+            style={{
+              borderColor: 'rgba(255,255,255,0.06)',
+              backgroundColor: 'var(--theme-accent-soft)',
+            }}
+          >
+            <span className="text-sm font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
               Menu
             </span>
 
             <button
               type="button"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex h-10 w-10 items-center justify-center rounded-md bg-black/25 text-white backdrop-blur-md transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
+              className={`flex h-10 w-10 items-center justify-center ${themedGhostButtonClass}`}
+              style={ghostButtonStyle}
               aria-label="Close menu"
               title="Close menu"
             >
@@ -1489,29 +1687,65 @@ export default function Navbar() {
           <div className="flex-1 overflow-y-auto px-4 py-4">
             <div className="space-y-6">
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                   Search
                 </p>
 
                 <div className="space-y-2">
-                  <form onSubmit={handleSearch} className="flex">
+                  <form onSubmit={handleSearch} className="flex items-stretch">
                     <input
                       type="text"
                       placeholder="Search..."
-                      className="h-11 flex-1 rounded-l-md bg-white px-4 text-sm text-black focus:outline-none"
+                      className="h-11 min-w-0 flex-1 rounded-l-xl border px-4 text-sm text-black placeholder:text-gray-500 focus:outline-none"
+                      style={{
+                        background:
+                          'linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.90))',
+                        color: '#000000',
+                        borderColor: 'rgba(255,255,255,0.22)',
+                        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8)',
+                      }}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
 
-                    <button className="h-11 rounded-r-md bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700">
-                      Search
+                    <button
+                      type="submit"
+                      className={`flex h-11 items-center gap-2 rounded-r-xl px-4 text-sm font-semibold ${themedAccentButtonClass}`}
+                      style={{
+                        ...accentButtonStyle,
+                        borderTopLeftRadius: 0,
+                        borderBottomLeftRadius: 0,
+                        marginLeft: '-1px',
+                      }}
+                    >
+                      <span>Search</span>
+                      <svg
+                        className="h-4 w-4 flex-shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <circle cx="11" cy="11" r="7" />
+                        <path d="M20 20l-3.5-3.5" />
+                      </svg>
                     </button>
                   </form>
 
                   {results.length > 0 && (
-                    <div className="overflow-hidden rounded-lg border border-red-500/25 bg-gradient-to-b from-gray-800 to-gray-900">
-                      <div className="border-b border-red-500/20 bg-red-600/10 px-3 py-2">
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-red-400">
+                    <div
+                      className="overflow-hidden rounded-2xl"
+                      style={glassDropdownStyle}
+                    >
+                      <div
+                        className="border-b px-3 py-2"
+                        style={{
+                          borderColor: 'rgba(255,255,255,0.06)',
+                          backgroundColor: 'var(--theme-accent-soft)',
+                        }}
+                      >
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                           Top Results
                         </span>
                       </div>
@@ -1521,14 +1755,15 @@ export default function Navbar() {
                           <Link
                             key={`${item.media_type}-${item.id}`}
                             href={item.media_type === 'movie' ? `/movie/${item.id}` : `/tv/${item.id}`}
+                            className="cursor-pointer"
                             onClick={() => setMobileMenuOpen(false)}
                           >
                             <div
-                              className={`group flex items-center gap-3 px-3 py-3 transition hover:bg-red-600/12 ${
+                              className={`group flex cursor-pointer items-center gap-3 px-3 py-3 transition ${
                                 index !== results.length - 1 ? 'border-b border-white/5' : ''
                               }`}
                             >
-                              <div className="h-14 w-10 flex-shrink-0 overflow-hidden rounded bg-gray-700 ring-1 ring-white/10">
+                              <div className="h-14 w-10 flex-shrink-0 overflow-hidden rounded-lg bg-gray-700 ring-1 ring-white/10">
                                 {item.poster_path ? (
                                   <img
                                     src={`${IMAGE_BASE}${item.poster_path}`}
@@ -1543,7 +1778,7 @@ export default function Navbar() {
                               </div>
 
                               <div className="min-w-0 flex-1">
-                                <div className="truncate text-sm font-medium text-white transition group-hover:text-red-300">
+                                <div className="truncate text-sm font-medium text-white transition group-hover:text-[color:var(--theme-accent-text)]">
                                   {item.title || item.name}
                                 </div>
                                 <div className="mt-1 truncate text-xs text-gray-400">
@@ -1561,13 +1796,13 @@ export default function Navbar() {
 
               {isSearchPage && (
                 <div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                     Filters
                   </p>
 
-                  <div className="space-y-4 rounded-xl border border-white/10 bg-black/20 p-4">
+                  <div className="space-y-4 rounded-2xl border p-4" style={ghostButtonStyle}>
                     <div>
-                      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                         Content Type
                       </label>
                       <div className="grid grid-cols-3 gap-2">
@@ -1580,11 +1815,12 @@ export default function Navbar() {
                             key={option.value}
                             type="button"
                             onClick={() => setDraftType(option.value)}
-                            className={`rounded-md border px-3 py-2 text-sm font-medium transition ${
+                            className={`cursor-pointer rounded-xl border px-3 py-2 text-sm font-medium transition ${
                               draftType === option.value
-                                ? 'border-red-400 bg-red-600/15 text-red-300'
-                                : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
+                                ? 'shadow-[0_0_18px_var(--theme-accent-glow)]'
+                                : 'text-white hover:text-[color:var(--theme-accent-text)]'
                             }`}
+                            style={draftType === option.value ? accentButtonStyle : ghostButtonStyle}
                           >
                             {option.label}
                           </button>
@@ -1593,7 +1829,7 @@ export default function Navbar() {
                     </div>
 
                     <div>
-                      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                         Sort By
                       </label>
                       <div className="grid grid-cols-3 gap-2">
@@ -1606,11 +1842,12 @@ export default function Navbar() {
                             key={option.value}
                             type="button"
                             onClick={() => setDraftSort(option.value)}
-                            className={`rounded-md border px-3 py-2 text-sm font-medium transition ${
+                            className={`cursor-pointer rounded-xl border px-3 py-2 text-sm font-medium transition ${
                               draftSort === option.value
-                                ? 'border-red-400 bg-red-600/15 text-red-300'
-                                : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
+                                ? 'shadow-[0_0_18px_var(--theme-accent-glow)]'
+                                : 'text-white hover:text-[color:var(--theme-accent-text)]'
                             }`}
+                            style={draftSort === option.value ? accentButtonStyle : ghostButtonStyle}
                           >
                             {option.label}
                           </button>
@@ -1619,7 +1856,7 @@ export default function Navbar() {
                     </div>
 
                     <div>
-                      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                         Minimum TMDB Rating
                       </label>
                       <div className="grid grid-cols-3 gap-2">
@@ -1628,11 +1865,12 @@ export default function Navbar() {
                             key={rating}
                             type="button"
                             onClick={() => setDraftMinRating(rating)}
-                            className={`rounded-md border px-3 py-2 text-sm font-medium transition ${
+                            className={`cursor-pointer rounded-xl border px-3 py-2 text-sm font-medium transition ${
                               draftMinRating === rating
-                                ? 'border-red-400 bg-red-600/15 text-red-300'
-                                : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
+                                ? 'shadow-[0_0_18px_var(--theme-accent-glow)]'
+                                : 'text-white hover:text-[color:var(--theme-accent-text)]'
                             }`}
+                            style={draftMinRating === rating ? accentButtonStyle : ghostButtonStyle}
                           >
                             {rating === '0' ? 'Any' : `${rating}+`}
                           </button>
@@ -1641,7 +1879,7 @@ export default function Navbar() {
                     </div>
 
                     <div>
-                      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                         Year Range
                       </label>
                       <div className="grid grid-cols-2 gap-2">
@@ -1652,7 +1890,8 @@ export default function Navbar() {
                           max="2100"
                           value={draftYearFrom}
                           onChange={(e) => setDraftYearFrom(e.target.value)}
-                          className="h-10 rounded-md border border-white/10 bg-black/20 px-3 text-sm text-white placeholder:text-gray-400 focus:border-red-500/50 focus:outline-none"
+                          className="h-10 rounded-xl border px-3 text-sm text-white placeholder:text-gray-400 focus:outline-none"
+                          style={ghostButtonStyle}
                         />
                         <input
                           type="number"
@@ -1661,7 +1900,8 @@ export default function Navbar() {
                           max="2100"
                           value={draftYearTo}
                           onChange={(e) => setDraftYearTo(e.target.value)}
-                          className="h-10 rounded-md border border-white/10 bg-black/20 px-3 text-sm text-white placeholder:text-gray-400 focus:border-red-500/50 focus:outline-none"
+                          className="h-10 rounded-xl border px-3 text-sm text-white placeholder:text-gray-400 focus:outline-none"
+                          style={ghostButtonStyle}
                         />
                       </div>
                     </div>
@@ -1670,14 +1910,16 @@ export default function Navbar() {
                       <button
                         type="button"
                         onClick={applyFilters}
-                        className="flex h-10 flex-1 items-center justify-center rounded-md bg-red-600 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700"
+                        className={`flex h-10 flex-1 items-center justify-center text-sm font-semibold ${themedAccentButtonClass}`}
+                        style={accentButtonStyle}
                       >
                         Apply
                       </button>
                       <button
                         type="button"
                         onClick={resetFilters}
-                        className="flex h-10 items-center justify-center rounded-md bg-black/25 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/35"
+                        className={`flex h-10 items-center justify-center px-4 text-sm font-semibold ${themedGhostButtonClass}`}
+                        style={ghostButtonStyle}
                       >
                         Reset
                       </button>
@@ -1687,31 +1929,31 @@ export default function Navbar() {
               )}
 
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                   Browse
                 </p>
 
                 <div className="space-y-2">
-                  <Link href="/search?type=movies" onClick={() => setMobileMenuOpen(false)}>
-                    <div className="rounded-md border border-white/10 bg-black/20 px-4 py-3 text-sm font-medium text-white transition hover:border-red-400/60 hover:text-red-300">
+                  <Link href="/search?type=movies" className="cursor-pointer" onClick={() => setMobileMenuOpen(false)}>
+                    <div className="cursor-pointer rounded-xl border px-4 py-3 text-sm font-medium text-white transition hover:border-[color:var(--theme-accent-border)] hover:text-[color:var(--theme-accent-text)]" style={ghostButtonStyle}>
                       Movies
                     </div>
                   </Link>
 
-                  <Link href="/search?type=tv" onClick={() => setMobileMenuOpen(false)}>
-                    <div className="rounded-md border border-white/10 bg-black/20 px-4 py-3 text-sm font-medium text-white transition hover:border-red-400/60 hover:text-red-300">
+                  <Link href="/search?type=tv" className="cursor-pointer" onClick={() => setMobileMenuOpen(false)}>
+                    <div className="cursor-pointer rounded-xl border px-4 py-3 text-sm font-medium text-white transition hover:border-[color:var(--theme-accent-border)] hover:text-[color:var(--theme-accent-text)]" style={ghostButtonStyle}>
                       Shows
                     </div>
                   </Link>
 
-                  <Link href="/search?type=tv&tab=anime" onClick={() => setMobileMenuOpen(false)}>
-                    <div className="rounded-md border border-white/10 bg-black/20 px-4 py-3 text-sm font-medium text-white transition hover:border-red-400/60 hover:text-red-300">
+                  <Link href="/search?type=tv&tab=anime" className="cursor-pointer" onClick={() => setMobileMenuOpen(false)}>
+                    <div className="cursor-pointer rounded-xl border px-4 py-3 text-sm font-medium text-white transition hover:border-[color:var(--theme-accent-border)] hover:text-[color:var(--theme-accent-text)]" style={ghostButtonStyle}>
                       Anime
                     </div>
                   </Link>
 
-                  <Link href="/livesports" onClick={() => setMobileMenuOpen(false)}>
-                    <div className="rounded-md border border-white/10 bg-black/20 px-4 py-3 text-sm font-medium text-white transition hover:border-red-400/60 hover:text-red-300">
+                  <Link href="/livesports" className="cursor-pointer" onClick={() => setMobileMenuOpen(false)}>
+                    <div className="cursor-pointer rounded-xl border px-4 py-3 text-sm font-medium text-white transition hover:border-[color:var(--theme-accent-border)] hover:text-[color:var(--theme-accent-text)]" style={ghostButtonStyle}>
                       Live Sports
                     </div>
                   </Link>
@@ -1719,14 +1961,14 @@ export default function Navbar() {
               </div>
 
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-400">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                   Actions
                 </p>
 
                 <div className="space-y-2">
                   {isAdmin && (
-                    <Link href="/admin" onClick={() => setMobileMenuOpen(false)}>
-                      <div className="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-black/25 px-4 text-sm font-semibold text-white backdrop-blur-md transition active:scale-95 hover:bg-black/35">
+                    <Link href="/admin" className="cursor-pointer" onClick={() => setMobileMenuOpen(false)}>
+                      <div className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition active:scale-95" style={yellowGlassButtonStyle}>
                         Admin
                         <svg
                           className="h-4 w-4 flex-shrink-0"
@@ -1743,11 +1985,8 @@ export default function Navbar() {
 
                   <button
                     onClick={handlePartyButtonClick}
-                    className={`flex h-11 w-full items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition active:scale-95 ${
-                      inParty
-                        ? 'bg-red-600 shadow-[0_0_14px_rgba(255,0,0,0.8)]'
-                        : 'bg-red-600 hover:bg-red-700'
-                    }`}
+                    className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition active:scale-95"
+                    style={accentButtonStyle}
                     type="button"
                   >
                     Party
@@ -1763,16 +2002,20 @@ export default function Navbar() {
                     <button
                       onClick={handleSignOut}
                       disabled={signingOut}
-                      className={`flex h-11 w-full items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition active:scale-95 ${
-                        signingOut ? 'cursor-not-allowed bg-red-600/70' : 'bg-red-600 hover:bg-red-700'
+                      className={`flex h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition active:scale-95 ${
+                        signingOut ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'
                       }`}
+                      style={signingOut ? { ...accentButtonStyle, ...accentButtonDisabledStyle } : accentButtonStyle}
                       type="button"
                     >
                       {signingOut ? 'Signing Out...' : 'Sign Out'}
                     </button>
                   ) : (
-                    <Link href="/profile" onClick={() => setMobileMenuOpen(false)}>
-                      <div className="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700">
+                    <Link href="/profile" className="cursor-pointer" onClick={() => setMobileMenuOpen(false)}>
+                      <div
+                        className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition active:scale-95"
+                        style={accentButtonStyle}
+                      >
                         Profile
                         <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                           <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5z" />
@@ -1804,9 +2047,12 @@ export default function Navbar() {
 
       {stayPromptOpen && inParty && (
         <div className="fixed inset-x-0 top-24 z-[998] flex justify-center px-4">
-          <div className="w-full max-w-md rounded-2xl border border-red-500/35 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur-md">
-            <div className="border-b border-red-500/20 bg-red-600/10 px-5 py-3">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-red-400">
+          <div
+            className="w-full max-w-md rounded-2xl backdrop-blur-md"
+            style={glassDropdownStyle}
+          >
+            <div className="border-b px-5 py-3" style={{ borderColor: 'rgba(255,255,255,0.06)', backgroundColor: 'var(--theme-accent-soft)' }}>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                 Party Check-In
               </p>
             </div>
@@ -1819,7 +2065,8 @@ export default function Navbar() {
               <div className="mt-4 flex gap-3">
                 <button
                   onClick={handleStayInParty}
-                  className="flex h-10 flex-1 items-center justify-center rounded-lg bg-red-600 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60"
+                  className={`flex h-10 flex-1 items-center justify-center text-sm font-semibold ${themedAccentButtonClass}`}
+                  style={accentButtonStyle}
                   type="button"
                 >
                   Stay
@@ -1827,7 +2074,8 @@ export default function Navbar() {
 
                 <button
                   onClick={handleLeaveFromPrompt}
-                  className="flex h-10 flex-1 items-center justify-center rounded-lg bg-black/25 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40"
+                  className={`flex h-10 flex-1 items-center justify-center text-sm font-semibold ${themedGhostButtonClass}`}
+                  style={ghostButtonStyle}
                   type="button"
                 >
                   Leave Party
@@ -1840,9 +2088,12 @@ export default function Navbar() {
 
       {rejoinPromptOpen && (
         <div className="fixed inset-0 z-[1001] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-red-500/35 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <div className="border-b border-red-500/20 bg-red-600/10 px-5 py-4">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-red-400">
+          <div
+            className="w-full max-w-md overflow-hidden rounded-2xl"
+            style={glassDropdownStyle}
+          >
+            <div className="border-b px-5 py-4" style={{ borderColor: 'rgba(255,255,255,0.06)', backgroundColor: 'var(--theme-accent-soft)' }}>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                 {rejoinPromptMode === 'host' ? 'Keep Party Alive' : 'Rejoin Party'}
               </p>
             </div>
@@ -1859,7 +2110,8 @@ export default function Navbar() {
                   type="button"
                   onClick={handleRejoinDecline}
                   disabled={rejoinPromptPending}
-                  className="flex h-10 items-center justify-center rounded-md bg-black/25 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40 disabled:cursor-not-allowed disabled:opacity-70"
+                  className={`flex h-10 items-center justify-center px-4 text-sm font-semibold ${themedGhostButtonClass} disabled:cursor-not-allowed disabled:opacity-70`}
+                  style={ghostButtonStyle}
                 >
                   No
                 </button>
@@ -1868,7 +2120,8 @@ export default function Navbar() {
                   type="button"
                   onClick={handleRejoinAccept}
                   disabled={rejoinPromptPending}
-                  className="flex h-10 items-center justify-center rounded-md bg-red-600 px-5 text-sm font-semibold text-white transition active:scale-95 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60 disabled:cursor-not-allowed disabled:opacity-70"
+                  className={`flex h-10 items-center justify-center px-5 text-sm font-semibold ${themedAccentButtonClass} disabled:cursor-not-allowed disabled:opacity-80`}
+                  style={rejoinPromptPending ? { ...accentButtonStyle, ...accentButtonDisabledStyle } : accentButtonStyle}
                 >
                   {rejoinPromptPending ? 'Please wait...' : 'Yes'}
                 </button>
@@ -1880,10 +2133,16 @@ export default function Navbar() {
 
       {partyJumpPromptOpen && partyJumpTarget && (
         <div className="fixed inset-0 z-[1002] flex items-center justify-center bg-black/70 px-3 backdrop-blur-sm sm:px-4">
-          <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-yellow-500/35 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <div className="border-b border-yellow-500/20 bg-yellow-500/10 px-4 py-3 sm:px-5">
+          <div
+            className="w-full max-w-2xl overflow-hidden rounded-2xl border shadow-[0_12px_35px_rgba(0,0,0,0.55)]"
+            style={{
+              ...glassDropdownStyle,
+              borderColor: 'rgba(250, 204, 21, 0.28)',
+            }}
+          >
+            <div className="border-b px-4 py-3 sm:px-5" style={{ borderColor: 'rgba(250,204,21,0.18)', backgroundColor: 'rgba(250,204,21,0.08)' }}>
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full border border-yellow-400/30 bg-yellow-500/15 text-yellow-200">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full border border-yellow-400/25 bg-yellow-500/12 text-yellow-200">
                   <svg
                     className="h-4 w-4"
                     fill="none"
@@ -1903,7 +2162,7 @@ export default function Navbar() {
             </div>
 
             <div className="space-y-4 px-4 py-4 sm:space-y-5 sm:px-5 sm:py-5">
-              <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
+              <div className="rounded-2xl border border-yellow-500/16 bg-yellow-500/5 p-4">
                 <p className="text-sm font-semibold text-yellow-200">
                   The host started new content.
                 </p>
@@ -1917,7 +2176,8 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={handleDeclinePartyJump}
-                  className="flex h-10 w-full items-center justify-center rounded-md bg-black/25 px-4 text-sm font-semibold text-white transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-yellow-400/20 sm:w-auto"
+                  className="flex h-10 w-full cursor-pointer items-center justify-center rounded-xl px-4 text-sm font-semibold text-white transition active:scale-95 sm:w-auto"
+                  style={ghostButtonStyle}
                 >
                   No
                 </button>
@@ -1925,7 +2185,8 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={handleAcceptPartyJump}
-                  className="flex h-10 w-full items-center justify-center rounded-md bg-yellow-500/80 px-5 text-sm font-semibold text-black transition active:scale-95 hover:bg-yellow-400 sm:w-auto"
+                  className="flex h-10 w-full cursor-pointer items-center justify-center rounded-xl px-5 text-sm font-semibold transition active:scale-95 sm:w-auto"
+                  style={yellowGlassButtonStyle}
                 >
                   Yes
                 </button>

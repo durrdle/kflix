@@ -317,16 +317,52 @@ function BookmarkBadge({ active, onToggle }) {
         e.stopPropagation();
         onToggle?.();
       }}
-      className={`pointer-events-auto inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border backdrop-blur-md transition active:scale-95 ${
+      className={`pointer-events-auto inline-flex h-8 w-8 items-center justify-center rounded-xl border transition active:scale-95 ${
         active
-          ? 'border-red-400/70 bg-red-600/90 text-white shadow-[0_0_14px_rgba(239,68,68,0.35)] hover:bg-red-700'
-          : 'border-white/15 bg-black/65 text-white shadow-[0_0_14px_rgba(0,0,0,0.2)] hover:border-red-400/60 hover:text-red-300'
+          ? 'shadow-[0_0_16px_var(--theme-accent-glow)]'
+          : ''
       }`}
+      style={
+        active
+          ? {
+              borderColor: 'var(--theme-accent-border)',
+              background:
+                'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent) 86%, rgba(255,255,255,0.12)), color-mix(in srgb, var(--theme-accent-hover) 90%, rgba(0,0,0,0.05)))',
+              color: 'var(--theme-accent-contrast)',
+              boxShadow:
+                '0 12px 24px color-mix(in srgb, var(--theme-accent-glow) 40%, transparent), inset 0 1px 0 rgba(255,255,255,0.16)',
+              backdropFilter: 'blur(16px) saturate(150%)',
+              WebkitBackdropFilter: 'blur(16px) saturate(150%)',
+            }
+          : {
+              borderColor: 'color-mix(in srgb, var(--theme-muted-border) 92%, rgba(255,255,255,0.08))',
+              background:
+                'linear-gradient(180deg, color-mix(in srgb, var(--theme-muted-bg) 78%, rgba(255,255,255,0.05)), color-mix(in srgb, var(--theme-muted-bg-strong) 88%, rgba(255,255,255,0.02)))',
+              color: 'var(--theme-text)',
+              boxShadow:
+                '0 10px 20px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.08)',
+              backdropFilter: 'blur(16px) saturate(140%)',
+              WebkitBackdropFilter: 'blur(16px) saturate(140%)',
+            }
+      }
       title={active ? 'Remove bookmark' : 'Save bookmark'}
       aria-label={active ? 'Remove bookmark' : 'Save bookmark'}
+      onMouseEnter={(e) => {
+        if (!active) {
+          e.currentTarget.style.borderColor = 'var(--theme-accent-border)';
+          e.currentTarget.style.color = 'var(--theme-accent-text)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!active) {
+          e.currentTarget.style.borderColor =
+            'color-mix(in srgb, var(--theme-muted-border) 92%, rgba(255,255,255,0.08))';
+          e.currentTarget.style.color = 'var(--theme-text)';
+        }
+      }}
     >
       <svg
-        className="h-3 w-3 flex-shrink-0"
+        className="h-3.5 w-3.5 flex-shrink-0"
         fill={active ? 'currentColor' : 'none'}
         stroke="currentColor"
         strokeWidth="2"
@@ -341,7 +377,7 @@ function BookmarkBadge({ active, onToggle }) {
 
 function CardBadges({ isBookmarked, onToggleBookmark }) {
   return (
-    <div className="absolute left-2 top-2 z-20 flex flex-col gap-1">
+    <div className="absolute right-2 top-2 z-20 flex flex-col items-end gap-1">
       <BookmarkBadge active={isBookmarked} onToggle={onToggleBookmark} />
     </div>
   );
@@ -373,6 +409,76 @@ function SearchPageContent() {
 
   const [userId, setUserId] = useState('');
   const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
+
+  const glassPanelStyle = {
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-panel-from) 82%, rgba(255,255,255,0.06)), color-mix(in srgb, var(--theme-panel-to) 92%, rgba(255,255,255,0.02)))',
+    borderColor: 'color-mix(in srgb, var(--theme-accent-border) 74%, rgba(255,255,255,0.08))',
+    boxShadow:
+      '0 20px 46px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(255,255,255,0.02)',
+    backdropFilter: 'blur(22px) saturate(150%)',
+    WebkitBackdropFilter: 'blur(22px) saturate(150%)',
+  };
+
+  const glassHeaderStyle = {
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent-soft) 90%, rgba(255,255,255,0.05)), color-mix(in srgb, var(--theme-accent-soft) 58%, transparent))',
+    borderColor: 'color-mix(in srgb, var(--theme-accent-border-soft) 90%, rgba(255,255,255,0.05))',
+  };
+
+  const glassTabStyle = {
+    borderColor: 'color-mix(in srgb, var(--theme-muted-border) 92%, rgba(255,255,255,0.08))',
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-muted-bg) 78%, rgba(255,255,255,0.05)), color-mix(in srgb, var(--theme-muted-bg-strong) 88%, rgba(255,255,255,0.02)))',
+    color: 'var(--theme-text)',
+    boxShadow:
+      '0 10px 20px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.08)',
+    backdropFilter: 'blur(16px) saturate(140%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(140%)',
+  };
+
+  const glassActiveTabStyle = {
+    borderColor: 'var(--theme-accent-border)',
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent) 16%, rgba(255,255,255,0.10)), color-mix(in srgb, var(--theme-accent-soft) 90%, rgba(255,255,255,0.04)))',
+    color: 'var(--theme-accent-text)',
+    boxShadow:
+      '0 0 18px color-mix(in srgb, var(--theme-accent-glow) 44%, transparent), inset 0 1px 0 rgba(255,255,255,0.12)',
+    backdropFilter: 'blur(16px) saturate(145%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(145%)',
+  };
+
+  const glassCardStyle = {
+    borderColor: 'color-mix(in srgb, var(--theme-muted-border) 92%, rgba(255,255,255,0.08))',
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-muted-bg) 82%, rgba(255,255,255,0.05)), color-mix(in srgb, var(--theme-muted-bg-strong) 90%, rgba(255,255,255,0.02)))',
+    boxShadow:
+      '0 12px 26px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.08)',
+    backdropFilter: 'blur(18px) saturate(145%)',
+    WebkitBackdropFilter: 'blur(18px) saturate(145%)',
+  };
+
+  const glassAccentButtonStyle = {
+    borderColor: 'color-mix(in srgb, var(--theme-accent-border) 90%, rgba(255,255,255,0.06))',
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-accent) 86%, rgba(255,255,255,0.12)), color-mix(in srgb, var(--theme-accent-hover) 90%, rgba(0,0,0,0.05)))',
+    boxShadow:
+      '0 14px 28px color-mix(in srgb, var(--theme-accent-glow) 40%, transparent), inset 0 1px 0 rgba(255,255,255,0.16)',
+    color: 'var(--theme-accent-contrast)',
+    backdropFilter: 'blur(16px) saturate(150%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(150%)',
+  };
+
+  const glassGhostButtonStyle = {
+    borderColor: 'color-mix(in srgb, var(--theme-muted-border) 92%, rgba(255,255,255,0.08))',
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--theme-muted-bg) 78%, rgba(255,255,255,0.05)), color-mix(in srgb, var(--theme-muted-bg-strong) 88%, rgba(255,255,255,0.02)))',
+    boxShadow:
+      '0 10px 20px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.08)',
+    color: 'var(--theme-text)',
+    backdropFilter: 'blur(16px) saturate(140%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(140%)',
+  };
 
   useEffect(() => {
     if (TAB_CONFIG.some((tab) => tab.key === currentTabParam)) {
@@ -683,29 +789,32 @@ function SearchPageContent() {
     visibleResults.length < filteredResults.length || currentPage < maxPages;
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-[var(--theme-bg)] text-white">
       <Suspense fallback={<div className="h-20" />}>
         <Navbar />
       </Suspense>
 
       <main className="px-3 pb-8 pt-20 sm:px-6 sm:pb-10 sm:pt-24 lg:px-8">
         <section>
-          <div className="overflow-hidden rounded-2xl border-[1.5px] border-red-500/50 bg-gradient-to-b from-gray-800 to-gray-900 shadow-[0_12px_35px_rgba(0,0,0,0.55)]">
-            <div className="border-b border-red-500/25 bg-red-600/10 px-4 py-3 sm:px-6 sm:py-4">
+          <div className="overflow-hidden rounded-3xl border-[1.5px]" style={glassPanelStyle}>
+            <div className="border-b px-4 py-3 sm:px-6 sm:py-4" style={glassHeaderStyle}>
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
-                <h2 className="text-base font-semibold uppercase tracking-[0.16em] text-red-400 sm:text-lg sm:tracking-[0.18em]">
+                <h2 className="text-base font-semibold uppercase tracking-[0.16em] sm:text-lg sm:tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
                   {resultsLabel}
                 </h2>
 
                 {!loading && (
-                  <span className="text-sm text-gray-300">
+                  <span className="text-sm" style={{ color: 'var(--theme-text)' }}>
                     {visibleResults.length} shown
                   </span>
                 )}
               </div>
             </div>
 
-            <div className="border-b border-red-500/15 px-4 py-3 sm:px-6 sm:py-4">
+            <div
+              className="border-b px-4 py-3 sm:px-6 sm:py-4"
+              style={{ borderColor: 'color-mix(in srgb, var(--theme-accent-border) 30%, transparent)' }}
+            >
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -713,13 +822,10 @@ function SearchPageContent() {
                     if (!canScrollTabsLeft) return;
                     scrollTabs('left');
                   }}
-                  aria-disabled={!canScrollTabsLeft}
-                  className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full backdrop-blur-md transition ${
-                    canScrollTabsLeft
-                      ? 'cursor-pointer bg-black/25 text-white active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40'
-                      : 'cursor-default bg-black/15 text-gray-500 opacity-60'
-                  }`}
+                  disabled={!canScrollTabsLeft}
                   aria-label="Scroll tabs left"
+                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border transition active:scale-95 disabled:opacity-60"
+                  style={glassGhostButtonStyle}
                 >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <path d="M15 6l-6 6 6 6" />
@@ -739,11 +845,19 @@ function SearchPageContent() {
                           key={tab.key}
                           type="button"
                           onClick={() => handleTabChange(tab.key)}
-                          className={`whitespace-nowrap rounded-md border px-3 py-2 text-xs font-semibold transition active:scale-95 sm:px-4 sm:text-sm ${
-                            active
-                              ? 'border-red-400 bg-red-600/15 text-red-300 shadow-[0_0_18px_rgba(239,68,68,0.18)]'
-                              : 'border-white/10 bg-black/20 text-white hover:border-red-400/60 hover:text-red-300'
-                          }`}
+                          className="whitespace-nowrap rounded-xl border px-3 py-2 text-xs font-semibold transition active:scale-95 sm:px-4 sm:text-sm"
+                          style={active ? glassActiveTabStyle : glassTabStyle}
+                          onMouseEnter={(e) => {
+                            if (!active) {
+                              e.currentTarget.style.borderColor = 'var(--theme-accent-border)';
+                              e.currentTarget.style.color = 'var(--theme-accent-text)';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!active) {
+                              Object.assign(e.currentTarget.style, glassTabStyle);
+                            }
+                          }}
                         >
                           {tab.label}
                         </button>
@@ -758,13 +872,10 @@ function SearchPageContent() {
                     if (!canScrollTabsRight) return;
                     scrollTabs('right');
                   }}
-                  aria-disabled={!canScrollTabsRight}
-                  className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full backdrop-blur-md transition ${
-                    canScrollTabsRight
-                      ? 'cursor-pointer bg-black/25 text-white active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40'
-                      : 'cursor-default bg-black/15 text-gray-500 opacity-60'
-                  }`}
+                  disabled={!canScrollTabsRight}
                   aria-label="Scroll tabs right"
+                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border transition active:scale-95 disabled:opacity-60"
+                  style={glassGhostButtonStyle}
                 >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <path d="M9 6l6 6-6 6" />
@@ -774,12 +885,12 @@ function SearchPageContent() {
             </div>
 
             {loading ? (
-              <div className="px-4 py-8 sm:px-6 sm:py-10">
-                <p className="text-base text-gray-300 sm:text-lg">Loading results...</p>
+              <div className="px-4 py-8 text-base sm:px-6 sm:py-10 sm:text-lg" style={{ color: 'var(--theme-text)' }}>
+                Loading results...
               </div>
             ) : visibleResults.length === 0 ? (
-              <div className="px-4 py-8 sm:px-6 sm:py-10">
-                <p className="text-base text-gray-300 sm:text-lg">No results found.</p>
+              <div className="px-4 py-8 text-base sm:px-6 sm:py-10 sm:text-lg" style={{ color: 'var(--theme-text)' }}>
+                No results found.
               </div>
             ) : (
               <>
@@ -794,17 +905,33 @@ function SearchPageContent() {
                       <Link
                         key={`${itemType}-${item.id}`}
                         href={href}
-                        className="group min-w-0 cursor-pointer"
+                        className="group block min-w-0"
                       >
-                        <div className="relative overflow-hidden rounded-xl border-[1.5px] border-white/10 bg-black/20 transition duration-300 group-hover:border-red-400/90 group-hover:shadow-[0_0_30px_rgba(239,68,68,0.35)]">
+                        <div
+                          className="relative overflow-hidden rounded-2xl border-[1.5px] p-0 transition duration-300"
+                          style={glassCardStyle}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = 'var(--theme-accent-border)';
+                            e.currentTarget.style.boxShadow =
+                              '0 0 30px color-mix(in srgb, var(--theme-accent-glow) 45%, transparent), 0 12px 26px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.08)';
+                          }}
+                          onMouseLeave={(e) => {
+                            Object.assign(e.currentTarget.style, glassCardStyle);
+                          }}
+                        >
                           <CardBadges
                             isBookmarked={isBookmarked}
                             onToggleBookmark={() => toggleBookmark(item, itemType)}
                           />
 
-                          <div className="absolute inset-0 bg-red-500/10 opacity-0 blur-xl transition duration-300 group-hover:opacity-100" />
+                          <div
+                            className="absolute inset-0 opacity-0 blur-xl transition duration-300 group-hover:opacity-100"
+                            style={{
+                              background: 'color-mix(in srgb, var(--theme-accent) 12%, transparent)',
+                            }}
+                          />
 
-                          <div className="relative aspect-[2/3] w-full bg-gray-800">
+                          <div className="relative aspect-[2/3] w-full overflow-hidden rounded-2xl bg-gray-800">
                             <img
                               src={`${IMAGE_POSTER}${item.poster_path}`}
                               alt={item.title || item.name || 'Poster'}
@@ -814,7 +941,7 @@ function SearchPageContent() {
                         </div>
 
                         <div className="mt-2 sm:mt-3">
-                          <div className="line-clamp-1 text-xs font-medium text-white transition group-hover:text-red-300 sm:text-sm">
+                          <div className="line-clamp-1 text-xs font-medium text-white transition sm:text-sm group-hover:text-[var(--theme-accent-text)]">
                             {item.title || item.name}
                           </div>
 
@@ -822,7 +949,7 @@ function SearchPageContent() {
                             <span>
                               {(item.release_date || item.first_air_date || 'Unknown').slice(0, 4)}
                             </span>
-                            <span className="text-red-400">•</span>
+                            <span style={{ color: 'var(--theme-accent-text)' }}>•</span>
                             <span>{itemType === 'movie' ? 'Movie' : 'Show'}</span>
                           </div>
 
@@ -835,18 +962,18 @@ function SearchPageContent() {
                   })}
                 </div>
 
-                <div className="border-t border-red-500/15 px-4 pb-5 pt-3 sm:px-6 sm:pb-6 sm:pt-2">
+                <div
+                  className="border-t px-4 pb-5 pt-3 sm:px-6 sm:pb-6 sm:pt-2"
+                  style={{ borderColor: 'color-mix(in srgb, var(--theme-accent-border) 30%, transparent)' }}
+                >
                   <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                     {canLoadMore && (
                       <button
                         type="button"
                         onClick={handleLoadMore}
                         disabled={loadingMore}
-                        className={`flex h-11 w-full items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold text-white transition active:scale-95 sm:w-auto ${
-                          loadingMore
-                            ? 'cursor-default bg-red-600/70'
-                            : 'bg-red-600 hover:bg-red-700 hover:shadow-inner hover:shadow-red-500/60'
-                        }`}
+                        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition active:scale-95 disabled:opacity-80 sm:w-auto"
+                        style={glassAccentButtonStyle}
                       >
                         <svg
                           className="h-4 w-4"
@@ -864,7 +991,8 @@ function SearchPageContent() {
                     <button
                       type="button"
                       onClick={handleBackToTop}
-                      className="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-black/25 px-5 text-sm font-semibold text-white backdrop-blur-md transition active:scale-95 hover:bg-black/35 hover:shadow-inner hover:shadow-red-500/40 sm:w-auto"
+                      className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border px-5 text-sm font-semibold transition active:scale-95 sm:w-auto"
+                      style={glassGhostButtonStyle}
                     >
                       <svg
                         className="h-4 w-4"
@@ -889,7 +1017,6 @@ function SearchPageContent() {
         <p>This site does not host or store any media.</p>
 
         <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-gray-500">
-          
         </div>
       </footer>
     </div>
@@ -898,7 +1025,7 @@ function SearchPageContent() {
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-black text-white" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[var(--theme-bg)] text-white" />}>
       <SearchPageContent />
     </Suspense>
   );
