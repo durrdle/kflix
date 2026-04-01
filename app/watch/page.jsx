@@ -488,6 +488,7 @@ function WatchPageContent() {
   const initialTimeParam = searchParams.get('t') || '';
   const initialAutoplayParam = searchParams.get('autoplay') || '';
   const partyFollowParam = searchParams.get('partyFollow') || '';
+  const returnToParam = searchParams.get('returnTo') || '';
   const partyFollowEnabled = partyFollowParam === '1';
 
   const initialStartTime = Number(initialTimeParam || 0);
@@ -1451,32 +1452,18 @@ function WatchPageContent() {
   };
 
   const handleNoticeNotUnderstood = () => {
-    if (typeof window !== 'undefined') {
-      const referrer = document.referrer || '';
-      const sameOriginReferrer =
-        referrer && referrer.startsWith(window.location.origin);
+  if (returnToParam) {
+    router.push(returnToParam);
+    return;
+  }
 
-      if (sameOriginReferrer) {
-        try {
-          const referrerUrl = new URL(referrer);
-          const referrerPath = `${referrerUrl.pathname}${referrerUrl.search || ''}`;
+  if (typeof window !== 'undefined' && window.history.length > 1) {
+    router.back();
+    return;
+  }
 
-          const currentPath = `${window.location.pathname}${window.location.search || ''}`;
-          const isLoginReferrer = referrerUrl.pathname === '/login';
-          const isSameWatchReferrer = referrerPath === currentPath;
-
-          if (!isLoginReferrer && !isSameWatchReferrer && window.history.length > 1) {
-            router.back();
-            return;
-          }
-        } catch {
-          // ignore malformed referrer and fall back below
-        }
-      }
-    }
-
-    router.push('/');
-  };
+  router.push('/');
+};
 
   if (loading) {
     return (

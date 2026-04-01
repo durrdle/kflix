@@ -699,6 +699,7 @@ function WatchOptionsModal({
   onClose,
   title,
   showId,
+  returnTo = '/',
   seasons,
   userId,
   watchedMap,
@@ -835,10 +836,14 @@ function WatchOptionsModal({
 
   return (
     <div
-      onClick={onClose}
-      className="fixed inset-0 z-[999] flex items-center justify-center bg-black/75 px-4 backdrop-blur-sm"
-    >
-      <div className="w-full max-w-5xl overflow-hidden rounded-3xl border-[1.5px]" style={glass.modalShell}>
+  onClick={onClose}
+  className="fixed inset-0 z-[999] flex items-center justify-center bg-black/75 px-4 backdrop-blur-sm"
+>
+  <div
+    onClick={(e) => e.stopPropagation()}
+    className="w-full max-w-5xl overflow-hidden rounded-3xl border-[1.5px]"
+    style={glass.modalShell}
+  >
         <div className="flex items-center justify-between border-b px-6 py-4" style={glass.modalHeader}>
           <div>
             <h3 className="text-lg font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
@@ -1037,7 +1042,7 @@ function WatchOptionsModal({
                             />
 
                             <Link
-                              href={`/watch?type=tv&id=${showId}&season=${selectedSeason}&episode=${episode.episode_number}`}
+                              href={`/watch?type=tv&id=${showId}&season=${selectedSeason}&episode=${episode.episode_number}&returnTo=${encodeURIComponent(returnTo)}`}
                               className="min-w-0 block cursor-pointer"
                             >
                               <div className="text-sm font-semibold text-white transition group-hover:text-[var(--theme-accent-text)]">
@@ -2067,16 +2072,17 @@ export default function DetailPageContent({ id, type }) {
       />
 
       <WatchOptionsModal
-        open={watchOptionsOpen}
-        onClose={() => setWatchOptionsOpen(false)}
-        title={title}
-        showId={id}
-        seasons={selectableSeasons}
-        userId={userId}
-        watchedMap={watchedEpisodes}
-        onToggleEpisode={handleToggleEpisode}
-        onToggleSeason={handleToggleSeason}
-      />
+  open={watchOptionsOpen}
+  onClose={() => setWatchOptionsOpen(false)}
+  title={title}
+  showId={id}
+  returnTo={`/${type}/${id}`}
+  seasons={selectableSeasons}
+  userId={userId}
+  watchedMap={watchedEpisodes}
+  onToggleEpisode={handleToggleEpisode}
+  onToggleSeason={handleToggleSeason}
+/>
 
       <footer className="px-4 pb-8 pt-2 text-center text-sm text-gray-400 sm:px-6 lg:px-8">
         <p>This site does not host or store any media.</p>
