@@ -25,7 +25,14 @@ function IconPause({ className = 'h-4 w-4' }) {
 
 function IconSkipBack({ className = 'h-4 w-4' }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
       <path d="M11 19L3 12l8-7" />
       <path d="M21 19l-8-7 8-7" />
     </svg>
@@ -34,7 +41,14 @@ function IconSkipBack({ className = 'h-4 w-4' }) {
 
 function IconSkipForward({ className = 'h-4 w-4' }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
       <path d="M13 19l8-7-8-7" />
       <path d="M3 19l8-7-8-7" />
     </svg>
@@ -43,7 +57,14 @@ function IconSkipForward({ className = 'h-4 w-4' }) {
 
 function IconVolume({ className = 'h-4 w-4' }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
       <path d="M11 5L6 9H3v6h3l5 4V5z" />
       <path d="M15.5 8.5a5 5 0 010 7" />
       <path d="M18.5 5.5a9 9 0 010 13" />
@@ -53,7 +74,14 @@ function IconVolume({ className = 'h-4 w-4' }) {
 
 function IconMute({ className = 'h-4 w-4' }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
       <path d="M11 5L6 9H3v6h3l5 4V5z" />
       <path d="M23 9l-6 6" />
       <path d="M17 9l6 6" />
@@ -63,7 +91,14 @@ function IconMute({ className = 'h-4 w-4' }) {
 
 function IconFullscreen({ className = 'h-4 w-4' }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
       <path d="M8 3H3v5" />
       <path d="M16 3h5v5" />
       <path d="M21 16v5h-5" />
@@ -72,22 +107,52 @@ function IconFullscreen({ className = 'h-4 w-4' }) {
   );
 }
 
-function IconSettings({ className = 'h-4 w-4' }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06A1.65 1.65 0 0015 19.4a1.65 1.65 0 00-1 .6 1.65 1.65 0 00-.33 1V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-.33-1 1.65 1.65 0 00-1-.6 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-.6-1 1.65 1.65 0 00-1-.33H3a2 2 0 010-4h.09a1.65 1.65 0 001-.33 1.65 1.65 0 00.6-1 1.65 1.65 0 00-.33-1.82l-.06-.06A2 2 0 017.13 3.6l.06.06A1.65 1.65 0 009 4.6c.38 0 .74-.14 1-.4.26-.26.4-.62.4-1V3a2 2 0 014 0v.09c0 .38.14.74.4 1 .26.26.62.4 1 .4a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9c0 .38.14.74.4 1 .26.26.62.4 1 .4H21a2 2 0 010 4h-.09c-.38 0-.74.14-1 .4-.26.26-.4.62-.4 1z" />
-    </svg>
-  );
-}
-
 function IconServer({ className = 'h-4 w-4' }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
       <rect x="3" y="4" width="18" height="6" rx="2" />
       <rect x="3" y="14" width="18" height="6" rx="2" />
       <path d="M7 7h.01" />
       <path d="M7 17h.01" />
+    </svg>
+  );
+}
+
+function IconLock({ className = 'h-4 w-4' }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
+      <rect x="5" y="11" width="14" height="10" rx="2" />
+      <path d="M8 11V8a4 4 0 118 0v3" />
+    </svg>
+  );
+}
+
+function IconUnlock({ className = 'h-4 w-4' }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
+      <rect x="5" y="11" width="14" height="10" rx="2" />
+      <path d="M8 11V8a4 4 0 017.2-2.4" />
     </svg>
   );
 }
@@ -160,6 +225,7 @@ function LiveSportsWatchContent() {
   const searchParams = useSearchParams();
   const playerFrameRef = useRef(null);
   const playerShellRef = useRef(null);
+  const fullscreenNoticeTimeoutRef = useRef(null);
 
   const sourcesParam = searchParams.get('sources') || '';
   const sourceIndexParam = Number(searchParams.get('sourceIndex') || 0);
@@ -184,12 +250,14 @@ function LiveSportsWatchContent() {
   const [syncNotice, setSyncNotice] = useState('');
   const [iframeKey, setIframeKey] = useState(0);
   const [noticeOpen, setNoticeOpen] = useState(true);
+  const [fullscreenNoticeOpen, setFullscreenNoticeOpen] = useState(false);
+  const [isMobileLike, setIsMobileLike] = useState(false);
 
   const [playerIsPlaying, setPlayerIsPlaying] = useState(true);
   const [playerVolume, setPlayerVolume] = useState(1);
   const [playerMuted, setPlayerMuted] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [serverMenuOpen, setServerMenuOpen] = useState(false);
+  const [controlsLocked, setControlsLocked] = useState(true);
 
   const activeSource = useMemo(
     () => availableSources[activeSourceIndex] || null,
@@ -212,6 +280,8 @@ function LiveSportsWatchContent() {
     const normalized = normalizeEmbedUrl(activeStream?.embedUrl || '');
     return withAutoplay(normalized);
   }, [activeStream]);
+
+  const controlsEnabled = !isMobileLike;
 
   const glassPanelStyle = {
     background:
@@ -286,12 +356,72 @@ function LiveSportsWatchContent() {
     WebkitBackdropFilter: 'blur(14px)',
   };
 
+  const warningNoticeStyle = {
+    borderColor: 'rgba(234, 179, 8, 0.24)',
+    background:
+      'linear-gradient(180deg, rgba(234, 179, 8, 0.14), rgba(161, 98, 7, 0.10))',
+    color: '#fef3c7',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+    backdropFilter: 'blur(14px)',
+    WebkitBackdropFilter: 'blur(14px)',
+  };
+
   const sendPlayerCommand = (payload) => {
     const frame = playerFrameRef.current;
     if (!frame?.contentWindow) return false;
     frame.contentWindow.postMessage(payload, '*');
     return true;
   };
+
+  useEffect(() => {
+    const checkMobileLike = () => {
+      if (typeof window === 'undefined') return;
+
+      const hasTouch =
+        'ontouchstart' in window ||
+        navigator.maxTouchPoints > 0 ||
+        navigator.msMaxTouchPoints > 0;
+
+      const narrowScreen = window.matchMedia('(max-width: 1024px)').matches;
+      setIsMobileLike(hasTouch || narrowScreen);
+    };
+
+    checkMobileLike();
+    window.addEventListener('resize', checkMobileLike);
+    return () => window.removeEventListener('resize', checkMobileLike);
+  }, []);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        setFullscreenNoticeOpen(false);
+        if (fullscreenNoticeTimeoutRef.current) {
+          clearTimeout(fullscreenNoticeTimeoutRef.current);
+          fullscreenNoticeTimeoutRef.current = null;
+        }
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (fullscreenNoticeTimeoutRef.current) {
+        clearTimeout(fullscreenNoticeTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isMobileLike) {
+      setControlsLocked(false);
+      setServerMenuOpen(false);
+    } else {
+      setControlsLocked(true);
+    }
+  }, [isMobileLike]);
 
   useEffect(() => {
     const auth = getAuth();
@@ -366,9 +496,7 @@ function LiveSportsWatchContent() {
         const payload = await res.json();
 
         if (!res.ok || !payload?.ok) {
-          const debugText = payload?.debug?.preview
-            ? ` (${payload.debug.preview})`
-            : '';
+          const debugText = payload?.debug?.preview ? ` (${payload.debug.preview})` : '';
           throw new Error(
             (payload?.error || 'Failed to load streams for this server.') + debugText
           );
@@ -446,8 +574,8 @@ function LiveSportsWatchContent() {
       sourceIndex: activeSourceIndex,
       streamIndex: activeStreamIndex,
       sourcesParam: encodedSources,
-    }).catch((error) => {
-      console.error('Failed to publish live sports party state:', error);
+    }).catch((partyError) => {
+      console.error('Failed to publish live sports party state:', partyError);
     });
   }, [
     partyCode,
@@ -538,6 +666,11 @@ function LiveSportsWatchContent() {
       setPlayerVolume(0.5);
       sendPlayerCommand({ command: 'volume', level: 0.5 });
     }
+
+    if (nextMuted) {
+      setPlayerVolume(0);
+      sendPlayerCommand({ command: 'volume', level: 0 });
+    }
   };
 
   const handleFullscreen = async () => {
@@ -547,22 +680,40 @@ function LiveSportsWatchContent() {
     try {
       if (document.fullscreenElement) {
         await document.exitFullscreen();
-      } else {
-        await element.requestFullscreen();
+        return;
       }
-    } catch (error) {
-      console.error('Failed to toggle fullscreen:', error);
+
+      await element.requestFullscreen();
+      setFullscreenNoticeOpen(true);
+
+      if (fullscreenNoticeTimeoutRef.current) {
+        clearTimeout(fullscreenNoticeTimeoutRef.current);
+      }
+
+      fullscreenNoticeTimeoutRef.current = setTimeout(() => {
+        setFullscreenNoticeOpen(false);
+      }, 3200);
+    } catch (fullscreenError) {
+      console.error('Failed to toggle fullscreen:', fullscreenError);
     }
   };
 
   if (loading && !streams.length) {
     return (
-      <div className="flex min-h-screen flex-col overflow-hidden text-white" style={{ background: 'var(--theme-bg)' }}>
+      <div
+        className="flex min-h-screen flex-col overflow-hidden text-white"
+        style={{ background: 'var(--theme-bg)' }}
+      >
         <Navbar />
 
         <main className="flex min-h-0 flex-1 items-center justify-center px-4 pt-20 sm:px-6 sm:pt-24 lg:px-8">
-          <div className="w-full max-w-5xl rounded-3xl border-[1.5px] px-6 py-8 text-center" style={glassPanelStyle}>
-            <p className="text-base sm:text-lg" style={{ color: 'var(--theme-muted-text)' }}>Loading stream...</p>
+          <div
+            className="w-full max-w-5xl rounded-3xl border-[1.5px] px-6 py-8 text-center"
+            style={glassPanelStyle}
+          >
+            <p className="text-base sm:text-lg" style={{ color: 'var(--theme-muted-text)' }}>
+              Loading stream...
+            </p>
           </div>
         </main>
 
@@ -573,12 +724,20 @@ function LiveSportsWatchContent() {
 
   if (error && !streams.length) {
     return (
-      <div className="flex min-h-screen flex-col overflow-hidden text-white" style={{ background: 'var(--theme-bg)' }}>
+      <div
+        className="flex min-h-screen flex-col overflow-hidden text-white"
+        style={{ background: 'var(--theme-bg)' }}
+      >
         <Navbar />
 
         <main className="flex min-h-0 flex-1 items-center justify-center px-4 pt-20 sm:px-6 sm:pt-24 lg:px-8">
-          <div className="w-full max-w-5xl rounded-3xl border-[1.5px] px-6 py-8 text-center" style={glassPanelStyle}>
-            <p className="text-base sm:text-lg" style={{ color: 'var(--theme-accent-text)' }}>{error}</p>
+          <div
+            className="w-full max-w-5xl rounded-3xl border-[1.5px] px-6 py-8 text-center"
+            style={glassPanelStyle}
+          >
+            <p className="text-base sm:text-lg" style={{ color: 'var(--theme-accent-text)' }}>
+              {error}
+            </p>
 
             <div className="mt-6">
               <Link
@@ -599,17 +758,31 @@ function LiveSportsWatchContent() {
 
   return (
     <>
-      <div className="flex min-h-screen flex-col overflow-hidden text-white" style={{ background: 'var(--theme-bg)' }}>
+      <div
+        className="flex min-h-screen flex-col overflow-hidden text-white"
+        style={{ background: 'var(--theme-bg)' }}
+      >
         <Navbar />
 
         <main className="flex min-h-0 flex-1 flex-col px-4 pb-3 pt-20 sm:px-6 sm:pb-2 sm:pt-24 lg:px-8">
           <section className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col">
             {syncNotice && (
-              <div
-                className="mb-4 rounded-2xl border px-4 py-3 text-sm"
-                style={successNoticeStyle}
-              >
+              <div className="mb-4 rounded-2xl border px-4 py-3 text-sm" style={successNoticeStyle}>
                 {syncNotice}
+              </div>
+            )}
+
+            {fullscreenNoticeOpen && (
+              <div className="mb-4 rounded-2xl border px-4 py-3 text-sm" style={warningNoticeStyle}>
+                {isMobileLike
+                  ? 'Entered fullscreen. Use your browser or device controls to exit fullscreen.'
+                  : 'Entered fullscreen. Press ESC to exit fullscreen.'}
+              </div>
+            )}
+
+            {isMobileLike && (
+              <div className="mb-4 rounded-2xl border px-4 py-3 text-sm" style={warningNoticeStyle}>
+                Mobile mode uses the native embedded player controls.
               </div>
             )}
 
@@ -626,7 +799,10 @@ function LiveSportsWatchContent() {
                     '0 0 34px color-mix(in srgb, var(--theme-accent-glow) 42%, transparent), 0 16px 32px rgba(0,0,0,0.28)',
                 }}
               >
-                <div className="relative z-10 aspect-video w-full self-center" style={{ background: '#000000' }}>
+                <div
+                  className="relative z-10 aspect-video w-full self-center"
+                  style={{ background: '#000000' }}
+                >
                   <iframe
                     key={`${embedUrl}-${iframeKey}`}
                     ref={playerFrameRef}
@@ -636,28 +812,39 @@ function LiveSportsWatchContent() {
                     allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write; web-share"
                     allowFullScreen
                   />
+
+                  {controlsEnabled && controlsLocked && (
+                    <div
+                      className="absolute inset-0 z-10"
+                      aria-hidden="true"
+                      style={{
+                        background: 'transparent',
+                        cursor: 'default',
+                      }}
+                    />
+                  )}
                 </div>
               </div>
             </div>
 
-            <div className="mt-3 rounded-2xl border p-3 sm:p-4" style={glassSurfaceStyle}>
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <div
-                    className="flex items-center gap-3 rounded-2xl border px-3 py-2"
-                    style={glassGhostButtonStyle}
-                  >
-                    <button
-                      type="button"
-                      onClick={handleToggleMute}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-xl border transition active:scale-95"
+            {controlsEnabled && (
+              <div className="mt-3 rounded-2xl border p-3 sm:p-4" style={glassSurfaceStyle}>
+                <div className="flex flex-col gap-3 md:grid md:grid-cols-[12rem_auto_12rem] md:items-center">
+                  <div className="flex justify-center md:justify-start">
+                    <div
+                      className="flex h-12 w-full max-w-[12rem] items-center gap-2 rounded-2xl border px-2.5"
                       style={glassGhostButtonStyle}
-                      aria-label={playerMuted ? 'Unmute' : 'Mute'}
                     >
-                      {playerMuted ? <IconMute /> : <IconVolume />}
-                    </button>
+                      <button
+                        type="button"
+                        onClick={handleToggleMute}
+                        className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border transition active:scale-95"
+                        style={glassGhostButtonStyle}
+                        aria-label={playerMuted ? 'Unmute' : 'Mute'}
+                      >
+                        {playerMuted ? <IconMute /> : <IconVolume />}
+                      </button>
 
-                    <div className="flex items-center gap-2">
                       <input
                         type="range"
                         min="0"
@@ -665,182 +852,178 @@ function LiveSportsWatchContent() {
                         step="0.01"
                         value={playerMuted ? 0 : playerVolume}
                         onChange={handleVolumeChange}
-                        className="h-2 w-36 cursor-pointer appearance-none rounded-full bg-white/10 accent-[var(--theme-accent)] sm:w-40"
+                        className="h-2 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-white/10 accent-[var(--theme-accent)]"
                         aria-label="Volume"
                       />
+
                       <span
-                        className="min-w-[2.5rem] text-right text-xs font-semibold"
+                        className="min-w-[2rem] text-right text-[11px] font-semibold"
                         style={{ color: 'var(--theme-muted-text)' }}
                       >
                         {Math.round((playerMuted ? 0 : playerVolume) * 100)}%
                       </span>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
-                  <button
-                    type="button"
-                    onClick={() => handleSeekRelative(-10)}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
-                    style={glassGhostButtonStyle}
-                  >
-                    <IconSkipBack />
-                    <span>-10s</span>
-                  </button>
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSeekRelative(-10)}
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-xl border transition active:scale-95"
+                      style={glassGhostButtonStyle}
+                      aria-label="Back 10 seconds"
+                    >
+                      <IconSkipBack />
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={handleTogglePlay}
-                    className="inline-flex h-11 min-w-[9.5rem] items-center justify-center gap-2 rounded-xl border px-5 text-sm font-semibold transition active:scale-95"
-                    style={glassAccentButtonStyle}
-                  >
-                    {playerIsPlaying ? <IconPause /> : <IconPlay />}
-                    <span>{playerIsPlaying ? 'Pause' : 'Play / Resume'}</span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={handleTogglePlay}
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-xl border transition active:scale-95"
+                      style={glassAccentButtonStyle}
+                      aria-label={playerIsPlaying ? 'Pause' : 'Resume'}
+                    >
+                      {playerIsPlaying ? <IconPause /> : <IconPlay />}
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => handleSeekRelative(10)}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
-                    style={glassGhostButtonStyle}
-                  >
-                    <span>+10s</span>
-                    <IconSkipForward />
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-end gap-2 sm:gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setServerMenuOpen((prev) => !prev);
-                      setSettingsOpen(false);
-                    }}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
-                    style={glassGhostButtonStyle}
-                  >
-                    <IconServer />
-                    <span>Server</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSettingsOpen((prev) => !prev);
-                      setServerMenuOpen(false);
-                    }}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
-                    style={glassGhostButtonStyle}
-                  >
-                    <IconSettings />
-                    <span>Settings</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleFullscreen}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
-                    style={glassGhostButtonStyle}
-                  >
-                    <IconFullscreen />
-                    <span>Fullscreen</span>
-                  </button>
-                </div>
-              </div>
-
-              {serverMenuOpen && (
-                <div
-                  className="mt-3 rounded-2xl border p-3"
-                  style={{
-                    ...glassSurfaceStyle,
-                    boxShadow:
-                      '0 10px 24px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.06)',
-                  }}
-                >
-                  <div className="mb-2 flex items-center gap-2">
-                    <IconServer className="h-4 w-4" />
-                    <p className="text-sm font-semibold" style={{ color: 'var(--theme-accent-text)' }}>
-                      Choose Server
-                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleSeekRelative(10)}
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-xl border transition active:scale-95"
+                      style={glassGhostButtonStyle}
+                      aria-label="Forward 10 seconds"
+                    >
+                      <IconSkipForward />
+                    </button>
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
-                    {availableSources.map((source, index) => {
-                      const active = index === activeSourceIndex;
+                  <div className="flex justify-center md:justify-end">
+                    <div
+                      className="flex h-12 w-full max-w-[12rem] items-center justify-center gap-2 rounded-2xl border px-2.5"
+                      style={glassGhostButtonStyle}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setServerMenuOpen((prev) => !prev)}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl border transition active:scale-95"
+                        style={serverMenuOpen ? glassAccentButtonStyle : glassGhostButtonStyle}
+                        aria-label="Servers and streams"
+                      >
+                        <IconServer />
+                      </button>
 
-                      return (
-                        <button
-                          key={`${source.source || 'source'}-${source.id || index}`}
-                          type="button"
-                          onClick={() => handleSourceSelect(index)}
-                          className="inline-flex h-10 items-center justify-center rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
-                          style={active ? glassAccentButtonStyle : glassGhostButtonStyle}
-                        >
-                          {buildSourceLabel(source, index)}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+                      <button
+                        type="button"
+                        onClick={() => setControlsLocked((prev) => !prev)}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl border transition active:scale-95"
+                        style={!controlsLocked ? glassAccentButtonStyle : glassGhostButtonStyle}
+                        aria-label={controlsLocked ? 'Unlock embedded controls' : 'Lock embedded controls'}
+                      >
+                        {controlsLocked ? <IconLock /> : <IconUnlock />}
+                      </button>
 
-              {settingsOpen && (
-                <div
-                  className="mt-3 rounded-2xl border p-3"
-                  style={{
-                    ...glassSurfaceStyle,
-                    boxShadow:
-                      '0 10px 24px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.06)',
-                  }}
-                >
-                  <div className="mb-3 flex items-center gap-2">
-                    <IconSettings className="h-4 w-4" />
-                    <p className="text-sm font-semibold" style={{ color: 'var(--theme-accent-text)' }}>
-                      Player Settings
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {streams.map((stream, index) => {
-                      const active = index === activeStreamIndex;
-
-                      return (
-                        <button
-                          key={`${stream.id || index}-${stream.streamNo || index}`}
-                          type="button"
-                          onClick={() => handleStreamSelect(index)}
-                          className="inline-flex h-10 items-center justify-center rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
-                          style={active ? glassAccentButtonStyle : glassGhostButtonStyle}
-                        >
-                          {buildStreamLabel(stream, index)}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div
-                    className="mt-3 rounded-xl border px-4 py-3 text-xs sm:text-sm"
-                    style={glassGhostButtonStyle}
-                  >
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                      <span>
-                        <strong>State:</strong> {playerIsPlaying ? 'Playing' : 'Paused'}
-                      </span>
-                      <span>
-                        <strong>Volume:</strong> {Math.round((playerMuted ? 0 : playerVolume) * 100)}%
-                      </span>
-                      <span>
-                        <strong>Server:</strong> {buildSourceLabel(activeSource, activeSourceIndex)}
-                      </span>
-                      <span>
-                        <strong>Stream:</strong> {buildStreamLabel(activeStream, activeStreamIndex)}
-                      </span>
+                      <button
+                        type="button"
+                        onClick={handleFullscreen}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl border transition active:scale-95"
+                        style={glassGhostButtonStyle}
+                        aria-label="Fullscreen"
+                      >
+                        <IconFullscreen />
+                      </button>
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
+
+                {serverMenuOpen && (
+                  <div
+                    className="mt-3 rounded-2xl border p-3"
+                    style={{
+                      ...glassSurfaceStyle,
+                      boxShadow:
+                        '0 10px 24px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.06)',
+                    }}
+                  >
+                    <div className="mb-2 flex items-center gap-2">
+                      <IconServer className="h-4 w-4" />
+                      <p className="text-sm font-semibold" style={{ color: 'var(--theme-accent-text)' }}>
+                        Servers
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {availableSources.map((source, index) => {
+                        const active = index === activeSourceIndex;
+
+                        return (
+                          <button
+                            key={`${source.source || 'source'}-${source.id || index}`}
+                            type="button"
+                            onClick={() => handleSourceSelect(index)}
+                            className="inline-flex h-10 items-center justify-center rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
+                            style={active ? glassAccentButtonStyle : glassGhostButtonStyle}
+                          >
+                            {buildSourceLabel(source, index)}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {streams.length > 0 && (
+                      <>
+                        <div className="mb-2 mt-4 flex items-center gap-2">
+                          <IconServer className="h-4 w-4" />
+                          <p className="text-sm font-semibold" style={{ color: 'var(--theme-accent-text)' }}>
+                            Streams
+                          </p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                          {streams.map((stream, index) => {
+                            const active = index === activeStreamIndex;
+
+                            return (
+                              <button
+                                key={`${stream.id || index}-${stream.streamNo || index}`}
+                                type="button"
+                                onClick={() => handleStreamSelect(index)}
+                                className="inline-flex h-10 items-center justify-center rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
+                                style={active ? glassAccentButtonStyle : glassGhostButtonStyle}
+                              >
+                                {buildStreamLabel(stream, index)}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+
+                    <div
+                      className="mt-3 rounded-xl border px-4 py-3 text-xs sm:text-sm"
+                      style={glassGhostButtonStyle}
+                    >
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                        <span>
+                          <strong>State:</strong> {playerIsPlaying ? 'Playing' : 'Paused'}
+                        </span>
+                        <span>
+                          <strong>Volume:</strong> {Math.round((playerMuted ? 0 : playerVolume) * 100)}%
+                        </span>
+                        <span>
+                          <strong>Server:</strong> {buildSourceLabel(activeSource, activeSourceIndex)}
+                        </span>
+                        <span>
+                          <strong>Stream:</strong> {buildStreamLabel(activeStream, activeStreamIndex)}
+                        </span>
+                        <span>
+                          <strong>Lock:</strong> {controlsLocked ? 'On' : 'Off'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </section>
         </main>
 
@@ -853,10 +1036,7 @@ function LiveSportsWatchContent() {
             className="w-full max-w-2xl overflow-hidden rounded-3xl border-[1.5px]"
             style={glassPanelStyle}
           >
-            <div
-              className="border-b px-4 py-3 sm:px-5"
-              style={glassNoticeStyle}
-            >
+            <div className="border-b px-4 py-3 sm:px-5" style={glassNoticeStyle}>
               <div className="flex items-center gap-3">
                 <div
                   className="flex h-9 w-9 items-center justify-center rounded-full border text-yellow-200"
@@ -879,7 +1059,10 @@ function LiveSportsWatchContent() {
                   </svg>
                 </div>
 
-                <p className="text-sm font-semibold uppercase tracking-[0.18em]" style={{ color: 'var(--theme-accent-text)' }}>
+                <p
+                  className="text-sm font-semibold uppercase tracking-[0.18em]"
+                  style={{ color: 'var(--theme-accent-text)' }}
+                >
                   Important Notice
                 </p>
               </div>
@@ -888,29 +1071,65 @@ function LiveSportsWatchContent() {
             <div className="space-y-4 px-4 py-4 sm:space-y-5 sm:px-5 sm:py-5">
               <div className="rounded-2xl border p-4" style={glassSurfaceStyle}>
                 <p className="text-sm font-semibold" style={{ color: 'var(--theme-accent-text)' }}>
-                  1.) Some servers may not be functioning properly, or may be experiencing issues.
+                  1.) How to resolve Server / Playback issues?
                 </p>
 
                 <p className="mt-2 text-sm leading-6 text-gray-200 sm:leading-7">
-                  The sources are external (third party) and therefore not affected by KFlix.
+                  The embedded players are external (third party) and therefor not affected by KFlix.
+                </p>
+
+                <p className="mt-0 text-sm leading-6 text-gray-500 sm:leading-2">
+                  Down below are the most common solutions for server or playback issues.
                 </p>
 
                 <div
                   className="mt-3 rounded-xl border px-4 py-3 text-sm text-gray-300"
                   style={glassSurfaceStyle}
                 >
-                  • If you receive a playback error, try other servers, or try using a VPN and reload the site.
-                </div>
+                • Refresh the page multiple times.
+                </div> 
+                
+                <div
+                  className="mt-3 rounded-xl border px-4 py-3 text-sm text-gray-300"
+                  style={glassSurfaceStyle}
+                >
+                • Switch between the different servers.
+                </div> 
+                
+                <div
+                  className="mt-3 rounded-xl border px-4 py-3 text-sm text-gray-300"
+                  style={glassSurfaceStyle}
+                >
+                • Turn on a VPN, and refresh the page (best fix).
+                </div> 
               </div>
 
               <div className="rounded-2xl border p-4" style={glassSurfaceStyle}>
                 <p className="text-sm font-semibold" style={{ color: 'var(--theme-accent-text)' }}>
-                  2.) Be aware, using an adblocker like uBlock Origin or similar is highly suggested.
+                  2.) How to prevent pop-up ads and unwanted content?
                 </p>
 
                 <p className="mt-2 text-sm leading-6 text-gray-200 sm:leading-7">
-                  The embedded players might display pop-up ads or take you to a new site. KFlix is not affiliated with those ads.
+                  The players have baked in ads, new windows might open when clicking on the player.
                 </p>
+
+                <p className="mt-0 text-sm leading-6 text-gray-500 sm:leading-2">
+                  We combat this by using our own control panel, and adding a invisible (toggleable) layer on top.
+                </p>
+
+                <div
+                  className="mt-3 rounded-xl border px-4 py-3 text-sm text-gray-300"
+                  style={glassSurfaceStyle}
+                >
+                • Use adblockers like uBlock Origin.
+                </div> 
+
+                <div
+                  className="mt-3 rounded-xl border px-4 py-3 text-sm text-gray-300"
+                  style={glassSurfaceStyle}
+                >
+                • Use browsers like Brave.
+                </div> 
               </div>
 
               <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
@@ -942,11 +1161,16 @@ function LiveSportsWatchContent() {
 
 function Footer() {
   return (
-    <footer className="shrink-0 px-4 pb-6 pt-2 text-center text-sm sm:px-6 lg:px-8" style={{ color: 'var(--theme-muted-text)' }}>
+    <footer
+      className="shrink-0 px-4 pb-6 pt-2 text-center text-sm sm:px-6 lg:px-8"
+      style={{ color: 'var(--theme-muted-text)' }}
+    >
       <p>This site does not host or store any media.</p>
 
-      <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs sm:text-sm" style={{ color: 'var(--theme-muted-text)' }}>
-      </div>
+      <div
+        className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs sm:text-sm"
+        style={{ color: 'var(--theme-muted-text)' }}
+      />
     </footer>
   );
 }
