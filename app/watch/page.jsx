@@ -20,6 +20,93 @@ const VIDFAST_ORIGINS = [
   'https://vidfast.xyz',
 ];
 
+const SERVER_OPTIONS = ['Alpha', 'Beta', 'Gamma', 'Delta'];
+
+function IconPlay({ className = 'h-4 w-4' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M8 6.82v10.36c0 .79.87 1.27 1.54.84l8.04-5.18a1 1 0 000-1.68L9.54 5.98A1 1 0 008 6.82z" />
+    </svg>
+  );
+}
+
+function IconPause({ className = 'h-4 w-4' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M7 5a1 1 0 011 1v12a1 1 0 11-2 0V6a1 1 0 011-1zm10 0a1 1 0 011 1v12a1 1 0 11-2 0V6a1 1 0 011-1z" />
+    </svg>
+  );
+}
+
+function IconSkipBack({ className = 'h-4 w-4' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M11 19L3 12l8-7" />
+      <path d="M21 19l-8-7 8-7" />
+    </svg>
+  );
+}
+
+function IconSkipForward({ className = 'h-4 w-4' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M13 19l8-7-8-7" />
+      <path d="M3 19l8-7-8-7" />
+    </svg>
+  );
+}
+
+function IconVolume({ className = 'h-4 w-4' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M11 5L6 9H3v6h3l5 4V5z" />
+      <path d="M15.5 8.5a5 5 0 010 7" />
+      <path d="M18.5 5.5a9 9 0 010 13" />
+    </svg>
+  );
+}
+
+function IconMute({ className = 'h-4 w-4' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M11 5L6 9H3v6h3l5 4V5z" />
+      <path d="M23 9l-6 6" />
+      <path d="M17 9l6 6" />
+    </svg>
+  );
+}
+
+function IconFullscreen({ className = 'h-4 w-4' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M8 3H3v5" />
+      <path d="M16 3h5v5" />
+      <path d="M21 16v5h-5" />
+      <path d="M3 16v5h5" />
+    </svg>
+  );
+}
+
+function IconSettings({ className = 'h-4 w-4' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06A1.65 1.65 0 0015 19.4a1.65 1.65 0 00-1 .6 1.65 1.65 0 00-.33 1V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-.33-1 1.65 1.65 0 00-1-.6 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-.6-1 1.65 1.65 0 00-1-.33H3a2 2 0 010-4h.09a1.65 1.65 0 001-.33 1.65 1.65 0 00.6-1 1.65 1.65 0 00-.33-1.82l-.06-.06A2 2 0 017.13 3.6l.06.06A1.65 1.65 0 009 4.6c.38 0 .74-.14 1-.4.26-.26.4-.62.4-1V3a2 2 0 014 0v.09c0 .38.14.74.4 1 .26.26.62.4 1 .4a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9c0 .38.14.74.4 1 .26.26.62.4 1 .4H21a2 2 0 010 4h-.09c-.38 0-.74.14-1 .4-.26.26-.4.62-.4 1z" />
+    </svg>
+  );
+}
+
+function IconServer({ className = 'h-4 w-4' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="6" rx="2" />
+      <rect x="3" y="14" width="18" height="6" rx="2" />
+      <path d="M7 7h.01" />
+      <path d="M7 17h.01" />
+    </svg>
+  );
+}
+
 async function fetchMovieDetail(id) {
   const res = await fetch(
     `https://api.themoviedb.org/3/movie/${id}?api_key=${TMDB_API_KEY}&append_to_response=videos`
@@ -56,7 +143,15 @@ async function fetchEpisodeDetail(id, season, episode) {
   return res.json();
 }
 
-function getEmbedUrl({ type, id, season, episode, startAt = 0, autoPlay = true }) {
+function getEmbedUrl({
+  type,
+  id,
+  season,
+  episode,
+  startAt = 0,
+  autoPlay = true,
+  server = 'Alpha',
+}) {
   if (!id || !type) return '';
 
   const params = new URLSearchParams();
@@ -65,11 +160,11 @@ function getEmbedUrl({ type, id, season, episode, startAt = 0, autoPlay = true }
   params.set('poster', 'false');
   params.set('autoPlay', autoPlay ? 'true' : 'false');
   params.set('theme', 'E7000B');
-  params.set('hideServerControls', 'false');
+  params.set('hideServerControls', 'true');
   params.set('fullscreenButton', 'true');
   params.set('chromecast', 'true');
   params.set('sub', '0');
-  params.set('server', type === 'movie' ? 'Alpha' : 'Alpha');
+  params.set('server', server);
 
   if (Number.isFinite(startAt) && startAt > 0) {
     params.set('startAt', String(Math.max(0, Math.floor(startAt))));
@@ -460,6 +555,7 @@ function WatchPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const playerFrameRef = useRef(null);
+  const playerShellRef = useRef(null);
   const lastStatusRequestRef = useRef(0);
   const latestPlaybackRef = useRef({ currentTime: 0, isPlaying: true });
   const pendingInitialSyncRef = useRef(null);
@@ -492,7 +588,6 @@ function WatchPageContent() {
   const partyFollowEnabled = partyFollowParam === '1';
 
   const initialStartTime = Number(initialTimeParam || 0);
-  const initialAutoplay = initialAutoplayParam ? initialAutoplayParam === '1' : true;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -513,10 +608,17 @@ function WatchPageContent() {
     Number.isFinite(initialStartTime) ? Math.max(0, initialStartTime) : 0
   );
   const [playerIsPlaying, setPlayerIsPlaying] = useState(false);
+  const [playerVolume, setPlayerVolume] = useState(1);
+  const [playerMuted, setPlayerMuted] = useState(false);
+
+  const [selectedServer, setSelectedServer] = useState('Alpha');
+  const [serverMenuOpen, setServerMenuOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const [embedState, setEmbedState] = useState({
     startAt: Number.isFinite(initialStartTime) ? Math.max(0, initialStartTime) : 0,
     autoPlay: false,
+    server: 'Alpha',
   });
 
   const [iframeSeed, setIframeSeed] = useState(0);
@@ -608,11 +710,12 @@ function WatchPageContent() {
       episode,
       startAt: embedState.startAt,
       autoPlay: embedState.autoPlay,
+      server: embedState.server,
     });
   }, [type, id, season, episode, embedState]);
 
   const iframeKey = useMemo(() => {
-    return `${type}-${id}-${season || 'na'}-${episode || 'na'}-${iframeSeed}-${embedState.startAt}-${embedState.autoPlay ? '1' : '0'}`;
+    return `${type}-${id}-${season || 'na'}-${episode || 'na'}-${iframeSeed}-${embedState.startAt}-${embedState.autoPlay ? '1' : '0'}-${embedState.server}`;
   }, [type, id, season, episode, iframeSeed, embedState]);
 
   const sendPlayerCommand = (payload) => {
@@ -629,6 +732,13 @@ function WatchPageContent() {
 
     lastStatusRequestRef.current = now;
     sendPlayerCommand({ command: 'getStatus' });
+  };
+
+  const ensureUserInteractionUnlock = () => {
+    if (!autoplayUnlocked) {
+      setAutoplayUnlocked(true);
+      setNoticeOpen(false);
+    }
   };
 
   const publishPlaybackState = (currentTimeArg, isPlayingArg, overrides = {}) => {
@@ -725,7 +835,7 @@ function WatchPageContent() {
     });
   };
 
-  const reloadPlayerToPosition = ({ currentTime, isPlaying }) => {
+  const reloadPlayerToPosition = ({ currentTime, isPlaying, server = selectedServer }) => {
     const targetTime =
       typeof currentTime === 'number' && Number.isFinite(currentTime)
         ? Math.max(0, Math.floor(currentTime))
@@ -736,6 +846,7 @@ function WatchPageContent() {
     setEmbedState({
       startAt: targetTime,
       autoPlay: shouldPlay,
+      server,
     });
 
     setPlayerCurrentTime(targetTime);
@@ -782,6 +893,135 @@ function WatchPageContent() {
       currentTime: targetTime,
       isPlaying: shouldPlay,
     };
+  };
+
+  const handleTogglePlay = () => {
+    ensureUserInteractionUnlock();
+
+    const targetTime = latestPlaybackRef.current.currentTime || 0;
+    const nextPlaying = !playerIsPlaying;
+
+    const didSend = sendPlayerCommand({
+      command: nextPlaying ? 'play' : 'pause',
+      time: targetTime,
+    });
+
+    if (!didSend) {
+      reloadPlayerToPosition({
+        currentTime: targetTime,
+        isPlaying: nextPlaying,
+      });
+      return;
+    }
+
+    setPlayerIsPlaying(nextPlaying);
+    latestPlaybackRef.current = {
+      currentTime: targetTime,
+      isPlaying: nextPlaying,
+    };
+  };
+
+  const handleSeekRelative = (delta) => {
+    ensureUserInteractionUnlock();
+
+    const nextTime = Math.max(0, Math.floor((latestPlaybackRef.current.currentTime || 0) + delta));
+    const currentPlaying = latestPlaybackRef.current.isPlaying;
+
+    const didSeek = sendPlayerCommand({
+      command: 'seek',
+      time: nextTime,
+    });
+
+    if (!didSeek) {
+      reloadPlayerToPosition({
+        currentTime: nextTime,
+        isPlaying: currentPlaying,
+      });
+      return;
+    }
+
+    setPlayerCurrentTime(nextTime);
+    latestPlaybackRef.current = {
+      currentTime: nextTime,
+      isPlaying: currentPlaying,
+    };
+
+    queueSaveContinueWatching(nextTime, currentPlaying);
+  };
+
+  const handleVolumeChange = (event) => {
+    ensureUserInteractionUnlock();
+
+    const nextVolume = Math.max(0, Math.min(1, Number(event.target.value)));
+    setPlayerVolume(nextVolume);
+    setPlayerMuted(nextVolume <= 0);
+
+    sendPlayerCommand({
+      command: 'volume',
+      level: nextVolume,
+    });
+
+    sendPlayerCommand({
+      command: 'mute',
+      muted: nextVolume <= 0,
+    });
+  };
+
+  const handleToggleMute = () => {
+    ensureUserInteractionUnlock();
+
+    const nextMuted = !playerMuted;
+    setPlayerMuted(nextMuted);
+
+    sendPlayerCommand({
+      command: 'mute',
+      muted: nextMuted,
+    });
+
+    if (!nextMuted && playerVolume <= 0) {
+      setPlayerVolume(0.5);
+      sendPlayerCommand({
+        command: 'volume',
+        level: 0.5,
+      });
+    }
+  };
+
+  const handleFullscreen = async () => {
+    const element = playerShellRef.current;
+    if (!element) return;
+
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await element.requestFullscreen();
+      }
+    } catch (fullscreenError) {
+      console.error('Failed to toggle fullscreen:', fullscreenError);
+    }
+  };
+
+  const handleServerSelect = (serverName) => {
+    if (!serverName || serverName === selectedServer) {
+      setServerMenuOpen(false);
+      return;
+    }
+
+    setSelectedServer(serverName);
+    setServerMenuOpen(false);
+
+    const currentTime = latestPlaybackRef.current.currentTime || 0;
+    const isPlaying = latestPlaybackRef.current.isPlaying;
+
+    setSyncNotice(`Switched to ${serverName} server.`);
+    setTimeout(() => setSyncNotice(''), 2200);
+
+    reloadPlayerToPosition({
+      currentTime,
+      isPlaying,
+      server: serverName,
+    });
   };
 
   useEffect(() => {
@@ -913,14 +1153,16 @@ function WatchPageContent() {
   }, [type, id, season, episode, initialTimeParam, initialAutoplayParam]);
 
   useEffect(() => {
-    const nextStartTime = Number(initialTimeParam || 0);
-    const nextAutoplay = initialAutoplayParam ? initialAutoplayParam === '1' : true;
+    const normalizedTime = Number.isFinite(Number(initialTimeParam || 0))
+      ? Math.max(0, Number(initialTimeParam || 0))
+      : 0;
 
-    const normalizedTime = Number.isFinite(nextStartTime) ? Math.max(0, nextStartTime) : 0;
+    const nextAutoplay = initialAutoplayParam ? initialAutoplayParam === '1' : true;
 
     setEmbedState({
       startAt: normalizedTime,
       autoPlay: false,
+      server: selectedServer,
     });
 
     setPlayerCurrentTime(normalizedTime);
@@ -936,7 +1178,7 @@ function WatchPageContent() {
     setPlayerReady(false);
     setShowAutoplayHint(nextAutoplay);
     setIframeSeed((prev) => prev + 1);
-  }, [initialTimeParam, initialAutoplayParam, type, id, season, episode]);
+  }, [initialTimeParam, initialAutoplayParam, type, id, season, episode, selectedServer]);
 
   useEffect(() => {
     if (!initialTimeParam && !initialAutoplayParam) return;
@@ -1167,7 +1409,18 @@ function WatchPageContent() {
               ? payload.isPlaying
               : latestPlaybackRef.current.isPlaying;
 
+        const nextMuted =
+          typeof payload.muted === 'boolean' ? payload.muted : playerMuted;
+
+        const nextVolume =
+          typeof payload.volume === 'number' && Number.isFinite(payload.volume)
+            ? Math.max(0, Math.min(1, payload.volume))
+            : playerVolume;
+
         setPlayerIsPlaying(playing);
+        setPlayerMuted(nextMuted);
+        setPlayerVolume(nextVolume);
+
         latestPlaybackRef.current = {
           currentTime,
           isPlaying: playing,
@@ -1185,7 +1438,19 @@ function WatchPageContent() {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [isHost, userId, type, id, season, episode, heroData, episodeData, autoplayUnlocked]);
+  }, [
+    isHost,
+    userId,
+    type,
+    id,
+    season,
+    episode,
+    heroData,
+    episodeData,
+    autoplayUnlocked,
+    playerMuted,
+    playerVolume,
+  ]);
 
   useEffect(() => {
     if (!playerReady || !pendingInitialSyncRef.current || !autoplayUnlocked) return;
@@ -1326,6 +1591,7 @@ function WatchPageContent() {
         setEmbedState({
           startAt: Math.max(0, Math.floor(mediaTime)),
           autoPlay: false,
+          server: selectedServer,
         });
         setPlayerCurrentTime(Math.max(0, mediaTime));
         setPlayerIsPlaying(false);
@@ -1359,7 +1625,19 @@ function WatchPageContent() {
     });
 
     return () => unsubscribe();
-  }, [partyCode, userId, isHost, partyFollowEnabled, type, id, season, episode, playerReady, autoplayUnlocked]);
+  }, [
+    partyCode,
+    userId,
+    isHost,
+    partyFollowEnabled,
+    type,
+    id,
+    season,
+    episode,
+    playerReady,
+    autoplayUnlocked,
+    selectedServer,
+  ]);
 
   useEffect(() => {
     const handleFlush = () => {
@@ -1440,6 +1718,7 @@ function WatchPageContent() {
       setEmbedState({
         startAt: targetTime,
         autoPlay: shouldAutoplay,
+        server: selectedServer,
       });
       setIframeSeed((prev) => prev + 1);
     }
@@ -1452,18 +1731,18 @@ function WatchPageContent() {
   };
 
   const handleNoticeNotUnderstood = () => {
-  if (returnToParam) {
-    router.push(returnToParam);
-    return;
-  }
+    if (returnToParam) {
+      router.push(returnToParam);
+      return;
+    }
 
-  if (typeof window !== 'undefined' && window.history.length > 1) {
-    router.back();
-    return;
-  }
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+      return;
+    }
 
-  router.push('/');
-};
+    router.push('/');
+  };
 
   if (loading) {
     return (
@@ -1486,12 +1765,6 @@ function WatchPageContent() {
           style={{ color: 'var(--theme-muted-text)' }}
         >
           <p>This site does not host or store any media.</p>
-
-          <div
-            className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs sm:text-sm"
-            style={{ color: 'var(--theme-muted-text)' }}
-          >
-          </div>
         </footer>
       </div>
     );
@@ -1528,12 +1801,6 @@ function WatchPageContent() {
           style={{ color: 'var(--theme-muted-text)' }}
         >
           <p>This site does not host or store any media.</p>
-
-          <div
-            className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs sm:text-sm"
-            style={{ color: 'var(--theme-muted-text)' }}
-          >
-          </div>
         </footer>
       </div>
     );
@@ -1569,6 +1836,7 @@ function WatchPageContent() {
 
             <div className="overflow-hidden rounded-3xl border-[1.5px] p-2 sm:p-3" style={glassPanelStyle}>
               <div
+                ref={playerShellRef}
                 className="overflow-hidden rounded-2xl border-[1.5px] p-0"
                 style={{
                   ...glassSurfaceStyle,
@@ -1616,6 +1884,212 @@ function WatchPageContent() {
                   )}
                 </div>
               </div>
+
+              <div className="mt-3 rounded-2xl border p-3 sm:p-4" style={glassSurfaceStyle}>
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <div
+                      className="flex items-center gap-3 rounded-2xl border px-3 py-2"
+                      style={glassGhostButtonStyle}
+                    >
+                      <button
+                        type="button"
+                        onClick={handleToggleMute}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border transition active:scale-95"
+                        style={glassGhostButtonStyle}
+                        aria-label={playerMuted ? 'Unmute' : 'Mute'}
+                      >
+                        {playerMuted ? <IconMute /> : <IconVolume />}
+                      </button>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value={playerMuted ? 0 : playerVolume}
+                          onChange={handleVolumeChange}
+                          className="h-2 w-36 cursor-pointer appearance-none rounded-full bg-white/10 accent-[var(--theme-accent)] sm:w-40"
+                          aria-label="Volume"
+                        />
+                        <span
+                          className="min-w-[2.5rem] text-right text-xs font-semibold"
+                          style={{ color: 'var(--theme-muted-text)' }}
+                        >
+                          {Math.round((playerMuted ? 0 : playerVolume) * 100)}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleSeekRelative(-10)}
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
+                      style={glassGhostButtonStyle}
+                    >
+                      <IconSkipBack />
+                      <span>-10s</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleTogglePlay}
+                      className="inline-flex h-11 min-w-[9.5rem] items-center justify-center gap-2 rounded-xl border px-5 text-sm font-semibold transition active:scale-95"
+                      style={glassAccentButtonStyle}
+                    >
+                      {playerIsPlaying ? <IconPause /> : <IconPlay />}
+                      <span>{playerIsPlaying ? 'Pause' : 'Play / Resume'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSeekRelative(10)}
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
+                      style={glassGhostButtonStyle}
+                    >
+                      <span>+10s</span>
+                      <IconSkipForward />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 sm:gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setServerMenuOpen((prev) => !prev);
+                        setSettingsOpen(false);
+                      }}
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
+                      style={glassGhostButtonStyle}
+                    >
+                      <IconServer />
+                      <span>Server</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSettingsOpen((prev) => !prev);
+                        setServerMenuOpen(false);
+                      }}
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
+                      style={glassGhostButtonStyle}
+                    >
+                      <IconSettings />
+                      <span>Settings</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleFullscreen}
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
+                      style={glassGhostButtonStyle}
+                    >
+                      <IconFullscreen />
+                      <span>Fullscreen</span>
+                    </button>
+                  </div>
+                </div>
+
+                {serverMenuOpen && (
+                  <div
+                    className="mt-3 rounded-2xl border p-3"
+                    style={{
+                      ...glassSurfaceStyle,
+                      boxShadow:
+                        '0 10px 24px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.06)',
+                    }}
+                  >
+                    <div className="mb-2 flex items-center gap-2">
+                      <IconServer className="h-4 w-4" />
+                      <p className="text-sm font-semibold" style={{ color: 'var(--theme-accent-text)' }}>
+                        Choose Server
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {SERVER_OPTIONS.map((serverName) => {
+                        const active = selectedServer === serverName;
+
+                        return (
+                          <button
+                            key={serverName}
+                            type="button"
+                            onClick={() => handleServerSelect(serverName)}
+                            className="inline-flex h-10 items-center justify-center rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
+                            style={active ? glassAccentButtonStyle : glassGhostButtonStyle}
+                          >
+                            {serverName}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {settingsOpen && (
+                  <div
+                    className="mt-3 rounded-2xl border p-3"
+                    style={{
+                      ...glassSurfaceStyle,
+                      boxShadow:
+                        '0 10px 24px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.06)',
+                    }}
+                  >
+                    <div className="mb-3 flex items-center gap-2">
+                      <IconSettings className="h-4 w-4" />
+                      <p className="text-sm font-semibold" style={{ color: 'var(--theme-accent-text)' }}>
+                        Player Settings
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={handleToggleMute}
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
+                        style={glassGhostButtonStyle}
+                      >
+                        {playerMuted ? <IconMute /> : <IconVolume />}
+                        <span>{playerMuted ? 'Unmute' : 'Mute'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={requestPlayerStatus}
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
+                        style={glassGhostButtonStyle}
+                      >
+                        <IconSettings className="h-4 w-4" />
+                        <span>Refresh Status</span>
+                      </button>
+                    </div>
+
+                    <div
+                      className="mt-3 rounded-xl border px-4 py-3 text-xs sm:text-sm"
+                      style={glassGhostButtonStyle}
+                    >
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                        <span>
+                          <strong>State:</strong> {playerIsPlaying ? 'Playing' : 'Paused'}
+                        </span>
+                        <span>
+                          <strong>Time:</strong> {Math.floor(playerCurrentTime)}s
+                        </span>
+                        <span>
+                          <strong>Volume:</strong> {Math.round((playerMuted ? 0 : playerVolume) * 100)}%
+                        </span>
+                        <span>
+                          <strong>Server:</strong> {selectedServer}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </section>
         </main>
@@ -1625,12 +2099,6 @@ function WatchPageContent() {
           style={{ color: 'var(--theme-muted-text)' }}
         >
           <p>This site does not host or store any media.</p>
-
-          <div
-            className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs sm:text-sm"
-            style={{ color: 'var(--theme-muted-text)' }}
-          >
-          </div>
         </footer>
       </div>
 

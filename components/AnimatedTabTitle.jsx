@@ -2,8 +2,8 @@
 
 import { useEffect } from 'react';
 
-const INTRO_TITLE = 'KFLIX by Ser Wallace';
-const MARQUEE_TEXT = 'Watch Movies, Shows, Anime or Live Sports';
+const INTRO_TITLE = 'KFLIX';
+const MARQUEE_TEXT = 'Watch Movies, Shows & Live Sports';
 const INTRO_DURATION_MS = 10000;
 const STEP_MS = 180;
 const VIEWPORT_WIDTH = 28;
