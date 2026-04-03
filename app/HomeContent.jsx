@@ -41,6 +41,26 @@ function formatRemainingTime(seconds) {
   return `${mins}m left`;
 }
 
+function formatCountdown(dateString) {
+  if (!dateString) return null;
+
+  const target = new Date(dateString).getTime();
+  const now = Date.now();
+  const diff = target - now;
+
+  if (diff <= 0) return 'Now airing';
+
+  const totalSeconds = Math.floor(diff / 1000);
+
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+  if (days > 0) return `Airing in ${days}d ${hours}h`;
+  if (hours > 0) return `Airing in ${hours}h ${minutes}m`;
+  return `Airing in ${minutes}m`;
+}
+
 function buildEpisodeKey(showId, seasonNumber, episodeNumber) {
   return `${showId}-S${seasonNumber}-E${episodeNumber}`;
 }
@@ -129,6 +149,7 @@ function buildNextUpHref(item) {
 function splitProgressIntoSections(items, watchedMap) {
   const continueItems = [];
   const nextUpItems = [];
+  const unreleasedItems = [];
 
   items.forEach((item) => {
     if (!item || !item.id) return;
@@ -144,18 +165,27 @@ function splitProgressIntoSections(items, watchedMap) {
     const episode = Number(item.episode || 0);
     const nextSeason = Number(item.nextSeason || 0);
     const nextEpisode = Number(item.nextEpisode || 0);
+
     const hasExplicitNext =
       nextSeason > 0 &&
       nextEpisode > 0 &&
       (nextSeason !== season || nextEpisode !== episode);
 
     const currentKey =
-      season > 0 && episode > 0 ? buildEpisodeKey(item.id, season, episode) : '';
+      season > 0 && episode > 0
+        ? buildEpisodeKey(item.id, season, episode)
+        : '';
 
-    const currentIsWatched = currentKey ? Boolean(watchedMap[currentKey]) : false;
+    const currentIsWatched = currentKey
+      ? Boolean(watchedMap[currentKey])
+      : false;
 
     if (hasExplicitNext) {
-      nextUpItems.push(item);
+      if (item.nextAirDate && new Date(item.nextAirDate) > new Date()) {
+        unreleasedItems.push(item);
+      } else {
+        nextUpItems.push(item);
+      }
       return;
     }
 
@@ -163,12 +193,8 @@ function splitProgressIntoSections(items, watchedMap) {
       continueItems.push({
         ...item,
         currentTime: 0,
-        remainingTime:
-          item.remainingTime !== undefined && item.remainingTime !== null
-            ? item.remainingTime
-            : 0,
-        progress:
-          item.progress !== undefined && item.progress !== null ? item.progress : 0,
+        remainingTime: item.remainingTime ?? 0,
+        progress: item.progress ?? 0,
       });
       return;
     }
@@ -179,6 +205,7 @@ function splitProgressIntoSections(items, watchedMap) {
   return {
     continueItems: continueItems.slice(0, 10),
     nextUpItems: nextUpItems.slice(0, 10),
+    unreleasedItems: unreleasedItems.slice(0, 10),
   };
 }
 
@@ -402,22 +429,29 @@ function CardBadges({
 }) {
   return (
     <>
+  {showWatchedToggle ? (
+    // 🔥 CLEAN MODE (Continue / Next Up / Unreleased)
+    <div className="absolute right-2.5 top-2.5 z-20">
+      <ActionBadge
+        checked={isWatched}
+        onClick={onToggleWatched}
+        title={watchedToggleTitle}
+        variant={watchedToggleVariant}
+      />
+    </div>
+  ) : (
+    // 🔥 NORMAL MODE (everything else unchanged)
+    <>
       <div className="absolute left-2.5 top-2.5 z-20">
         <RatingsStarBadge item={item} />
       </div>
 
       <div className="absolute right-2.5 top-2.5 z-20 flex flex-col items-end gap-1.5">
         <BookmarkBadge active={isBookmarked} onToggle={onToggleBookmark} />
-        {showWatchedToggle ? (
-          <ActionBadge
-            checked={isWatched}
-            onClick={onToggleWatched}
-            title={watchedToggleTitle}
-            variant={watchedToggleVariant}
-          />
-        ) : null}
       </div>
     </>
+  )}
+</>
   );
 }
 
@@ -608,16 +642,24 @@ function CarouselSection({
               <div
                 key={`${sectionKey}-page-${pageIndex}`}
                 className={`grid min-w-full gap-3 px-4 py-4 sm:gap-4 sm:px-5 sm:py-5 ${
-                  compact
-                    ? cardsPerPage === 10
-                      ? 'grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-10'
-                      : cardsPerPage === 5
-                        ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
-                        : 'grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6'
-                    : cardsPerPage === 5
-                      ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
-                      : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'
-                }`}
+  compact
+    ? cardsPerPage === 10
+      ? 'grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-10'
+      : cardsPerPage === 5
+        ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
+        : cardsPerPage === 4
+          ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
+          : cardsPerPage === 3
+            ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3'
+            : 'grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6'
+    : cardsPerPage === 5
+      ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
+      : cardsPerPage === 4
+        ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
+        : cardsPerPage === 3
+          ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3'
+          : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'
+}`}
               >
                 {pageItems.map((item, index) => {
                   const mediaType = resolveMediaType(item) || 'movie';
@@ -625,6 +667,7 @@ function CarouselSection({
                   const isBookmarked = bookmarkedIds.has(bookmarkKey);
                   const isContinueWatchingSection = title === 'Continue Watching';
                   const isNextUpSection = title === 'Next Up';
+                  const isUnreleasedSection = title === 'Unreleased';
 
                   const episodeKey =
                     mediaType === 'tv' && Number(item.season || 0) > 0 && Number(item.episode || 0) > 0
@@ -712,12 +755,14 @@ function CarouselSection({
                             </div>
 
                             {(item.media_type || item.type) === 'tv' && (
-                              <div className="mt-1 text-[11px] text-gray-500 sm:text-xs">
-                                {isNextUpSection
-                                  ? 'Ready to start'
-                                  : formatRemainingTime(item.remainingTime)}
-                              </div>
-                            )}
+  <div className="mt-1 text-[11px] text-gray-500 sm:text-xs">
+    {title === 'Unreleased' && item.nextAirDate
+      ? formatCountdown(item.nextAirDate)
+      : isNextUpSection
+        ? 'Ready to start'
+        : formatRemainingTime(item.remainingTime)}
+  </div>
+)}
 
                             {!isNextUpSection && (
                               <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10 shadow-inner">
@@ -768,6 +813,7 @@ export default function HomeContent() {
   const [continueWatchingRaw, setContinueWatchingRaw] = useState([]);
   const [continueWatching, setContinueWatching] = useState([]);
   const [nextUp, setNextUp] = useState([]);
+  const [unreleased, setUnreleased] = useState([]);
 
   const [bookmarkedContent, setBookmarkedContent] = useState([]);
   const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
@@ -776,6 +822,7 @@ export default function HomeContent() {
   const [watchedEpisodes, setWatchedEpisodes] = useState({});
   const [progressReady, setProgressReady] = useState(false);
   const [bookmarksReady, setBookmarksReady] = useState(false);
+  const [, forceTick] = useState(0);
 
   const currentHero = useMemo(
     () => heroMovies[currentBackdrop] || null,
@@ -874,16 +921,18 @@ export default function HomeContent() {
   }, [userId]);
 
   useEffect(() => {
-    if (!userId) return;
+  if (!userId) return;
 
-    const { continueItems, nextUpItems } = splitProgressIntoSections(
+  const { continueItems, nextUpItems, unreleasedItems } =
+    splitProgressIntoSections(
       continueWatchingRaw,
       watchedEpisodes
     );
 
-    setContinueWatching(continueItems);
-    setNextUp(nextUpItems);
-  }, [continueWatchingRaw, watchedEpisodes, userId]);
+  setContinueWatching(continueItems);
+  setNextUp(nextUpItems);
+  setUnreleased(unreleasedItems);
+}, [continueWatchingRaw, watchedEpisodes, userId]);
 
   const toggleBookmark = async (item, mediaType) => {
     if (!userId || !item?.id) return;
@@ -961,12 +1010,27 @@ export default function HomeContent() {
           episode: explicitNextEpisode,
         };
       } else {
-        try {
-          const showData = await fetchTvDetail(item.id);
-          nextTarget = resolveNextTvEpisode(showData, season, episode);
-        } catch (error) {
-          console.error('Failed to resolve next episode:', error);
-        }
+        let nextAirDate = null;
+
+try {
+  const showData = await fetchTvDetail(item.id);
+
+  const tmdbNext = showData?.next_episode_to_air;
+
+  if (tmdbNext) {
+    nextTarget = {
+      season: tmdbNext.season_number,
+      episode: tmdbNext.episode_number,
+    };
+
+    nextAirDate = tmdbNext.air_date || null;
+  } else {
+    // fallback to your existing logic
+    nextTarget = resolveNextTvEpisode(showData, season, episode);
+  }
+} catch (error) {
+  console.error('Failed to resolve next episode:', error);
+}
       }
 
       if (!nextTarget) {
@@ -975,19 +1039,20 @@ export default function HomeContent() {
       }
 
       await set(continueRef, {
-        ...item,
-        media_type: 'tv',
-        type: 'tv',
-        season,
-        episode,
-        nextSeason: nextTarget.season,
-        nextEpisode: nextTarget.episode,
-        currentTime: 0,
-        remainingTime: null,
-        progress: 0,
-        isPlaying: false,
-        updatedAt: Date.now(),
-      });
+  ...item,
+  media_type: 'tv',
+  type: 'tv',
+  season,
+  episode,
+  nextSeason: nextTarget.season,
+  nextEpisode: nextTarget.episode,
+  nextAirDate: nextAirDate || null, // 🔥 ADD THIS LINE RIGHT HERE
+  currentTime: 0,
+  remainingTime: null,
+  progress: 0,
+  isPlaying: false,
+  updatedAt: Date.now(),
+});
     } catch (error) {
       console.error('Failed to mark continue watching item as watched:', error);
     }
@@ -1006,6 +1071,14 @@ export default function HomeContent() {
       console.error('Failed to remove next up item:', error);
     }
   };
+
+  useEffect(() => {
+  const interval = setInterval(() => {
+    forceTick((t) => t + 1);
+  }, 1000); // updates every second
+
+  return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const fetchHero = async () => {
@@ -1128,7 +1201,7 @@ export default function HomeContent() {
       </section>
 
       <section className="space-y-6 px-3 py-6 sm:space-y-8 sm:px-4 sm:py-8 lg:space-y-10 lg:px-8 lg:py-10">
-        <div className="grid gap-6 xl:grid-cols-2 xl:gap-10">
+        <div className="grid gap-6 xl:grid-cols-3 xl:gap-10">
           {homepageReady ? (
             <>
               <CarouselSection
@@ -1141,7 +1214,7 @@ export default function HomeContent() {
                 hrefBuilder={buildContinueWatchingHref}
                 emptyText="Start watching something and it’ll show up here."
                 compact
-                cardsPerPage={5}
+                cardsPerPage={3}
                 preservePageOnItemsChange
                 watchedEpisodes={watchedEpisodes}
                 onMarkContinueWatchingWatched={markContinueWatchingAsWatched}
@@ -1157,11 +1230,26 @@ export default function HomeContent() {
                 hrefBuilder={buildNextUpHref}
                 emptyText="Finish an episode and the next one will show up here."
                 compact
-                cardsPerPage={5}
+                cardsPerPage={3}
                 preservePageOnItemsChange
                 watchedEpisodes={watchedEpisodes}
                 onRemoveNextUp={removeNextUpItem}
               />
+
+              <CarouselSection
+  title="Unreleased"
+  sectionKey="unreleased"
+  items={unreleased}
+  bookmarkedIds={bookmarkedIds}
+  onToggleBookmark={toggleBookmark}
+  getItemType={(item) => item.media_type || item.type || 'movie'}
+  hrefBuilder={() => '#'}
+  emptyText="Upcoming episodes will appear here."
+  compact
+  cardsPerPage={3}
+  preservePageOnItemsChange
+  watchedEpisodes={watchedEpisodes}
+/>
             </>
           ) : (
             <>

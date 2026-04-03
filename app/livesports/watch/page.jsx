@@ -23,38 +23,6 @@ function IconPause({ className = 'h-4 w-4' }) {
   );
 }
 
-function IconSkipBack({ className = 'h-4 w-4' }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      aria-hidden="true"
-    >
-      <path d="M11 19L3 12l8-7" />
-      <path d="M21 19l-8-7 8-7" />
-    </svg>
-  );
-}
-
-function IconSkipForward({ className = 'h-4 w-4' }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      aria-hidden="true"
-    >
-      <path d="M13 19l8-7-8-7" />
-      <path d="M3 19l8-7-8-7" />
-    </svg>
-  );
-}
-
 function IconVolume({ className = 'h-4 w-4' }) {
   return (
     <svg
@@ -644,10 +612,6 @@ function LiveSportsWatchContent() {
     setPlayerIsPlaying(nextPlaying);
   };
 
-  const handleSeekRelative = (delta) => {
-    sendPlayerCommand({ command: 'seek', time: delta });
-  };
-
   const handleVolumeChange = (event) => {
     const nextVolume = Math.max(0, Math.min(1, Number(event.target.value)));
     setPlayerVolume(nextVolume);
@@ -684,15 +648,17 @@ function LiveSportsWatchContent() {
       }
 
       await element.requestFullscreen();
-      setFullscreenNoticeOpen(true);
+      if (!isMobileLike) {
+  setFullscreenNoticeOpen(true);
 
-      if (fullscreenNoticeTimeoutRef.current) {
-        clearTimeout(fullscreenNoticeTimeoutRef.current);
-      }
+  if (fullscreenNoticeTimeoutRef.current) {
+    clearTimeout(fullscreenNoticeTimeoutRef.current);
+  }
 
-      fullscreenNoticeTimeoutRef.current = setTimeout(() => {
-        setFullscreenNoticeOpen(false);
-      }, 3200);
+  fullscreenNoticeTimeoutRef.current = setTimeout(() => {
+    setFullscreenNoticeOpen(false);
+  }, 3500);
+}
     } catch (fullscreenError) {
       console.error('Failed to toggle fullscreen:', fullscreenError);
     }
@@ -772,13 +738,11 @@ function LiveSportsWatchContent() {
               </div>
             )}
 
-            {fullscreenNoticeOpen && (
-              <div className="mb-4 rounded-2xl border px-4 py-3 text-sm" style={warningNoticeStyle}>
-                {isMobileLike
-                  ? 'Entered fullscreen. Use your browser or device controls to exit fullscreen.'
-                  : 'Entered fullscreen. Press ESC to exit fullscreen.'}
-              </div>
-            )}
+            {!isMobileLike && fullscreenNoticeOpen && (
+  <div className="mb-4 rounded-2xl border px-4 py-3 text-sm" style={warningNoticeStyle}>
+    Entered fullscreen. Press ESC to exit fullscreen.
+  </div>
+)}
 
             {isMobileLike && (
               <div className="mb-4 rounded-2xl border px-4 py-3 text-sm" style={warningNoticeStyle}>
@@ -786,244 +750,229 @@ function LiveSportsWatchContent() {
               </div>
             )}
 
-            <div
-              className="relative flex min-h-0 flex-1 overflow-visible rounded-3xl border-[1.5px] p-2 sm:p-3"
-              style={glassPanelStyle}
+            <div className="overflow-hidden rounded-3xl border-[1.5px] p-2 sm:p-3" style={glassPanelStyle}>
+  <div
+    ref={playerShellRef}
+    className="overflow-hidden rounded-2xl border-[1.5px] p-0"
+    style={{
+      ...glassSurfaceStyle,
+      boxShadow:
+        '0 0 34px color-mix(in srgb, var(--theme-accent-glow) 42%, transparent), 0 16px 32px rgba(0,0,0,0.28)',
+    }}
+  >
+    <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-black">
+      <iframe
+        key={`${embedUrl}-${iframeKey}`}
+        ref={playerFrameRef}
+        src={embedUrl}
+        title="Live Sports Player"
+        className="h-full w-full"
+        allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write; web-share"
+        allowFullScreen
+      />
+
+      {controlsEnabled && controlsLocked && (
+        <div
+          className="absolute inset-0 z-10"
+          aria-hidden="true"
+          style={{
+            background: 'transparent',
+            cursor: 'default',
+          }}
+        />
+      )}
+    </div>
+  </div>
+
+  {controlsEnabled && (
+    <div className="mt-3 rounded-2xl border p-3 sm:p-4" style={glassSurfaceStyle}>
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[220px_auto_220px] lg:items-center">
+        <div className="flex justify-center lg:justify-start">
+          <div
+            className="flex w-[220px] items-center gap-2 rounded-2xl border px-3 py-2"
+            style={glassGhostButtonStyle}
+          >
+            <button
+              type="button"
+              onClick={handleToggleMute}
+              className="inline-flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-xl border transition active:scale-95"
+              style={playerMuted ? glassAccentButtonStyle : glassGhostButtonStyle}
+              aria-label={playerMuted ? 'Unmute' : 'Mute'}
+              title={playerMuted ? 'Unmute' : 'Mute'}
             >
-              <div
-                ref={playerShellRef}
-                className="flex min-h-0 flex-1 overflow-hidden rounded-2xl border-[1.5px]"
-                style={{
-                  ...glassSurfaceStyle,
-                  boxShadow:
-                    '0 0 34px color-mix(in srgb, var(--theme-accent-glow) 42%, transparent), 0 16px 32px rgba(0,0,0,0.28)',
-                }}
-              >
-                <div
-                  className="relative z-10 aspect-video w-full self-center"
-                  style={{ background: '#000000' }}
+              {playerMuted ? <IconMute /> : <IconVolume />}
+            </button>
+
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={playerMuted ? 0 : playerVolume}
+              onChange={handleVolumeChange}
+              className="h-2 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-white/10 accent-[var(--theme-accent)]"
+              aria-label="Volume"
+            />
+
+            <span
+              className="min-w-[2.3rem] text-right text-xs font-semibold"
+              style={{ color: 'var(--theme-muted-text)' }}
+            >
+              {Math.round((playerMuted ? 0 : playerVolume) * 100)}%
+            </span>
+          </div>
+        </div>
+
+        <div className="flex justify-center">
+          <div className="flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={handleTogglePlay}
+              className="inline-flex h-11 w-20 cursor-pointer items-center justify-center rounded-[16px] border transition active:scale-95"
+              style={glassAccentButtonStyle}
+              aria-label={playerIsPlaying ? 'Pause' : 'Resume'}
+              title={playerIsPlaying ? 'Pause' : 'Resume'}
+            >
+              {playerIsPlaying ? (
+                <IconPause className="h-9 w-9" />
+              ) : (
+                <IconPlay className="h-9 w-9" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        <div className="flex justify-center lg:justify-end">
+          <div
+            className="flex w-[220px] items-center justify-center gap-2 rounded-2xl border px-3 py-2"
+            style={glassGhostButtonStyle}
+          >
+            <button
+              type="button"
+              onClick={() => setServerMenuOpen((prev) => !prev)}
+              className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border transition active:scale-95"
+              style={serverMenuOpen ? glassAccentButtonStyle : glassGhostButtonStyle}
+              aria-label="Servers and streams"
+              title="Servers and streams"
+            >
+              <IconServer />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setControlsLocked((prev) => !prev)}
+              className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border transition active:scale-95"
+              style={controlsLocked ? glassGhostButtonStyle : glassAccentButtonStyle}
+              aria-label={controlsLocked ? 'Unlock embedded controls' : 'Lock embedded controls'}
+              title={controlsLocked ? 'Unlock embedded controls' : 'Lock embedded controls'}
+            >
+              {controlsLocked ? <IconLock /> : <IconUnlock />}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleFullscreen}
+              className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border transition active:scale-95"
+              style={glassGhostButtonStyle}
+              aria-label="Fullscreen"
+              title="Fullscreen"
+            >
+              <IconFullscreen />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {serverMenuOpen && (
+        <div
+          className="mt-3 rounded-2xl border p-3"
+          style={{
+            ...glassSurfaceStyle,
+            boxShadow:
+              '0 10px 24px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.06)',
+          }}
+        >
+          <div className="mb-2 flex items-center gap-2">
+            <IconServer className="h-4 w-4" />
+            <p className="text-sm font-semibold" style={{ color: 'var(--theme-accent-text)' }}>
+              Servers
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {availableSources.map((source, index) => {
+              const active = index === activeSourceIndex;
+
+              return (
+                <button
+                  key={`${source.source || 'source'}-${source.id || index}`}
+                  type="button"
+                  onClick={() => handleSourceSelect(index)}
+                  className="inline-flex h-10 cursor-pointer items-center justify-center rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
+                  style={active ? glassAccentButtonStyle : glassGhostButtonStyle}
                 >
-                  <iframe
-                    key={`${embedUrl}-${iframeKey}`}
-                    ref={playerFrameRef}
-                    src={embedUrl}
-                    title="Live Sports Player"
-                    className="h-full w-full"
-                    allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write; web-share"
-                    allowFullScreen
-                  />
+                  {buildSourceLabel(source, index)}
+                </button>
+              );
+            })}
+          </div>
 
-                  {controlsEnabled && controlsLocked && (
-                    <div
-                      className="absolute inset-0 z-10"
-                      aria-hidden="true"
-                      style={{
-                        background: 'transparent',
-                        cursor: 'default',
-                      }}
-                    />
-                  )}
-                </div>
+          {streams.length > 0 && (
+            <>
+              <div className="mb-2 mt-4 flex items-center gap-2">
+                <IconServer className="h-4 w-4" />
+                <p className="text-sm font-semibold" style={{ color: 'var(--theme-accent-text)' }}>
+                  Streams
+                </p>
               </div>
+
+              <div className="flex flex-wrap gap-2">
+                {streams.map((stream, index) => {
+                  const active = index === activeStreamIndex;
+
+                  return (
+                    <button
+                      key={`${stream.id || index}-${stream.streamNo || index}`}
+                      type="button"
+                      onClick={() => handleStreamSelect(index)}
+                      className="inline-flex h-10 cursor-pointer items-center justify-center rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
+                      style={active ? glassAccentButtonStyle : glassGhostButtonStyle}
+                    >
+                      {buildStreamLabel(stream, index)}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          <div
+            className="mt-3 rounded-xl border px-4 py-3 text-xs sm:text-sm"
+            style={glassGhostButtonStyle}
+          >
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <span>
+                <strong>State:</strong> {playerIsPlaying ? 'Playing' : 'Paused'}
+              </span>
+              <span>
+                <strong>Volume:</strong> {Math.round((playerMuted ? 0 : playerVolume) * 100)}%
+              </span>
+              <span>
+                <strong>Server:</strong> {buildSourceLabel(activeSource, activeSourceIndex)}
+              </span>
+              <span>
+                <strong>Stream:</strong> {buildStreamLabel(activeStream, activeStreamIndex)}
+              </span>
+              <span>
+                <strong>Lock:</strong> {controlsLocked ? 'On' : 'Off'}
+              </span>
             </div>
-
-            {controlsEnabled && (
-              <div className="mt-3 rounded-2xl border p-3 sm:p-4" style={glassSurfaceStyle}>
-                <div className="flex flex-col gap-3 md:grid md:grid-cols-[12rem_auto_12rem] md:items-center">
-                  <div className="flex justify-center md:justify-start">
-                    <div
-                      className="flex h-12 w-full max-w-[12rem] items-center gap-2 rounded-2xl border px-2.5"
-                      style={glassGhostButtonStyle}
-                    >
-                      <button
-                        type="button"
-                        onClick={handleToggleMute}
-                        className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border transition active:scale-95"
-                        style={glassGhostButtonStyle}
-                        aria-label={playerMuted ? 'Unmute' : 'Mute'}
-                      >
-                        {playerMuted ? <IconMute /> : <IconVolume />}
-                      </button>
-
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={playerMuted ? 0 : playerVolume}
-                        onChange={handleVolumeChange}
-                        className="h-2 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-white/10 accent-[var(--theme-accent)]"
-                        aria-label="Volume"
-                      />
-
-                      <span
-                        className="min-w-[2rem] text-right text-[11px] font-semibold"
-                        style={{ color: 'var(--theme-muted-text)' }}
-                      >
-                        {Math.round((playerMuted ? 0 : playerVolume) * 100)}%
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleSeekRelative(-10)}
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-xl border transition active:scale-95"
-                      style={glassGhostButtonStyle}
-                      aria-label="Back 10 seconds"
-                    >
-                      <IconSkipBack />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleTogglePlay}
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-xl border transition active:scale-95"
-                      style={glassAccentButtonStyle}
-                      aria-label={playerIsPlaying ? 'Pause' : 'Resume'}
-                    >
-                      {playerIsPlaying ? <IconPause /> : <IconPlay />}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleSeekRelative(10)}
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-xl border transition active:scale-95"
-                      style={glassGhostButtonStyle}
-                      aria-label="Forward 10 seconds"
-                    >
-                      <IconSkipForward />
-                    </button>
-                  </div>
-
-                  <div className="flex justify-center md:justify-end">
-                    <div
-                      className="flex h-12 w-full max-w-[12rem] items-center justify-center gap-2 rounded-2xl border px-2.5"
-                      style={glassGhostButtonStyle}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => setServerMenuOpen((prev) => !prev)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl border transition active:scale-95"
-                        style={serverMenuOpen ? glassAccentButtonStyle : glassGhostButtonStyle}
-                        aria-label="Servers and streams"
-                      >
-                        <IconServer />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setControlsLocked((prev) => !prev)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl border transition active:scale-95"
-                        style={!controlsLocked ? glassAccentButtonStyle : glassGhostButtonStyle}
-                        aria-label={controlsLocked ? 'Unlock embedded controls' : 'Lock embedded controls'}
-                      >
-                        {controlsLocked ? <IconLock /> : <IconUnlock />}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={handleFullscreen}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl border transition active:scale-95"
-                        style={glassGhostButtonStyle}
-                        aria-label="Fullscreen"
-                      >
-                        <IconFullscreen />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {serverMenuOpen && (
-                  <div
-                    className="mt-3 rounded-2xl border p-3"
-                    style={{
-                      ...glassSurfaceStyle,
-                      boxShadow:
-                        '0 10px 24px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.06)',
-                    }}
-                  >
-                    <div className="mb-2 flex items-center gap-2">
-                      <IconServer className="h-4 w-4" />
-                      <p className="text-sm font-semibold" style={{ color: 'var(--theme-accent-text)' }}>
-                        Servers
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      {availableSources.map((source, index) => {
-                        const active = index === activeSourceIndex;
-
-                        return (
-                          <button
-                            key={`${source.source || 'source'}-${source.id || index}`}
-                            type="button"
-                            onClick={() => handleSourceSelect(index)}
-                            className="inline-flex h-10 items-center justify-center rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
-                            style={active ? glassAccentButtonStyle : glassGhostButtonStyle}
-                          >
-                            {buildSourceLabel(source, index)}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {streams.length > 0 && (
-                      <>
-                        <div className="mb-2 mt-4 flex items-center gap-2">
-                          <IconServer className="h-4 w-4" />
-                          <p className="text-sm font-semibold" style={{ color: 'var(--theme-accent-text)' }}>
-                            Streams
-                          </p>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2">
-                          {streams.map((stream, index) => {
-                            const active = index === activeStreamIndex;
-
-                            return (
-                              <button
-                                key={`${stream.id || index}-${stream.streamNo || index}`}
-                                type="button"
-                                onClick={() => handleStreamSelect(index)}
-                                className="inline-flex h-10 items-center justify-center rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
-                                style={active ? glassAccentButtonStyle : glassGhostButtonStyle}
-                              >
-                                {buildStreamLabel(stream, index)}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </>
-                    )}
-
-                    <div
-                      className="mt-3 rounded-xl border px-4 py-3 text-xs sm:text-sm"
-                      style={glassGhostButtonStyle}
-                    >
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                        <span>
-                          <strong>State:</strong> {playerIsPlaying ? 'Playing' : 'Paused'}
-                        </span>
-                        <span>
-                          <strong>Volume:</strong> {Math.round((playerMuted ? 0 : playerVolume) * 100)}%
-                        </span>
-                        <span>
-                          <strong>Server:</strong> {buildSourceLabel(activeSource, activeSourceIndex)}
-                        </span>
-                        <span>
-                          <strong>Stream:</strong> {buildStreamLabel(activeStream, activeStreamIndex)}
-                        </span>
-                        <span>
-                          <strong>Lock:</strong> {controlsLocked ? 'On' : 'Off'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )}
+</div>
           </section>
         </main>
 
@@ -1086,22 +1035,22 @@ function LiveSportsWatchContent() {
                   className="mt-3 rounded-xl border px-4 py-3 text-sm text-gray-300"
                   style={glassSurfaceStyle}
                 >
-                • Refresh the page multiple times.
-                </div> 
-                
+                  • Refresh the page multiple times.
+                </div>
+
                 <div
                   className="mt-3 rounded-xl border px-4 py-3 text-sm text-gray-300"
                   style={glassSurfaceStyle}
                 >
-                • Switch between the different servers.
-                </div> 
-                
+                  • Switch between the different servers.
+                </div>
+
                 <div
                   className="mt-3 rounded-xl border px-4 py-3 text-sm text-gray-300"
                   style={glassSurfaceStyle}
                 >
-                • Turn on a VPN, and refresh the page (best fix).
-                </div> 
+                  • Turn on a VPN, and refresh the page (best fix).
+                </div>
               </div>
 
               <div className="rounded-2xl border p-4" style={glassSurfaceStyle}>
@@ -1121,22 +1070,22 @@ function LiveSportsWatchContent() {
                   className="mt-3 rounded-xl border px-4 py-3 text-sm text-gray-300"
                   style={glassSurfaceStyle}
                 >
-                • Use adblockers like uBlock Origin.
-                </div> 
+                  • Use adblockers like uBlock Origin.
+                </div>
 
                 <div
                   className="mt-3 rounded-xl border px-4 py-3 text-sm text-gray-300"
                   style={glassSurfaceStyle}
                 >
-                • Use browsers like Brave.
-                </div> 
+                  • Use browsers like Brave.
+                </div>
               </div>
 
               <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
                 <button
                   type="button"
                   onClick={handleNoticeNotUnderstood}
-                  className="flex h-10 w-full items-center justify-center rounded-xl border px-4 text-sm font-semibold transition active:scale-95 sm:w-auto"
+                  className="flex h-10 w-full cursor-pointer items-center justify-center rounded-xl border px-4 text-sm font-semibold transition active:scale-95 sm:w-auto"
                   style={glassGhostButtonStyle}
                 >
                   I Don’t Understand
@@ -1145,7 +1094,7 @@ function LiveSportsWatchContent() {
                 <button
                   type="button"
                   onClick={handleNoticeUnderstood}
-                  className="flex h-10 w-full items-center justify-center rounded-xl border px-5 text-sm font-semibold transition active:scale-95 sm:w-auto"
+                  className="flex h-10 w-full cursor-pointer items-center justify-center rounded-xl border px-5 text-sm font-semibold transition active:scale-95 sm:w-auto"
                   style={glassAccentButtonStyle}
                 >
                   I Understand
@@ -1165,7 +1114,7 @@ function Footer() {
       className="shrink-0 px-4 pb-6 pt-2 text-center text-sm sm:px-6 lg:px-8"
       style={{ color: 'var(--theme-muted-text)' }}
     >
-      <p>This site does not host or store any media.</p>
+      <p></p>
 
       <div
         className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs sm:text-sm"

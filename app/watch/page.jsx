@@ -20,7 +20,7 @@ const VIDFAST_ORIGINS = [
   'https://vidfast.xyz',
 ];
 
-const SERVER_OPTIONS = ['Alpha', 'Beta', 'Gamma', 'Delta'];
+const SERVER_OPTIONS = ['Alpha', 'vFast', 'Beta', 'Oscar', 'Max', 'Iron', 'Charlie', 'Cobra', 'Viper', 'Ranger', 'Specter', 'Echo', 'Vodka', 'Pablo', 'Loco', 'Samba', 'Bollywood', 'Kirito', 'Meliodas'];
 const SUBTITLE_OPTIONS = [
   { value: '0', label: 'Off' },
   { value: 'en', label: 'English' },
@@ -60,6 +60,42 @@ function IconSkipForward({ className = 'h-4 w-4' }) {
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
       <path d="M13 19l8-7-8-7" />
       <path d="M3 19l8-7-8-7" />
+    </svg>
+  );
+}
+
+function IconRotateCcw({ className = 'h-4 w-4' }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 12a9 9 0 1 0 3-6.708" />
+      <path d="M3 4v5h5" />
+    </svg>
+  );
+}
+
+function IconRotateCw({ className = 'h-4 w-4' }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M21 12a9 9 0 1 1-3-6.708" />
+      <path d="M21 4v5h-5" />
     </svg>
   );
 }
@@ -374,6 +410,47 @@ function resolveNextTvEpisode(heroData, season, episode) {
   return null;
 }
 
+function resolvePreviousTvEpisode(heroData, season, episode) {
+  const currentSeason = safeNumber(season, NaN);
+  const currentEpisode = safeNumber(episode, NaN);
+
+  if (!Number.isFinite(currentSeason) || !Number.isFinite(currentEpisode)) {
+    return null;
+  }
+
+  if (currentEpisode > 1) {
+    return {
+      season: currentSeason,
+      episode: currentEpisode - 1,
+    };
+  }
+
+  const seasons = Array.isArray(heroData?.seasons)
+    ? [...heroData.seasons]
+        .filter((item) => safeNumber(item?.season_number, 0) > 0)
+        .sort((a, b) => safeNumber(a?.season_number, 0) - safeNumber(b?.season_number, 0))
+    : [];
+
+  const currentSeasonIndex = seasons.findIndex(
+    (item) => safeNumber(item?.season_number, 0) === currentSeason
+  );
+
+  if (currentSeasonIndex > 0) {
+    const prevSeasonMeta = seasons[currentSeasonIndex - 1];
+    const prevSeasonNumber = safeNumber(prevSeasonMeta?.season_number, 0);
+    const prevSeasonEpisodeCount = safeNumber(prevSeasonMeta?.episode_count, 0);
+
+    if (prevSeasonNumber > 0 && prevSeasonEpisodeCount > 0) {
+      return {
+        season: prevSeasonNumber,
+        episode: prevSeasonEpisodeCount,
+      };
+    }
+  }
+
+  return null;
+}
+
 function createContinueWatchingItem({
   type,
   heroData,
@@ -620,6 +697,7 @@ function WatchPageContent() {
   const lastStatusRequestRef = useRef(0);
   const latestPlaybackRef = useRef({ currentTime: 0, isPlaying: true });
   const pendingInitialSyncRef = useRef(null);
+  const pendingSeekRef = useRef(null);
   const saveContinueWatchingTimeoutRef = useRef(null);
   const liveTvProgressRef = useRef({
     season: '',
@@ -706,6 +784,16 @@ function WatchPageContent() {
   const currentSubtitleShortLabel = useMemo(() => {
     return getSubtitleShortLabel(selectedSubtitle);
   }, [selectedSubtitle]);
+
+  const canGoToPreviousEpisode = useMemo(() => {
+    if (type !== 'tv' || !heroData) return false;
+    return Boolean(resolvePreviousTvEpisode(heroData, season, episode));
+  }, [type, heroData, season, episode]);
+
+  const canGoToNextEpisode = useMemo(() => {
+    if (type !== 'tv' || !heroData) return false;
+    return Boolean(resolveNextTvEpisode(heroData, season, episode));
+  }, [type, heroData, season, episode]);
 
   const glassPanelStyle = {
     background:
@@ -927,9 +1015,14 @@ function WatchPageContent() {
 
     const shouldPlay = Boolean(isPlaying);
 
+    pendingSeekRef.current = {
+      time: targetTime,
+      play: shouldPlay,
+    };
+
     setEmbedState({
-      startAt: targetTime,
-      autoPlay: shouldPlay,
+      startAt: 0,
+      autoPlay: false,
       server,
       subtitle,
     });
@@ -943,6 +1036,45 @@ function WatchPageContent() {
     setPlayerReady(false);
     setIframeSeed((prev) => prev + 1);
     setShowAutoplayHint(shouldPlay);
+  };
+
+  const goToEpisodeTarget = (target) => {
+    if (!target || type !== 'tv' || !id) return;
+
+    const currentTime = latestPlaybackRef.current.currentTime || 0;
+    const isPlaying = latestPlaybackRef.current.isPlaying;
+
+    flushContinueWatching();
+
+    const params = new URLSearchParams();
+    params.set('type', 'tv');
+    params.set('id', String(id));
+    params.set('season', String(target.season));
+    params.set('episode', String(target.episode));
+    params.set('t', String(Math.max(0, Math.floor(isPlaying ? 0 : 0))));
+    params.set('autoplay', isPlaying ? '1' : '0');
+
+    if (partyFollowEnabled) {
+      params.set('partyFollow', '1');
+    }
+
+    if (returnToParam) {
+      params.set('returnTo', returnToParam);
+    }
+
+    router.push(`/watch?${params.toString()}`);
+  };
+
+  const handlePreviousEpisode = () => {
+    const target = resolvePreviousTvEpisode(heroData, season, episode);
+    if (!target) return;
+    goToEpisodeTarget(target);
+  };
+
+  const handleNextEpisode = () => {
+    const target = resolveNextTvEpisode(heroData, season, episode);
+    if (!target) return;
+    goToEpisodeTarget(target);
   };
 
   const bootstrapPlaybackAfterUnlock = (targetTime, shouldPlay) => {
@@ -1027,7 +1159,7 @@ function WatchPageContent() {
     }, 1150);
   };
 
-  const applyPartyCommandToCurrentPlayer = ({ currentTime, isPlaying }) => {
+    const applyPartyCommandToCurrentPlayer = ({ currentTime, isPlaying }) => {
     const targetTime =
       typeof currentTime === 'number' && Number.isFinite(currentTime)
         ? Math.max(0, currentTime)
@@ -1219,15 +1351,17 @@ function WatchPageContent() {
 
       await element.requestFullscreen();
 
-      setFullscreenNoticeOpen(true);
+      if (!isMobileLike) {
+  setFullscreenNoticeOpen(true);
 
-      if (fullscreenNoticeTimeoutRef.current) {
-        clearTimeout(fullscreenNoticeTimeoutRef.current);
-      }
+  if (fullscreenNoticeTimeoutRef.current) {
+    clearTimeout(fullscreenNoticeTimeoutRef.current);
+  }
 
-      fullscreenNoticeTimeoutRef.current = setTimeout(() => {
-        setFullscreenNoticeOpen(false);
-      }, 3500);
+  fullscreenNoticeTimeoutRef.current = setTimeout(() => {
+    setFullscreenNoticeOpen(false);
+  }, 3500);
+}
     } catch (fullscreenError) {
       console.error('Failed to toggle fullscreen:', fullscreenError);
     }
@@ -1415,14 +1549,21 @@ function WatchPageContent() {
           if (!active) return;
           setHeroData(movie);
         } else if (type === 'tv') {
-          const [show, ep] = await Promise.all([
-            fetchTvDetail(id),
-            season && episode ? fetchEpisodeDetail(id, season, episode) : Promise.resolve(null),
-          ]);
+          const show = await fetchTvDetail(id);
 
-          if (!active) return;
-          setHeroData(show);
-          setEpisodeData(ep);
+let ep = null;
+if (season && episode) {
+  try {
+    ep = await fetchEpisodeDetail(id, season, episode);
+  } catch (episodeError) {
+    console.error('Failed to fetch episode details:', episodeError);
+    ep = null;
+  }
+}
+
+if (!active) return;
+setHeroData(show);
+setEpisodeData(ep);
         } else {
           throw new Error('Unsupported type.');
         }
@@ -2128,16 +2269,14 @@ function WatchPageContent() {
               </div>
             )}
 
-            {fullscreenNoticeOpen && (
-              <div
-                className="mb-4 rounded-2xl border px-4 py-3 text-sm"
-                style={warningNoticeStyle}
-              >
-                {isMobileLike
-                  ? 'Entered fullscreen. Use your browser or device back gesture/button to exit.'
-                  : 'Entered fullscreen. Press ESC to exit fullscreen.'}
-              </div>
-            )}
+            {!isMobileLike && fullscreenNoticeOpen && (
+  <div
+    className="mb-4 rounded-2xl border px-4 py-3 text-sm"
+    style={warningNoticeStyle}
+  >
+    Entered fullscreen. Press ESC to exit fullscreen.
+  </div>
+)}
 
             <div className="overflow-hidden rounded-3xl border-[1.5px] p-2 sm:p-3" style={glassPanelStyle}>
               <div
@@ -2166,6 +2305,24 @@ function WatchPageContent() {
 
                           setTimeout(() => {
                             requestPlayerStatus();
+
+                            if (pendingSeekRef.current) {
+                              const { time, play } = pendingSeekRef.current;
+
+                              sendPlayerCommand({
+                                command: 'seek',
+                                time,
+                              });
+
+                              setTimeout(() => {
+                                sendPlayerCommand({
+                                  command: play ? 'play' : 'pause',
+                                  time,
+                                });
+                              }, 120);
+
+                              pendingSeekRef.current = null;
+                            }
 
                             if (isHost && partyCode) {
                               publishPlaybackState(
@@ -2249,8 +2406,8 @@ function WatchPageContent() {
                         <button
                           type="button"
                           onClick={handleToggleMute}
-                          className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border transition active:scale-95"
-                          style={glassGhostButtonStyle}
+                          className="inline-flex h-9 w-9 flex-shrink-0 cursor-pointer items-center justify-center rounded-xl border transition active:scale-95"
+                          style={playerMuted ? glassAccentButtonStyle : glassGhostButtonStyle}
                           aria-label={playerMuted ? 'Unmute' : 'Mute'}
                         >
                           {playerMuted ? <IconMute /> : <IconVolume />}
@@ -2274,48 +2431,89 @@ function WatchPageContent() {
                           {Math.round((playerMuted ? 0 : playerVolume) * 100)}%
                         </span>
                       </div>
-                    </div>
-
-                    <div className="flex justify-center">
+                    </div>                    <div className="flex justify-center">
                       <div className="flex items-center justify-center gap-2 sm:gap-3">
-                        <button
-                          type="button"
-                          onClick={() => handleSeekRelative(-10)}
-                          className="inline-flex h-11 w-11 items-center justify-center rounded-xl border transition active:scale-95"
-                          style={glassGhostButtonStyle}
-                          aria-label="Back 10 seconds"
-                          title="Back 10 seconds"
-                        >
-                          <IconSkipBack />
-                        </button>
+                        {type === 'tv' && (
+                          <button
+                            type="button"
+                            onClick={handlePreviousEpisode}
+                            disabled={!canGoToPreviousEpisode}
+                            className="inline-flex h-11 min-w-[3rem] cursor-pointer items-center justify-center rounded-xl border px-3 text-xs font-semibold transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                            style={glassGhostButtonStyle}
+                            aria-label="Previous episode"
+                            title="Previous episode"
+                          >
+                            
+                            <IconSkipBack />
+                          </button>
+                        )}
 
                         <button
-                          type="button"
-                          onClick={handleTogglePlay}
-                          className="inline-flex h-11 w-11 items-center justify-center rounded-xl border transition active:scale-95"
-                          style={glassAccentButtonStyle}
-                          aria-label={playerIsPlaying ? 'Pause' : 'Resume'}
-                          title={playerIsPlaying ? 'Pause' : 'Resume'}
-                        >
-                          {playerIsPlaying ? <IconPause /> : <IconPlay />}
-                        </button>
+  type="button"
+  onClick={() => handleSeekRelative(-10)}
+  className="inline-flex h-11 cursor-pointer items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition active:scale-95"
+  style={glassGhostButtonStyle}
+  aria-label="Back 10 seconds"
+  title="Back 10 seconds"
+>
+  <div className="relative flex items-center justify-center">
+  <IconRotateCcw className="h-5 w-5" />
+  <span className="pointer-events-none absolute text-[10px] font-bold leading-none">
+    
+  </span>
+</div>
+</button>
 
                         <button
-                          type="button"
-                          onClick={() => handleSeekRelative(10)}
-                          className="inline-flex h-11 w-11 items-center justify-center rounded-xl border transition active:scale-95"
-                          style={glassGhostButtonStyle}
-                          aria-label="Forward 10 seconds"
-                          title="Forward 10 seconds"
-                        >
-                          <IconSkipForward />
-                        </button>
+  type="button"
+  onClick={handleTogglePlay}
+  className="inline-flex h-11 w-20 cursor-pointer items-center justify-center rounded-[12px] border transition active:scale-95"
+  style={glassAccentButtonStyle}
+  aria-label={playerIsPlaying ? 'Pause' : 'Resume'}
+  title={playerIsPlaying ? 'Pause' : 'Resume'}
+>
+  {playerIsPlaying ? (
+    <IconPause className="h-9 w-9" />
+  ) : (
+    <IconPlay className="h-9 w-9" />
+  )}
+</button>
+
+                        <button
+  type="button"
+  onClick={() => handleSeekRelative(10)}
+  className="inline-flex h-11 cursor-pointer items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition active:scale-95"
+  style={glassGhostButtonStyle}
+  aria-label="Forward 10 seconds"
+  title="Forward 10 seconds"
+>
+  <div className="relative flex items-center justify-center">
+  <IconRotateCw className="h-5 w-5" />
+  <span className="pointer-events-none absolute text-[10px] font-bold leading-none">
+    
+  </span>
+</div>
+</button>
+
+                        {type === 'tv' && (
+                          <button
+                            type="button"
+                            onClick={handleNextEpisode}
+                            disabled={!canGoToNextEpisode}
+                            className="inline-flex h-11 min-w-[3rem] cursor-pointer items-center justify-center rounded-xl border px-3 text-xs font-semibold transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                            style={glassGhostButtonStyle}
+                            aria-label="Next episode"
+                            title="Next episode"
+                          >
+                            <IconSkipForward />
+                          </button>
+                        )}
                       </div>
                     </div>
 
                     <div className="flex justify-center lg:justify-end">
                       <div
-                        className="flex w-[220px] items-center justify-end gap-2 rounded-2xl border px-3 py-2"
+                        className="flex w-[220px] items-center justify-center gap-2 rounded-2xl border px-3 py-2"
                         style={glassGhostButtonStyle}
                       >
                         <button
@@ -2324,7 +2522,7 @@ function WatchPageContent() {
                             setServerMenuOpen((prev) => !prev);
                             setSubtitleMenuOpen(false);
                           }}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-xl border transition active:scale-95"
+                          className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border transition active:scale-95"
                           style={serverMenuOpen ? glassAccentButtonStyle : glassGhostButtonStyle}
                           aria-label="Server"
                           title="Server"
@@ -2338,23 +2536,19 @@ function WatchPageContent() {
                             setSubtitleMenuOpen((prev) => !prev);
                             setServerMenuOpen(false);
                           }}
-                          className="inline-flex h-9 min-w-[2.75rem] items-center justify-center rounded-xl border px-2 text-xs font-bold tracking-wide transition active:scale-95"
+                          className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border transition active:scale-95"
                           style={selectedSubtitle !== '0' ? glassAccentButtonStyle : glassGhostButtonStyle}
                           aria-label="Subtitles"
                           title={currentSubtitleLabel}
                         >
-                          {selectedSubtitle === '0' ? (
-                            <IconSubtitles className="h-4 w-4" />
-                          ) : (
-                            <span>{currentSubtitleShortLabel}</span>
-                          )}
+                          <IconSubtitles className="h-4 w-4" />
                         </button>
 
                         <button
                           type="button"
                           onClick={() => setInteractionLocked((prev) => !prev)}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-xl border transition active:scale-95"
-                          style={interactionLocked ? glassAccentButtonStyle : glassGhostButtonStyle}
+                          className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border transition active:scale-95"
+                          style={interactionLocked ? glassGhostButtonStyle : glassAccentButtonStyle}
                           aria-label={interactionLocked ? 'Unlock player interaction' : 'Lock player interaction'}
                           title={interactionLocked ? 'Unlock player interaction' : 'Lock player interaction'}
                         >
@@ -2364,7 +2558,7 @@ function WatchPageContent() {
                         <button
                           type="button"
                           onClick={handleFullscreen}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-xl border transition active:scale-95"
+                          className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border transition active:scale-95"
                           style={glassGhostButtonStyle}
                           aria-label="Fullscreen"
                           title="Fullscreen"
@@ -2400,7 +2594,7 @@ function WatchPageContent() {
                               key={serverName}
                               type="button"
                               onClick={() => handleServerSelect(serverName)}
-                              className="inline-flex h-10 items-center justify-center rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
+                              className="inline-flex h-10 cursor-pointer items-center justify-center rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
                               style={active ? glassAccentButtonStyle : glassGhostButtonStyle}
                             >
                               {serverName}
@@ -2436,7 +2630,7 @@ function WatchPageContent() {
                               key={subtitleOption.value}
                               type="button"
                               onClick={() => handleSubtitleSelect(subtitleOption.value)}
-                              className="inline-flex h-10 items-center justify-center rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
+                              className="inline-flex h-10 cursor-pointer items-center justify-center rounded-xl border px-4 text-sm font-semibold transition active:scale-95"
                               style={active ? glassAccentButtonStyle : glassGhostButtonStyle}
                             >
                               {subtitleOption.label}
@@ -2463,7 +2657,7 @@ function WatchPageContent() {
           className="px-4 pb-8 pt-2 text-center text-sm sm:px-6 lg:px-8"
           style={{ color: 'var(--theme-muted-text)' }}
         >
-          <p>This site does not host or store any media.</p>
+          <p></p>
         </footer>
       </div>
 
@@ -2573,7 +2767,7 @@ function WatchPageContent() {
                 <button
                   type="button"
                   onClick={handleNoticeNotUnderstood}
-                  className="flex h-10 w-full items-center justify-center rounded-xl border px-4 text-sm font-semibold transition active:scale-95 sm:w-auto"
+                  className="flex h-10 w-full cursor-pointer items-center justify-center rounded-xl border px-4 text-sm font-semibold transition active:scale-95 sm:w-auto"
                   style={glassGhostButtonStyle}
                 >
                   I Don’t Understand
@@ -2582,7 +2776,7 @@ function WatchPageContent() {
                 <button
                   type="button"
                   onClick={handleNoticeUnderstood}
-                  className="flex h-10 w-full items-center justify-center rounded-xl border px-5 text-sm font-semibold transition active:scale-95 sm:w-auto"
+                  className="flex h-10 w-full cursor-pointer items-center justify-center rounded-xl border px-5 text-sm font-semibold transition active:scale-95 sm:w-auto"
                   style={glassAccentButtonStyle}
                 >
                   I Understand
