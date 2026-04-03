@@ -61,6 +61,12 @@ function formatCountdown(dateString) {
   return `Airing in ${minutes}m`;
 }
 
+function isFutureDate(dateString) {
+  if (!dateString) return false;
+  const time = new Date(dateString).getTime();
+  return Number.isFinite(time) && time > Date.now();
+}
+
 function buildEpisodeKey(showId, seasonNumber, episodeNumber) {
   return `${showId}-S${seasonNumber}-E${episodeNumber}`;
 }
@@ -149,7 +155,7 @@ function buildNextUpHref(item) {
 function splitProgressIntoSections(items, watchedMap) {
   const continueItems = [];
   const nextUpItems = [];
-  const unreleasedItems = [];
+  const airingSoonItems = [];
 
   items.forEach((item) => {
     if (!item || !item.id) return;
@@ -171,18 +177,18 @@ function splitProgressIntoSections(items, watchedMap) {
       nextEpisode > 0 &&
       (nextSeason !== season || nextEpisode !== episode);
 
-    const currentKey =
+    const currentEpisodeKey =
       season > 0 && episode > 0
         ? buildEpisodeKey(item.id, season, episode)
         : '';
 
-    const currentIsWatched = currentKey
-      ? Boolean(watchedMap[currentKey])
+    const currentIsWatched = currentEpisodeKey
+      ? Boolean(watchedMap[currentEpisodeKey])
       : false;
 
     if (hasExplicitNext) {
-      if (item.nextAirDate && new Date(item.nextAirDate) > new Date()) {
-        unreleasedItems.push(item);
+      if (isFutureDate(item.nextAirDate)) {
+        airingSoonItems.push(item);
       } else {
         nextUpItems.push(item);
       }
@@ -190,12 +196,6 @@ function splitProgressIntoSections(items, watchedMap) {
     }
 
     if (currentIsWatched) {
-      continueItems.push({
-        ...item,
-        currentTime: 0,
-        remainingTime: item.remainingTime ?? 0,
-        progress: item.progress ?? 0,
-      });
       return;
     }
 
@@ -205,7 +205,7 @@ function splitProgressIntoSections(items, watchedMap) {
   return {
     continueItems: continueItems.slice(0, 10),
     nextUpItems: nextUpItems.slice(0, 10),
-    unreleasedItems: unreleasedItems.slice(0, 10),
+    airingSoonItems: airingSoonItems.slice(0, 10),
   };
 }
 
@@ -429,29 +429,27 @@ function CardBadges({
 }) {
   return (
     <>
-  {showWatchedToggle ? (
-    // 🔥 CLEAN MODE (Continue / Next Up / Unreleased)
-    <div className="absolute right-2.5 top-2.5 z-20">
-      <ActionBadge
-        checked={isWatched}
-        onClick={onToggleWatched}
-        title={watchedToggleTitle}
-        variant={watchedToggleVariant}
-      />
-    </div>
-  ) : (
-    // 🔥 NORMAL MODE (everything else unchanged)
-    <>
-      <div className="absolute left-2.5 top-2.5 z-20">
-        <RatingsStarBadge item={item} />
-      </div>
+      {showWatchedToggle ? (
+        <div className="absolute right-2.5 top-2.5 z-20">
+          <ActionBadge
+            checked={isWatched}
+            onClick={onToggleWatched}
+            title={watchedToggleTitle}
+            variant={watchedToggleVariant}
+          />
+        </div>
+      ) : (
+        <>
+          <div className="absolute left-2.5 top-2.5 z-20">
+            <RatingsStarBadge item={item} />
+          </div>
 
-      <div className="absolute right-2.5 top-2.5 z-20 flex flex-col items-end gap-1.5">
-        <BookmarkBadge active={isBookmarked} onToggle={onToggleBookmark} />
-      </div>
+          <div className="absolute right-2.5 top-2.5 z-20 flex flex-col items-end gap-1.5">
+            <BookmarkBadge active={isBookmarked} onToggle={onToggleBookmark} />
+          </div>
+        </>
+      )}
     </>
-  )}
-</>
   );
 }
 
@@ -642,32 +640,33 @@ function CarouselSection({
               <div
                 key={`${sectionKey}-page-${pageIndex}`}
                 className={`grid min-w-full gap-3 px-4 py-4 sm:gap-4 sm:px-5 sm:py-5 ${
-  compact
-    ? cardsPerPage === 10
-      ? 'grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-10'
-      : cardsPerPage === 5
-        ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
-        : cardsPerPage === 4
-          ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
-          : cardsPerPage === 3
-            ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3'
-            : 'grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6'
-    : cardsPerPage === 5
-      ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
-      : cardsPerPage === 4
-        ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
-        : cardsPerPage === 3
-          ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3'
-          : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'
-}`}
+                  compact
+                    ? cardsPerPage === 10
+                      ? 'grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-10'
+                      : cardsPerPage === 5
+                        ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
+                        : cardsPerPage === 4
+                          ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
+                          : cardsPerPage === 3
+                            ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3'
+                            : 'grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6'
+                    : cardsPerPage === 5
+                      ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
+                      : cardsPerPage === 4
+                        ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
+                        : cardsPerPage === 3
+                          ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3'
+                          : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'
+                }`}
               >
                 {pageItems.map((item, index) => {
                   const mediaType = resolveMediaType(item) || 'movie';
                   const bookmarkKey = `${mediaType}-${item.id}`;
                   const isBookmarked = bookmarkedIds.has(bookmarkKey);
-                  const isContinueWatchingSection = title === 'Continue Watching';
-                  const isNextUpSection = title === 'Next Up';
-                  const isUnreleasedSection = title === 'Unreleased';
+
+                  const isContinueWatchingSection = sectionKey === 'continue-watching';
+                  const isNextUpSection = sectionKey === 'next-up';
+                  const isAiringSoonSection = sectionKey === 'airing-soon';
 
                   const episodeKey =
                     mediaType === 'tv' && Number(item.season || 0) > 0 && Number(item.episode || 0) > 0
@@ -687,7 +686,9 @@ function CarouselSection({
                           item={item}
                           isBookmarked={isBookmarked}
                           onToggleBookmark={() => onToggleBookmark?.(item, mediaType)}
-                          showWatchedToggle={isContinueWatchingSection || isNextUpSection}
+                          showWatchedToggle={
+                            isContinueWatchingSection || isNextUpSection || isAiringSoonSection
+                          }
                           isWatched={isContinueWatchingSection ? isWatched : true}
                           onToggleWatched={() => {
                             if (isContinueWatchingSection) {
@@ -695,14 +696,16 @@ function CarouselSection({
                               return;
                             }
 
-                            if (isNextUpSection) {
+                            if (isNextUpSection || isAiringSoonSection) {
                               onRemoveNextUp?.(item);
                             }
                           }}
-                          watchedToggleVariant={isNextUpSection ? 'remove' : 'watch'}
+                          watchedToggleVariant={
+                            isNextUpSection || isAiringSoonSection ? 'remove' : 'watch'
+                          }
                           watchedToggleTitle={
-                            isNextUpSection
-                              ? 'Remove from Next Up'
+                            isNextUpSection || isAiringSoonSection
+                              ? 'Remove from carousel'
                               : isWatched
                                 ? 'Marked watched'
                                 : 'Mark as watched'
@@ -734,20 +737,22 @@ function CarouselSection({
                           {item.title || item.name || 'Untitled'}
                         </div>
 
-                        {isContinueWatchingSection || isNextUpSection ? (
+                        {isContinueWatchingSection || isNextUpSection || isAiringSoonSection ? (
                           <>
                             <div className="mt-1 text-[11px] text-gray-300/85 sm:text-xs">
                               {(item.media_type || item.type) === 'tv'
                                 ? `S${
-                                    isNextUpSection
+                                    isNextUpSection || isAiringSoonSection
                                       ? item.nextSeason || item.season || '?'
                                       : item.season || '?'
                                   } • E${
-                                    isNextUpSection
+                                    isNextUpSection || isAiringSoonSection
                                       ? item.nextEpisode || item.episode || '?'
                                       : item.episode || '?'
                                   }${
-                                    !isNextUpSection && item.episode_name
+                                    !isNextUpSection &&
+                                    !isAiringSoonSection &&
+                                    item.episode_name
                                       ? ` • ${item.episode_name}`
                                       : ''
                                   }`
@@ -755,16 +760,16 @@ function CarouselSection({
                             </div>
 
                             {(item.media_type || item.type) === 'tv' && (
-  <div className="mt-1 text-[11px] text-gray-500 sm:text-xs">
-    {title === 'Unreleased' && item.nextAirDate
-      ? formatCountdown(item.nextAirDate)
-      : isNextUpSection
-        ? 'Ready to start'
-        : formatRemainingTime(item.remainingTime)}
-  </div>
-)}
+                              <div className="mt-1 text-[11px] text-gray-500 sm:text-xs">
+                                {isAiringSoonSection && item.nextAirDate
+                                  ? formatCountdown(item.nextAirDate)
+                                  : isNextUpSection
+                                    ? 'Ready to start'
+                                    : formatRemainingTime(item.remainingTime)}
+                              </div>
+                            )}
 
-                            {!isNextUpSection && (
+                            {!isNextUpSection && !isAiringSoonSection && (
                               <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10 shadow-inner">
                                 <div
                                   className="kflix-theme-accent-bg h-full rounded-full shadow-[0_0_14px_var(--theme-accent-glow)]"
@@ -813,7 +818,7 @@ export default function HomeContent() {
   const [continueWatchingRaw, setContinueWatchingRaw] = useState([]);
   const [continueWatching, setContinueWatching] = useState([]);
   const [nextUp, setNextUp] = useState([]);
-  const [unreleased, setUnreleased] = useState([]);
+  const [airingSoon, setAiringSoon] = useState([]);
 
   const [bookmarkedContent, setBookmarkedContent] = useState([]);
   const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
@@ -840,6 +845,7 @@ export default function HomeContent() {
         setContinueWatchingRaw([]);
         setContinueWatching([]);
         setNextUp([]);
+        setAiringSoon([]);
         setBookmarkedContent([]);
         setBookmarkedIds(new Set());
         setWatchedEpisodes({});
@@ -921,18 +927,15 @@ export default function HomeContent() {
   }, [userId]);
 
   useEffect(() => {
-  if (!userId) return;
+    if (!userId) return;
 
-  const { continueItems, nextUpItems, unreleasedItems } =
-    splitProgressIntoSections(
-      continueWatchingRaw,
-      watchedEpisodes
-    );
+    const { continueItems, nextUpItems, airingSoonItems } =
+      splitProgressIntoSections(continueWatchingRaw, watchedEpisodes);
 
-  setContinueWatching(continueItems);
-  setNextUp(nextUpItems);
-  setUnreleased(unreleasedItems);
-}, [continueWatchingRaw, watchedEpisodes, userId]);
+    setContinueWatching(continueItems);
+    setNextUp(nextUpItems);
+    setAiringSoon(airingSoonItems);
+  }, [continueWatchingRaw, watchedEpisodes, userId]);
 
   const toggleBookmark = async (item, mediaType) => {
     if (!userId || !item?.id) return;
@@ -991,11 +994,13 @@ export default function HomeContent() {
       }
 
       const episodeKey = buildEpisodeKey(item.id, season, episode);
+
       await update(ref(db, `users/${userId}/watchedEpisodes`), {
         [episodeKey]: true,
       });
 
       let nextTarget = null;
+      let nextAirDate = null;
 
       const explicitNextSeason = Number(item.nextSeason || 0);
       const explicitNextEpisode = Number(item.nextEpisode || 0);
@@ -1009,50 +1014,47 @@ export default function HomeContent() {
           season: explicitNextSeason,
           episode: explicitNextEpisode,
         };
+        nextAirDate = item.nextAirDate || null;
       } else {
-        let nextAirDate = null;
+        try {
+          const showData = await fetchTvDetail(item.id);
+          const tmdbNext = showData?.next_episode_to_air;
 
-try {
-  const showData = await fetchTvDetail(item.id);
-
-  const tmdbNext = showData?.next_episode_to_air;
-
-  if (tmdbNext) {
-    nextTarget = {
-      season: tmdbNext.season_number,
-      episode: tmdbNext.episode_number,
-    };
-
-    nextAirDate = tmdbNext.air_date || null;
-  } else {
-    // fallback to your existing logic
-    nextTarget = resolveNextTvEpisode(showData, season, episode);
-  }
-} catch (error) {
-  console.error('Failed to resolve next episode:', error);
-}
+          if (tmdbNext) {
+            nextTarget = {
+              season: Number(tmdbNext.season_number || 0),
+              episode: Number(tmdbNext.episode_number || 0),
+            };
+            nextAirDate = tmdbNext.air_date || null;
+          } else {
+            nextTarget = resolveNextTvEpisode(showData, season, episode);
+            nextAirDate = null;
+          }
+        } catch (error) {
+          console.error('Failed to resolve next episode:', error);
+        }
       }
 
-      if (!nextTarget) {
+      if (!nextTarget?.season || !nextTarget?.episode) {
         await remove(continueRef);
         return;
       }
 
       await set(continueRef, {
-  ...item,
-  media_type: 'tv',
-  type: 'tv',
-  season,
-  episode,
-  nextSeason: nextTarget.season,
-  nextEpisode: nextTarget.episode,
-  nextAirDate: nextAirDate || null, // 🔥 ADD THIS LINE RIGHT HERE
-  currentTime: 0,
-  remainingTime: null,
-  progress: 0,
-  isPlaying: false,
-  updatedAt: Date.now(),
-});
+        ...item,
+        media_type: 'tv',
+        type: 'tv',
+        season,
+        episode,
+        nextSeason: nextTarget.season,
+        nextEpisode: nextTarget.episode,
+        nextAirDate,
+        currentTime: 0,
+        remainingTime: null,
+        progress: 0,
+        isPlaying: false,
+        updatedAt: Date.now(),
+      });
     } catch (error) {
       console.error('Failed to mark continue watching item as watched:', error);
     }
@@ -1073,11 +1075,11 @@ try {
   };
 
   useEffect(() => {
-  const interval = setInterval(() => {
-    forceTick((t) => t + 1);
-  }, 1000); // updates every second
+    const interval = setInterval(() => {
+      forceTick((t) => t + 1);
+    }, 1000);
 
-  return () => clearInterval(interval);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -1237,18 +1239,19 @@ try {
               />
 
               <CarouselSection
-  title="Unreleased"
-  sectionKey="unreleased"
-  items={unreleased}
+  title="Airing Soon"
+  sectionKey="airing-soon"
+  items={airingSoon}
   bookmarkedIds={bookmarkedIds}
   onToggleBookmark={toggleBookmark}
   getItemType={(item) => item.media_type || item.type || 'movie'}
-  hrefBuilder={() => '#'}
-  emptyText="Upcoming episodes will appear here."
+  hrefBuilder={(item) => `/${item.media_type || item.type || 'tv'}/${item.id}`}
+  emptyText="Episodes that haven’t aired yet will appear here."
   compact
   cardsPerPage={3}
   preservePageOnItemsChange
   watchedEpisodes={watchedEpisodes}
+  onRemoveNextUp={removeNextUpItem}
 />
             </>
           ) : (
@@ -1289,6 +1292,38 @@ try {
                 <div className="kflix-theme-panel-header flex items-center justify-between border-b border-white/10 px-4 py-3.5 sm:px-5">
                   <h2 className="kflix-theme-accent-text text-base font-semibold uppercase tracking-[0.16em] sm:text-lg md:text-xl">
                     Next Up
+                  </h2>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled
+                      className="kflix-glass-button flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-gray-500 opacity-60 backdrop-blur-xl"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path d="M15 6l-6 6 6 6" />
+                      </svg>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled
+                      className="kflix-glass-button flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-gray-500 opacity-60 backdrop-blur-xl"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path d="M9 6l6 6-6 6" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="px-4 py-6 text-sm text-gray-400 sm:px-5 sm:py-8">Loading your progress...</div>
+              </div>
+
+              <div className="kflix-theme-panel kflix-theme-panel-glow overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] shadow-[0_10px_40px_rgba(0,0,0,0.22)] backdrop-blur-xl">
+                <div className="kflix-theme-panel-header flex items-center justify-between border-b border-white/10 px-4 py-3.5 sm:px-5">
+                  <h2 className="kflix-theme-accent-text text-base font-semibold uppercase tracking-[0.16em] sm:text-lg md:text-xl">
+                    Airing Soon
                   </h2>
 
                   <div className="flex items-center gap-2">

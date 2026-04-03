@@ -44,6 +44,21 @@ function formatRuntime(minutes) {
   return `${hrs}h ${mins}m`;
 }
 
+function isFutureDate(dateString) {
+  if (!dateString) return false;
+  const time = new Date(dateString).getTime();
+  return Number.isFinite(time) && time > Date.now();
+}
+
+function formatEpisodeBadge(seasonNumber, episodeNumber) {
+  const s = Number(seasonNumber || 0);
+  const e = Number(episodeNumber || 0);
+
+  if (s <= 0 || e <= 0) return 'Airing Soon';
+
+  return `S${s} E${e} Airing Soon`;
+}
+
 function buildEpisodeKey(showId, seasonNumber, episodeNumber) {
   return `${showId}-S${seasonNumber}-E${episodeNumber}`;
 }
@@ -1647,6 +1662,20 @@ export default function DetailPageContent({ id, type }) {
     }&autoplay=1`;
   }, [type, resolvedContinueEpisode, id]);
 
+    const continueEpisodeIsAiringSoon = useMemo(() => {
+    if (type !== 'tv' || !continueEpisode) return false;
+    return isFutureDate(continueEpisode.nextAirDate);
+  }, [type, continueEpisode]);
+
+  const airingSoonLabel = useMemo(() => {
+    if (!continueEpisodeIsAiringSoon || !continueEpisode) return '';
+
+    return formatEpisodeBadge(
+      continueEpisode.nextSeason || continueEpisode.season,
+      continueEpisode.nextEpisode || continueEpisode.episode
+    );
+  }, [continueEpisodeIsAiringSoon, continueEpisode]);
+
   const handleWatchlistToggle = async () => {
     if (!userId || !data) return;
 
@@ -1922,9 +1951,20 @@ export default function DetailPageContent({ id, type }) {
                       Watch
                     </span>
                   </Link>
-                ) : (
+                                ) : (
                   <>
-                    {continueSeasonHref ? (
+                    {continueEpisodeIsAiringSoon ? (
+                      <div
+                        className="flex h-11 items-center justify-center rounded-xl border px-5 text-sm font-semibold"
+                        style={{
+                          ...glass.primaryButton,
+                          boxShadow:
+                            '0 0 22px var(--theme-accent-glow), 0 14px 28px color-mix(in srgb, var(--theme-accent-glow) 40%, transparent), inset 0 1px 0 rgba(255,255,255,0.16)',
+                        }}
+                      >
+                        {airingSoonLabel}
+                      </div>
+                    ) : continueSeasonHref ? (
                       <Link href={continueSeasonHref} className="cursor-pointer">
                         <span
                           className="flex h-11 items-center justify-center gap-2 rounded-xl border px-5 text-sm font-semibold transition active:scale-95"
@@ -1944,42 +1984,30 @@ export default function DetailPageContent({ id, type }) {
                     ) : null}
 
                     <button
-                      type="button"
-                      onClick={() => setWatchOptionsOpen(true)}
-                      className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border px-5 text-sm font-semibold transition active:scale-95"
-                      style={glass.primaryButton}
-                    >
-                      <svg
-                        className="h-4 w-4 flex-shrink-0"
-                        fill="currentColor"
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                      >
-                        <path d="M8 5.5v13l10-6.5-10-6.5z" />
-                      </svg>
-                      {continueSeasonHref ? 'Browse Episodes' : 'Watch'}
-                    </button>
+  type="button"
+  onClick={() => setWatchOptionsOpen(true)}
+  className="flex h-11 cursor-pointer items-center justify-center rounded-xl border px-5 text-sm font-semibold transition active:scale-95"
+  style={glass.primaryButton}
+>
+  {continueEpisodeIsAiringSoon
+    ? 'Browse Episodes'
+    : continueSeasonHref
+      ? 'Browse Episodes'
+      : 'Watch'}
+</button>
                   </>
                 )}
 
                 {trailer && (
-                  <button
-                    type="button"
-                    onClick={() => setTrailerOpen(true)}
-                    className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border px-5 text-sm font-semibold transition active:scale-95"
-                    style={glass.primaryButton}
-                  >
-                    <svg
-                      className="h-4 w-4 flex-shrink-0"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                    >
-                      <path d="M8 5.5v13l10-6.5-10-6.5z" />
-                    </svg>
-                    Watch Trailer
-                  </button>
-                )}
+  <button
+    type="button"
+    onClick={() => setTrailerOpen(true)}
+    className="flex h-11 cursor-pointer items-center justify-center rounded-xl border px-5 text-sm font-semibold transition active:scale-95"
+    style={glass.primaryButton}
+  >
+    Watch Trailer
+  </button>
+)}
 
                 <BookmarkIconButton
                   active={isInWatchlist}

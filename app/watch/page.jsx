@@ -410,6 +410,32 @@ function resolveNextTvEpisode(heroData, season, episode) {
   return null;
 }
 
+function resolveNextTvEpisodeWithAirDate(heroData, season, episode) {
+  const fallbackTarget = resolveNextTvEpisode(heroData, season, episode);
+
+  if (!fallbackTarget) return null;
+
+  const tmdbNext = heroData?.next_episode_to_air;
+
+  if (
+    tmdbNext &&
+    safeNumber(tmdbNext?.season_number, 0) === safeNumber(fallbackTarget.season, 0) &&
+    safeNumber(tmdbNext?.episode_number, 0) === safeNumber(fallbackTarget.episode, 0)
+  ) {
+    return {
+      season: fallbackTarget.season,
+      episode: fallbackTarget.episode,
+      airDate: tmdbNext?.air_date || null,
+    };
+  }
+
+  return {
+    season: fallbackTarget.season,
+    episode: fallbackTarget.episode,
+    airDate: null,
+  };
+}
+
 function resolvePreviousTvEpisode(heroData, season, episode) {
   const currentSeason = safeNumber(season, NaN);
   const currentEpisode = safeNumber(episode, NaN);
@@ -460,6 +486,9 @@ function createContinueWatchingItem({
   episodeName,
   currentTime,
   isPlaying,
+  nextSeason = null,
+  nextEpisode = null,
+  nextAirDate = null,
 }) {
   if (!type || !heroData) return null;
 
@@ -495,8 +524,9 @@ function createContinueWatchingItem({
 
     season: type === 'tv' ? activeSeason : null,
     episode: type === 'tv' ? activeEpisode : null,
-    nextSeason: null,
-    nextEpisode: null,
+    nextSeason: type === 'tv' ? nextSeason : null,
+    nextEpisode: type === 'tv' ? nextEpisode : null,
+    nextAirDate: type === 'tv' ? nextAirDate : null,
     episode_name: type === 'tv' ? episodeName || episodeData?.name || '' : '',
     episode_runtime: type === 'tv' ? safeNumber(episodeData?.runtime, 0) : null,
 
@@ -594,7 +624,7 @@ async function saveContinueWatchingItem({
 
     const nextEpisodeTarget =
       type === 'tv' && shouldHideBecauseAlmostDone
-        ? resolveNextTvEpisode(heroData, activeSeason, activeEpisode)
+        ? resolveNextTvEpisodeWithAirDate(heroData, activeSeason, activeEpisode)
         : null;
 
     const item = {
@@ -613,6 +643,7 @@ async function saveContinueWatchingItem({
       episode: type === 'tv' ? activeEpisode : null,
       nextSeason: nextEpisodeTarget?.season ?? null,
       nextEpisode: nextEpisodeTarget?.episode ?? null,
+      nextAirDate: nextEpisodeTarget?.airDate ?? null,
       episode_name: type === 'tv' ? episodeName || episodeData?.name || '' : '',
       episode_runtime: type === 'tv' ? safeNumber(episodeData?.runtime, 0) : null,
 
@@ -665,6 +696,13 @@ async function advanceTvProgressAtomically({
 
   const watchedKey = buildEpisodeKey(showId, safePreviousSeason, safePreviousEpisode);
   const continueKey = buildContinueWatchingKey('tv', showId);
+
+  const futureNextTarget = resolveNextTvEpisodeWithAirDate(
+    heroData,
+    safeNextSeason,
+    safeNextEpisode
+  );
+
   const continueItem = createContinueWatchingItem({
     type: 'tv',
     heroData,
@@ -674,6 +712,9 @@ async function advanceTvProgressAtomically({
     episodeName: nextEpisodeName || '',
     currentTime: 0,
     isPlaying,
+    nextSeason: futureNextTarget?.season ?? null,
+    nextEpisode: futureNextTarget?.episode ?? null,
+    nextAirDate: futureNextTarget?.airDate ?? null,
   });
 
   if (!continueItem) return;
