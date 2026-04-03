@@ -803,13 +803,69 @@ function WatchPageContent() {
   const [interactionLocked, setInteractionLocked] = useState(true);
 
   const [embedState, setEmbedState] = useState({
-    startAt: Number.isFinite(initialStartTime) ? Math.max(0, initialStartTime) : 0,
-    autoPlay: false,
-    server: 'Alpha',
-    subtitle: '0',
-  });
+  startAt: Number.isFinite(initialStartTime) ? Math.max(0, initialStartTime) : 0,
+  autoPlay: false,
+  server: 'Alpha',
+  subtitle: '0',
+});
 
-  const [iframeSeed, setIframeSeed] = useState(0);
+const WATCH_SESSION_KEY = 'kflix_watch_session';
+
+const saveWatchSession = () => {
+  if (!type || !id) return;
+
+  const activeSeason =
+    type === 'tv' ? liveTvProgressRef.current.season || season || '' : '';
+  const activeEpisode =
+    type === 'tv' ? liveTvProgressRef.current.episode || episode || '' : '';
+
+  const params = new URLSearchParams();
+  params.set('type', String(type));
+  params.set('id', String(id));
+
+  if (type === 'tv' && activeSeason) {
+    params.set('season', String(activeSeason));
+  }
+
+  if (type === 'tv' && activeEpisode) {
+    params.set('episode', String(activeEpisode));
+  }
+
+  params.set(
+    't',
+    String(Math.max(0, Math.floor(latestPlaybackRef.current.currentTime || 0)))
+  );
+  params.set('autoplay', latestPlaybackRef.current.isPlaying ? '1' : '0');
+
+  if (partyFollowEnabled) {
+    params.set('partyFollow', '1');
+  }
+
+  if (returnToParam) {
+    params.set('returnTo', returnToParam);
+  }
+
+  const payload = {
+    type,
+    id,
+    season: activeSeason,
+    episode: activeEpisode,
+    currentTime: Math.max(0, Math.floor(latestPlaybackRef.current.currentTime || 0)),
+    isPlaying: Boolean(latestPlaybackRef.current.isPlaying),
+    server: selectedServer,
+    subtitle: selectedSubtitle,
+    returnTo: `/watch?${params.toString()}`,
+    savedAt: Date.now(),
+  };
+
+  try {
+    sessionStorage.setItem(WATCH_SESSION_KEY, JSON.stringify(payload));
+  } catch (error) {
+    console.error('Failed to save watch session:', error);
+  }
+};
+
+const [iframeSeed, setIframeSeed] = useState(0);
 
   const currentMember = useMemo(
     () => members.find((member) => String(member.id) === String(userId)) || null,
@@ -1674,6 +1730,63 @@ setEpisodeData(ep);
   }, [initialTimeParam, initialAutoplayParam, type, id, season, episode, selectedServer, selectedSubtitle, isMobileLike]);
 
   useEffect(() => {
+  if (!type || !id) return;
+  if (initialTimeParam || initialAutoplayParam) return;
+
+  try {
+    const raw = sessionStorage.getItem(WATCH_SESSION_KEY);
+    if (!raw) return;
+
+    const saved = JSON.parse(raw);
+
+    const sameMedia =
+      String(saved?.type) === String(type) &&
+      String(saved?.id) === String(id) &&
+      String(saved?.season || '') === String(season || '') &&
+      String(saved?.episode || '') === String(episode || '');
+
+    if (!sameMedia) return;
+
+    const restoredTime = Math.max(0, Number(saved?.currentTime || 0));
+    const restoredAutoplay = Boolean(saved?.isPlaying);
+    const restoredServer =
+      typeof saved?.server === 'string' && SERVER_OPTIONS.includes(saved.server)
+        ? saved.server
+        : 'Alpha';
+    const restoredSubtitle =
+      typeof saved?.subtitle === 'string' ? saved.subtitle : '0';
+
+    setSelectedServer(restoredServer);
+    setSelectedSubtitle(restoredSubtitle);
+
+    setEmbedState({
+      startAt: restoredTime,
+      autoPlay: false,
+      server: restoredServer,
+      subtitle: restoredSubtitle,
+    });
+
+    setPlayerCurrentTime(restoredTime);
+    setPlayerIsPlaying(false);
+    latestPlaybackRef.current = {
+      currentTime: restoredTime,
+      isPlaying: false,
+    };
+
+    pendingInitialSyncRef.current = {
+      currentTime: restoredTime,
+      isPlaying: restoredAutoplay,
+    };
+
+    setPlayerReady(false);
+    setShowAutoplayHint(restoredAutoplay);
+    setIframeSeed((prev) => prev + 1);
+  } catch (error) {
+    console.error('Failed to restore watch session:', error);
+  }
+}, [type, id, season, episode, initialTimeParam, initialAutoplayParam]);
+
+  useEffect(() => {
     if (!initialTimeParam && !initialAutoplayParam) return;
 
     const startTime = Number(initialTimeParam || 0);
@@ -2134,30 +2247,46 @@ setEpisodeData(ep);
   ]);
 
   useEffect(() => {
-    const handleFlush = () => {
+  const handleFlush = () => {
+    saveWatchSession();
+    flushContinueWatching();
+  };
+
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'hidden') {
+      saveWatchSession();
       flushContinueWatching();
-    };
+    }
+  };
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        flushContinueWatching();
-      }
-    };
+  window.addEventListener('pagehide', handleFlush);
+  window.addEventListener('beforeunload', handleFlush);
+  window.addEventListener('kflix-flush-continue-watching', handleFlush);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    window.addEventListener('pagehide', handleFlush);
-    window.addEventListener('beforeunload', handleFlush);
-    window.addEventListener('kflix-flush-continue-watching', handleFlush);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+  return () => {
+    window.removeEventListener('pagehide', handleFlush);
+    window.removeEventListener('beforeunload', handleFlush);
+    window.removeEventListener('kflix-flush-continue-watching', handleFlush);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
 
-    return () => {
-      window.removeEventListener('pagehide', handleFlush);
-      window.removeEventListener('beforeunload', handleFlush);
-      window.removeEventListener('kflix-flush-continue-watching', handleFlush);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-
-      flushContinueWatching();
-    };
-  }, [type, id, season, episode, heroData, episodeData, userId, autoplayUnlocked]);
+    saveWatchSession();
+    flushContinueWatching();
+  };
+}, [
+  type,
+  id,
+  season,
+  episode,
+  heroData,
+  episodeData,
+  userId,
+  autoplayUnlocked,
+  selectedServer,
+  selectedSubtitle,
+  partyFollowEnabled,
+  returnToParam,
+]);
 
   useEffect(() => {
     return () => {

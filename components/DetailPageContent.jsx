@@ -1935,23 +1935,15 @@ export default function DetailPageContent({ id, type }) {
 
               <div className="mt-6 flex flex-wrap gap-3">
                 {type === 'movie' ? (
-                  <Link href={`/watch?type=movie&id=${id}`} className="cursor-pointer">
-                    <span
-                      className="flex h-11 items-center justify-center gap-2 rounded-xl border px-5 text-sm font-semibold transition active:scale-95"
-                      style={glass.primaryButton}
-                    >
-                      <svg
-                        className="h-4 w-4 flex-shrink-0"
-                        fill="currentColor"
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                      >
-                        <path d="M8 5.5v13l10-6.5-10-6.5z" />
-                      </svg>
-                      Watch
-                    </span>
-                  </Link>
-                                ) : (
+  <Link href={`/watch?type=movie&id=${id}`} className="cursor-pointer">
+    <span
+      className="flex h-11 items-center justify-center rounded-xl border px-5 text-sm font-semibold transition active:scale-95"
+      style={glass.primaryButton}
+    >
+      Watch
+    </span>
+  </Link>
+) : (
                   <>
                     {continueEpisodeIsAiringSoon ? (
                       <div
@@ -1966,21 +1958,13 @@ export default function DetailPageContent({ id, type }) {
                       </div>
                     ) : continueSeasonHref ? (
                       <Link href={continueSeasonHref} className="cursor-pointer">
-                        <span
-                          className="flex h-11 items-center justify-center gap-2 rounded-xl border px-5 text-sm font-semibold transition active:scale-95"
-                          style={glass.primaryButton}
-                        >
-                          <svg
-                            className="h-4 w-4 flex-shrink-0"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                            aria-hidden="true"
-                          >
-                            <path d="M8 5.5v13l10-6.5-10-6.5z" />
-                          </svg>
-                          Continue Season
-                        </span>
-                      </Link>
+  <span
+    className="flex h-11 items-center justify-center rounded-xl border px-5 text-sm font-semibold transition active:scale-95"
+    style={glass.primaryButton}
+  >
+    Continue Season
+  </span>
+</Link>
                     ) : null}
 
                     <button
