@@ -4,7 +4,6 @@ import Script from 'next/script';
 import MaintenanceGate from '@/components/MaintenanceGate';
 import PresenceTracker from '@/components/PresenceTracker';
 import ThemeSync from '@/components/ThemeSync';
-import AnimatedTabTitle from '@/components/AnimatedTabTitle';
 
 export const metadata = {
   title: 'KFLIX by Ser Wallace',
@@ -45,7 +44,6 @@ export default function RootLayout({ children }) {
 
       <body className="min-h-screen">
         <ThemeSync />
-        <AnimatedTabTitle />
 
         <MaintenanceGate>
           <PresenceTracker />

@@ -1731,7 +1731,6 @@ setEpisodeData(ep);
 
   useEffect(() => {
   if (!type || !id) return;
-  if (initialTimeParam || initialAutoplayParam) return;
 
   try {
     const raw = sessionStorage.getItem(WATCH_SESSION_KEY);
@@ -1747,7 +1746,9 @@ setEpisodeData(ep);
 
     if (!sameMedia) return;
 
-    const restoredTime = Math.max(0, Number(saved?.currentTime || 0));
+    const urlTime = Math.max(0, Number(initialTimeParam || 0));
+    const savedTime = Math.max(0, Number(saved?.currentTime || 0));
+
     const restoredAutoplay = Boolean(saved?.isPlaying);
     const restoredServer =
       typeof saved?.server === 'string' && SERVER_OPTIONS.includes(saved.server)
@@ -1756,25 +1757,31 @@ setEpisodeData(ep);
     const restoredSubtitle =
       typeof saved?.subtitle === 'string' ? saved.subtitle : '0';
 
+    const shouldUseSavedSession =
+      savedTime > urlTime ||
+      (!initialTimeParam && !initialAutoplayParam);
+
+    if (!shouldUseSavedSession) return;
+
     setSelectedServer(restoredServer);
     setSelectedSubtitle(restoredSubtitle);
 
     setEmbedState({
-      startAt: restoredTime,
+      startAt: savedTime,
       autoPlay: false,
       server: restoredServer,
       subtitle: restoredSubtitle,
     });
 
-    setPlayerCurrentTime(restoredTime);
+    setPlayerCurrentTime(savedTime);
     setPlayerIsPlaying(false);
     latestPlaybackRef.current = {
-      currentTime: restoredTime,
+      currentTime: savedTime,
       isPlaying: false,
     };
 
     pendingInitialSyncRef.current = {
-      currentTime: restoredTime,
+      currentTime: savedTime,
       isPlaying: restoredAutoplay,
     };
 

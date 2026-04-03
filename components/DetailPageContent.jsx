@@ -50,6 +50,38 @@ function isFutureDate(dateString) {
   return Number.isFinite(time) && time > Date.now();
 }
 
+function hasAiredOnOrBeforeToday(dateString) {
+  if (!dateString) return false;
+
+  const time = new Date(dateString).getTime();
+  if (!Number.isFinite(time)) return false;
+
+  return time <= Date.now();
+}
+
+function isSeasonAired(season) {
+  if (!season) return false;
+
+  if (!season.air_date) return false;
+  if (Number(season.episode_count || 0) <= 0) return false;
+
+  return hasAiredOnOrBeforeToday(season.air_date);
+}
+
+function isEpisodeAired(episode) {
+  if (!episode) return true;
+  return hasAiredOnOrBeforeToday(episode.air_date);
+}
+
+function getUnairedStyle(glass) {
+  return {
+    ...glass.surface,
+    opacity: 0.45,
+    filter: 'grayscale(0.2)',
+    cursor: 'not-allowed',
+  };
+}
+
 function formatEpisodeBadge(seasonNumber, episodeNumber) {
   const s = Number(seasonNumber || 0);
   const e = Number(episodeNumber || 0);
@@ -232,7 +264,7 @@ function shouldAutoMarkCurrentEpisode(continueEpisode) {
 }
 
 function buildEpisodesToAutoMark(showId, seasons, continueEpisode, manualUnwatchedSet) {
-  if (!continueEpisode || !shouldAutoMarkCurrentEpisode(continueEpisode)) {
+  if (!continueEpisode) {
     return [];
   }
 
@@ -258,14 +290,14 @@ function buildEpisodesToAutoMark(showId, seasons, continueEpisode, manualUnwatch
     if (seasonNumber <= 0 || episodeCount <= 0) return;
 
     for (let episodeNumber = 1; episodeNumber <= episodeCount; episodeNumber += 1) {
-      const isBeforeOrEqualTarget =
-        compareEpisodeOrder(seasonNumber, episodeNumber, targetSeason, targetEpisode) <= 0;
+      const isBeforeTarget =
+        compareEpisodeOrder(seasonNumber, episodeNumber, targetSeason, targetEpisode) < 0;
 
-      if (!isBeforeOrEqualTarget) continue;
+      if (!isBeforeTarget) continue;
 
       const key = buildEpisodeKey(showId, seasonNumber, episodeNumber);
 
-      if (manualUnwatchedSet.has(key)) continue;
+      if (manualUnwatchedSet?.has(key)) continue;
 
       keys.push(key);
     }
@@ -587,53 +619,72 @@ function TrailerModal({ open, onClose, videoKey, title }) {
   );
 }
 
-function WatchBadge({ checked, onClick, title }) {
+function WatchBadge({ checked, onClick, title, disabled = false }) {
   const glass = useGlassStyles();
 
   return (
     <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      aria-label={title}
-      className="inline-flex min-h-[30px] min-w-[30px] cursor-pointer items-center justify-center rounded-xl border px-2 py-1 text-[10px] font-bold tracking-[0.08em] transition active:scale-95"
+  type="button"
+  onClick={onClick}
+  disabled={disabled}
+  title={title}
+  aria-label={title}
+      className={`inline-flex min-h-[30px] min-w-[30px] items-center justify-center rounded-xl border px-2 py-1 text-[10px] font-bold tracking-[0.08em] transition active:scale-95 ${
+  disabled ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'
+}`}
       style={
-        checked
-          ? {
-              borderColor: 'rgba(34,197,94,0.66)',
-              background:
-                'linear-gradient(180deg, rgba(34,197,94,0.94), rgba(21,128,61,0.92))',
-              boxShadow:
-                '0 0 16px rgba(34,197,94,0.3), inset 0 1px 0 rgba(255,255,255,0.16)',
-              color: '#ffffff',
-              backdropFilter: 'blur(16px) saturate(145%)',
-              WebkitBackdropFilter: 'blur(16px) saturate(145%)',
-            }
-          : glass.surface
+  disabled
+    ? {
+        ...glass.surface,
+        opacity: 0.45,
+        filter: 'grayscale(0.2)',
+        cursor: 'not-allowed',
       }
+    : checked
+      ? {
+          borderColor: 'rgba(34,197,94,0.66)',
+          background:
+            'linear-gradient(180deg, rgba(34,197,94,0.94), rgba(21,128,61,0.92))',
+          boxShadow:
+            '0 0 16px rgba(34,197,94,0.3), inset 0 1px 0 rgba(255,255,255,0.16)',
+          color: '#ffffff',
+          backdropFilter: 'blur(16px) saturate(145%)',
+          WebkitBackdropFilter: 'blur(16px) saturate(145%)',
+        }
+      : glass.surface
+}
       onMouseEnter={(e) => {
-        if (checked) {
-          e.currentTarget.style.filter = 'brightness(1.06)';
-        } else {
-          e.currentTarget.style.color = '#86efac';
-          e.currentTarget.style.borderColor = 'rgba(34,197,94,0.55)';
-          e.currentTarget.style.boxShadow =
-            '0 12px 26px rgba(0,0,0,0.22), inset 0 0 14px rgba(34,197,94,0.18)';
-        }
-      }}
+  if (disabled) return;
+
+  if (checked) {
+    e.currentTarget.style.filter = 'brightness(1.06)';
+  } else {
+    e.currentTarget.style.color = '#86efac';
+    e.currentTarget.style.borderColor = 'rgba(34,197,94,0.55)';
+    e.currentTarget.style.boxShadow =
+      '0 12px 26px rgba(0,0,0,0.22), inset 0 0 14px rgba(34,197,94,0.18)';
+  }
+}}
       onMouseLeave={(e) => {
-        e.currentTarget.style.filter = 'none';
-        if (checked) {
-          e.currentTarget.style.borderColor = 'rgba(34,197,94,0.66)';
-          e.currentTarget.style.background =
-            'linear-gradient(180deg, rgba(34,197,94,0.94), rgba(21,128,61,0.92))';
-          e.currentTarget.style.boxShadow =
-            '0 0 16px rgba(34,197,94,0.3), inset 0 1px 0 rgba(255,255,255,0.16)';
-          e.currentTarget.style.color = '#ffffff';
-        } else {
-          Object.assign(e.currentTarget.style, glass.surface);
-        }
-      }}
+  e.currentTarget.style.filter = 'none';
+
+  if (disabled) {
+    Object.assign(e.currentTarget.style, glass.surface);
+    e.currentTarget.style.opacity = '0.7';
+    return;
+  }
+
+  if (checked) {
+    e.currentTarget.style.borderColor = 'rgba(34,197,94,0.66)';
+    e.currentTarget.style.background =
+      'linear-gradient(180deg, rgba(34,197,94,0.94), rgba(21,128,61,0.92))';
+    e.currentTarget.style.boxShadow =
+      '0 0 16px rgba(34,197,94,0.3), inset 0 1px 0 rgba(255,255,255,0.16)';
+    e.currentTarget.style.color = '#ffffff';
+  } else {
+    Object.assign(e.currentTarget.style, glass.surface);
+  }
+}}
     >
       <svg
         className="h-3.5 w-3.5 flex-shrink-0"
@@ -828,23 +879,28 @@ function WatchOptionsModal({
     return episodes.every((episode) => getEpisodeChecked(seasonNumber, episode.episode_number));
   };
 
+  
+
   const getSeasonChecked = (seasonNumber) => {
-    if (selectedSeason === seasonNumber && seasonData?.episodes?.length) {
-      return isSeasonComplete(seasonNumber, seasonData.episodes);
+  const seasonMeta = filteredSeasons.find((entry) => entry.season_number === seasonNumber);
+
+  if (!seasonMeta || !isSeasonAired(seasonMeta)) return false;
+
+  if (selectedSeason === seasonNumber && seasonData?.episodes?.length) {
+    return isSeasonComplete(seasonNumber, seasonData.episodes);
+  }
+
+  if (!seasonMeta.episode_count) return false;
+
+  let checkedCount = 0;
+
+  for (let i = 1; i <= seasonMeta.episode_count; i += 1) {
+    if (getEpisodeChecked(seasonNumber, i)) {
+      checkedCount += 1;
     }
+  }
 
-    const seasonMeta = filteredSeasons.find((entry) => entry.season_number === seasonNumber);
-    if (!seasonMeta?.episode_count) return false;
-
-    let checkedCount = 0;
-
-    for (let i = 1; i <= seasonMeta.episode_count; i += 1) {
-      if (getEpisodeChecked(seasonNumber, i)) {
-        checkedCount += 1;
-      }
-    }
-
-    return checkedCount > 0 && checkedCount === seasonMeta.episode_count;
+  return checkedCount > 0 && checkedCount === seasonMeta.episode_count;
   };
 
   if (!open) return null;
@@ -935,33 +991,52 @@ function WatchOptionsModal({
                   filteredSeasons.map((season) => {
                     const active = selectedSeason === season.season_number;
                     const seasonChecked = getSeasonChecked(season.season_number);
+                    const seasonHasAired = isSeasonAired(season);
 
                     return (
                       <div
                         key={season.id || season.season_number}
                         className="w-full rounded-2xl border px-4 py-3 transition"
-                        style={active ? glass.surfaceActive : glass.surface}
+                        style={
+  seasonHasAired
+    ? active
+      ? glass.surfaceActive
+      : glass.surface
+    : getUnairedStyle(glass)
+}
                         onMouseEnter={(e) => {
-                          if (!active) {
-                            e.currentTarget.style.borderColor = 'var(--theme-accent-border)';
-                            e.currentTarget.style.boxShadow =
-                              '0 14px 30px rgba(0,0,0,0.2), inset 0 0 16px color-mix(in srgb, var(--theme-accent-glow) 24%, transparent)';
-                          }
-                        }}
+  if (!seasonHasAired || active) return;
+
+  e.currentTarget.style.borderColor = 'var(--theme-accent-border)';
+  e.currentTarget.style.boxShadow =
+    '0 14px 30px rgba(0,0,0,0.2), inset 0 0 16px color-mix(in srgb, var(--theme-accent-glow) 24%, transparent)';
+}}
                         onMouseLeave={(e) => {
-                          Object.assign(e.currentTarget.style, active ? glass.surfaceActive : glass.surface);
+                          Object.assign(
+  e.currentTarget.style,
+  seasonHasAired
+    ? active
+      ? glass.surfaceActive
+      : glass.surface
+    : getUnairedStyle(glass)
+);
                         }}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedSeason(season.season_number);
-                              setSeasonData(null);
-                              setSeasonError('');
-                            }}
-                            className="min-w-0 flex-1 cursor-pointer text-left"
-                          >
+  type="button"
+  disabled={!seasonHasAired}
+  onClick={() => {
+    if (!seasonHasAired) return;
+
+    setSelectedSeason(season.season_number);
+    setSeasonData(null);
+    setSeasonError('');
+  }}
+  className={`min-w-0 flex-1 text-left ${
+    seasonHasAired ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'
+  }`}
+>
                             <div
                               className="flex items-center gap-2 text-sm font-medium"
                               style={{ color: active ? 'var(--theme-accent-text)' : 'white' }}
@@ -974,9 +1049,17 @@ function WatchOptionsModal({
                           </button>
 
                           <WatchBadge
-                            checked={seasonChecked}
-                            title={seasonChecked ? 'Unmark season as watched' : 'Mark season as watched'}
-                            onClick={() => {
+  checked={seasonChecked}
+  disabled={!seasonHasAired}
+  title={
+    !seasonHasAired
+      ? 'Season has not aired yet'
+      : seasonChecked
+        ? 'Unmark season as watched'
+        : 'Mark season as watched'
+  }
+  onClick={() => {
+    if (!seasonHasAired) return;
                               const episodesToToggle =
                                 active && seasonData?.episodes?.length
                                   ? seasonData.episodes
@@ -1031,43 +1114,73 @@ function WatchOptionsModal({
                 {seasonData.episodes?.length > 0 ? (
                   seasonData.episodes.map((episode) => {
                     const watched = getEpisodeChecked(selectedSeason, episode.episode_number);
+                    const episodeHasAired = isEpisodeAired(episode);
 
                     return (
                       <div
                         key={episode.id || episode.episode_number}
                         className="group rounded-2xl border p-4 transition"
-                        style={glass.surface}
+                        style={episodeHasAired ? glass.surface : getUnairedStyle(glass)}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = 'var(--theme-accent-border)';
-                          e.currentTarget.style.boxShadow =
-                            '0 0 20px color-mix(in srgb, var(--theme-accent-glow) 40%, transparent)';
-                        }}
+  if (!episodeHasAired) return;
+
+  e.currentTarget.style.borderColor = 'var(--theme-accent-border)';
+  e.currentTarget.style.boxShadow =
+    '0 0 20px color-mix(in srgb, var(--theme-accent-glow) 40%, transparent)';
+}}
                         onMouseLeave={(e) => {
-                          Object.assign(e.currentTarget.style, glass.surface);
-                        }}
+  Object.assign(
+    e.currentTarget.style,
+    episodeHasAired ? glass.surface : getUnairedStyle(glass)
+  );
+}}
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex min-w-0 items-start gap-2">
                             <WatchBadge
-                              checked={watched}
-                              title={watched ? 'Unmark episode as watched' : 'Mark episode as watched'}
-                              onClick={() => {
-                                onToggleEpisode(selectedSeason, episode.episode_number);
-                              }}
-                            />
+  checked={watched}
+  disabled={!episodeHasAired}
+  title={
+    !episodeHasAired
+      ? 'Episode has not aired yet'
+      : watched
+        ? 'Unmark episode as watched'
+        : 'Mark episode as watched'
+  }
+  onClick={() => {
+    if (!episodeHasAired) return;
+    onToggleEpisode(selectedSeason, episode.episode_number);
+  }}
+/>
 
-                            <Link
-                              href={`/watch?type=tv&id=${showId}&season=${selectedSeason}&episode=${episode.episode_number}&returnTo=${encodeURIComponent(returnTo)}`}
-                              className="min-w-0 block cursor-pointer"
-                            >
-                              <div className="text-sm font-semibold text-white transition group-hover:text-[var(--theme-accent-text)]">
-                                Episode {episode.episode_number}: {episode.name}
-                              </div>
+                            {episodeHasAired ? (
+  <Link
+    href={`/watch?type=tv&id=${showId}&season=${selectedSeason}&episode=${episode.episode_number}&returnTo=${encodeURIComponent(returnTo)}`}
+    className="min-w-0 block cursor-pointer"
+  >
+    <div className="text-sm font-semibold text-white transition group-hover:text-[var(--theme-accent-text)]">
+      Episode {episode.episode_number}: {episode.name}
+    </div>
 
-                              <div className="mt-2 line-clamp-2 text-xs leading-6 text-gray-400">
-                                {episode.overview || 'No description available.'}
-                              </div>
-                            </Link>
+    <div className="mt-2 line-clamp-2 text-xs leading-6 text-gray-400">
+      {episode.overview || 'No description available.'}
+    </div>
+  </Link>
+) : (
+  <div className="min-w-0 block cursor-not-allowed">
+    <div className="text-sm font-semibold text-gray-400">
+      Episode {episode.episode_number}: {episode.name}
+    </div>
+
+    <div className="mt-2 line-clamp-2 text-xs leading-6 text-gray-500">
+      {episode.overview || 'No description available.'}
+    </div>
+
+    <div className="mt-2 text-[11px] font-medium uppercase tracking-[0.12em] text-gray-500">
+      Not aired yet
+    </div>
+  </div>
+)}
                           </div>
 
                           <div className="flex-shrink-0 text-xs text-gray-400">
@@ -1553,49 +1666,54 @@ export default function DetailPageContent({ id, type }) {
     return data.seasons.filter((season) => season.season_number > 0);
   }, [data, type]);
 
+  const resolvedContinueEpisode = useMemo(() => {
+    if (type !== 'tv' || !continueEpisode) return null;
+    return resolveContinueEpisodeTarget(continueEpisode, selectableSeasons);
+  }, [type, continueEpisode, selectableSeasons]);
+
   useEffect(() => {
     if (!userId || type !== 'tv' || !id || !continueEpisode || !selectableSeasons.length) return;
 
     const syncCompletedEpisodeFromContinueWatching = async () => {
-      try {
-        const keysToMark = buildEpisodesToAutoMark(
-          id,
-          selectableSeasons,
-          continueEpisode,
-          manualUnwatchedKeys
-        );
+  try {
+    const keysToMark = buildEpisodesToAutoMark(
+  id,
+  selectableSeasons,
+  resolvedContinueEpisode || continueEpisode,
+  manualUnwatchedKeys
+);
 
-        if (!keysToMark.length) {
-          return;
-        }
+    if (!keysToMark.length) {
+      return;
+    }
 
-        const snapshot = await get(getWatchedEpisodesDbRef(userId));
-        const existing = normalizeWatchedMap(snapshot.exists() ? snapshot.val() : {});
-        const updated = { ...existing };
+    const snapshot = await get(getWatchedEpisodesDbRef(userId));
+    const existing = normalizeWatchedMap(snapshot.exists() ? snapshot.val() : {});
+    const updated = { ...existing };
 
-        let changed = false;
+    let changed = false;
 
-        keysToMark.forEach((key) => {
-          if (!updated[key]) {
-            updated[key] = true;
-            changed = true;
-          }
-        });
-
-        if (!changed) {
-          return;
-        }
-
-        await update(ref(db, `users/${userId}`), {
-          watchedEpisodes: updated,
-        });
-      } catch (syncError) {
-        console.error('Failed to sync watched episode chain:', syncError);
+    keysToMark.forEach((key) => {
+      if (!updated[key]) {
+        updated[key] = true;
+        changed = true;
       }
-    };
+    });
+
+    if (!changed) {
+      return;
+    }
+
+    await update(ref(db, `users/${userId}`), {
+      watchedEpisodes: updated,
+    });
+  } catch (syncError) {
+    console.error('Failed to sync watched episode chain:', syncError);
+  }
+};
 
     syncCompletedEpisodeFromContinueWatching();
-  }, [userId, type, id, continueEpisode, selectableSeasons, manualUnwatchedKeys]);
+  }, [userId, type, id, continueEpisode, resolvedContinueEpisode, selectableSeasons, manualUnwatchedKeys]);
 
   const title = useMemo(() => {
     if (!data) return '';
@@ -1646,11 +1764,6 @@ export default function DetailPageContent({ id, type }) {
       .filter((item) => String(item.id) !== String(id))
       .slice(0, 24);
   }, [data, id]);
-
-  const resolvedContinueEpisode = useMemo(() => {
-    if (type !== 'tv' || !continueEpisode) return null;
-    return resolveContinueEpisodeTarget(continueEpisode, selectableSeasons);
-  }, [type, continueEpisode, selectableSeasons]);
 
   const continueSeasonHref = useMemo(() => {
     if (type !== 'tv' || !resolvedContinueEpisode) return '';
