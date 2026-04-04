@@ -1035,14 +1035,7 @@ function LiveSportsWatchContent() {
                   className="mt-3 rounded-xl border px-4 py-3 text-sm text-gray-300"
                   style={glassSurfaceStyle}
                 >
-                  • Refresh the page multiple times.
-                </div>
-
-                <div
-                  className="mt-3 rounded-xl border px-4 py-3 text-sm text-gray-300"
-                  style={glassSurfaceStyle}
-                >
-                  • Switch between the different servers.
+                  • Refresh the page multiple times & switch between servers.
                 </div>
 
                 <div
@@ -1070,14 +1063,7 @@ function LiveSportsWatchContent() {
                   className="mt-3 rounded-xl border px-4 py-3 text-sm text-gray-300"
                   style={glassSurfaceStyle}
                 >
-                  • Use adblockers like uBlock Origin.
-                </div>
-
-                <div
-                  className="mt-3 rounded-xl border px-4 py-3 text-sm text-gray-300"
-                  style={glassSurfaceStyle}
-                >
-                  • Use browsers like Brave.
+                  • Use adblockers like uBlock Origin, or browsers like Brave.
                 </div>
               </div>
 

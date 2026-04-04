@@ -326,6 +326,35 @@ async function markEpisodeWatched({ uid, showId, season, episode }) {
   }
 }
 
+function getActiveProfileId() {
+  if (typeof window === 'undefined') return '';
+
+  try {
+    const direct =
+      localStorage.getItem('kflix_active_profile_id') ||
+      sessionStorage.getItem('kflix_active_profile_id');
+
+    if (direct) return String(direct);
+
+    const raw =
+      localStorage.getItem('kflix_active_profile') ||
+      sessionStorage.getItem('kflix_active_profile');
+
+    if (!raw) return '';
+
+    const parsed = JSON.parse(raw);
+
+    return String(
+      parsed?.id ||
+      parsed?.profileId ||
+      parsed?.uid ||
+      ''
+    );
+  } catch {
+    return '';
+  }
+}
+
 function extractPayloadSeason(payload, fallback = '') {
   const candidates = [payload?.season, payload?.seasonNumber, payload?.season_number];
 
@@ -786,6 +815,8 @@ function WatchPageContent() {
   const [userId, setUserId] = useState('');
   const [partyCode, setPartyCode] = useState('');
   const [members, setMembers] = useState([]);
+  const [watchOwnerId, setWatchOwnerId] = useState('');
+  const remoteResumeAppliedRef = useRef(false);
 
   const [playerReady, setPlayerReady] = useState(false);
   const [playerCurrentTime, setPlayerCurrentTime] = useState(
@@ -1041,7 +1072,7 @@ const [iframeSeed, setIframeSeed] = useState(0);
     if (!autoplayUnlocked) return;
     if (!initialResumeAppliedRef.current) return;
     if (pendingInitialSyncRef.current) return;
-    if (!userId || !heroData || !type || !id) return;
+    if (!watchOwnerId || !heroData || !type || !id) return;
 
     if (saveContinueWatchingTimeoutRef.current) {
       clearTimeout(saveContinueWatchingTimeoutRef.current);
@@ -1049,7 +1080,7 @@ const [iframeSeed, setIframeSeed] = useState(0);
 
     saveContinueWatchingTimeoutRef.current = setTimeout(() => {
       saveContinueWatchingItem({
-        uid: userId,
+        uid: watchOwnerId,
         type,
         id,
         heroData,
@@ -1076,7 +1107,7 @@ const [iframeSeed, setIframeSeed] = useState(0);
     if (!initialResumeAppliedRef.current) return;
     if (pendingInitialSyncRef.current) return;
 
-    const uid = latestUserIdRef.current;
+    const uid = watchOwnerId || latestUserIdRef.current;
     const currentHeroData = latestHeroDataRef.current;
     const currentEpisodeData = latestEpisodeDataRef.current;
 
@@ -1437,32 +1468,38 @@ const [iframeSeed, setIframeSeed] = useState(0);
   };
 
   const handleFullscreen = async () => {
-    const element = playerShellRef.current;
-    if (!element) return;
+  const element = playerShellRef.current;
+  if (!element) return;
 
-    try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
-        return;
+  try {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+      return;
+    }
+
+    await element.requestFullscreen();
+
+    setTimeout(() => {
+      try {
+        element.focus();
+      } catch {}
+    }, 50);
+
+    if (!isMobileLike) {
+      setFullscreenNoticeOpen(true);
+
+      if (fullscreenNoticeTimeoutRef.current) {
+        clearTimeout(fullscreenNoticeTimeoutRef.current);
       }
 
-      await element.requestFullscreen();
-
-      if (!isMobileLike) {
-  setFullscreenNoticeOpen(true);
-
-  if (fullscreenNoticeTimeoutRef.current) {
-    clearTimeout(fullscreenNoticeTimeoutRef.current);
-  }
-
-  fullscreenNoticeTimeoutRef.current = setTimeout(() => {
-    setFullscreenNoticeOpen(false);
-  }, 3500);
-}
-    } catch (fullscreenError) {
-      console.error('Failed to toggle fullscreen:', fullscreenError);
+      fullscreenNoticeTimeoutRef.current = setTimeout(() => {
+        setFullscreenNoticeOpen(false);
+      }, 3500);
     }
-  };
+  } catch (fullscreenError) {
+    console.error('Failed to toggle fullscreen:', fullscreenError);
+  }
+};
 
   const handleServerSelect = (serverName) => {
     if (!serverName || serverName === selectedServer) {
@@ -1539,25 +1576,33 @@ const [iframeSeed, setIframeSeed] = useState(0);
   }, []);
 
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      const isFullscreen = Boolean(document.fullscreenElement);
+  const handleFullscreenChange = () => {
+    const isFullscreen = Boolean(document.fullscreenElement);
 
-      if (!isFullscreen) {
-        setFullscreenNoticeOpen(false);
+    if (isFullscreen && playerShellRef.current) {
+      setTimeout(() => {
+        try {
+          playerShellRef.current.focus();
+        } catch {}
+      }, 50);
+    }
 
-        if (fullscreenNoticeTimeoutRef.current) {
-          clearTimeout(fullscreenNoticeTimeoutRef.current);
-          fullscreenNoticeTimeoutRef.current = null;
-        }
+    if (!isFullscreen) {
+      setFullscreenNoticeOpen(false);
+
+      if (fullscreenNoticeTimeoutRef.current) {
+        clearTimeout(fullscreenNoticeTimeoutRef.current);
+        fullscreenNoticeTimeoutRef.current = null;
       }
-    };
+    }
+  };
 
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
+  document.addEventListener('fullscreenchange', handleFullscreenChange);
 
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-    };
-  }, []);
+  return () => {
+    document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  };
+}, []);
 
   useEffect(() => {
     return () => {
@@ -1600,6 +1645,23 @@ const [iframeSeed, setIframeSeed] = useState(0);
 
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+  const syncOwner = () => {
+    const profileId = getActiveProfileId();
+    setWatchOwnerId(profileId || userId || '');
+  };
+
+  syncOwner();
+
+  window.addEventListener('storage', syncOwner);
+  window.addEventListener('kflix-profile-changed', syncOwner);
+
+  return () => {
+    window.removeEventListener('storage', syncOwner);
+    window.removeEventListener('kflix-profile-changed', syncOwner);
+  };
+  }, [userId]);
 
   useEffect(() => {
     try {
@@ -1794,6 +1856,153 @@ setEpisodeData(ep);
 }, [type, id, season, episode, initialTimeParam, initialAutoplayParam]);
 
   useEffect(() => {
+  let cancelled = false;
+
+  const loadRemoteProgress = async () => {
+    if (remoteResumeAppliedRef.current) return;
+    if (!watchOwnerId || !type || !id || !heroData) return;
+
+    try {
+      const firebaseKey = buildContinueWatchingKey(type, heroData.id);
+      const itemRef = ref(db, `users/${watchOwnerId}/continueWatching/${firebaseKey}`);
+      const snapshot = await get(itemRef);
+
+      if (cancelled || !snapshot.exists()) return;
+
+      const remoteItem =
+        snapshot.val() && typeof snapshot.val() === 'object'
+          ? snapshot.val()
+          : null;
+
+      if (!remoteItem) return;
+
+      const remoteTime = Math.max(0, Math.floor(safeNumber(remoteItem.currentTime, 0)));
+      const remoteUpdatedAt = safeNumber(remoteItem.updatedAt, 0);
+      const urlTime = Math.max(0, Math.floor(safeNumber(initialTimeParam, 0)));
+
+      let sessionTime = 0;
+      let sessionUpdatedAt = 0;
+      let sessionServer = selectedServer;
+      let sessionSubtitle = selectedSubtitle;
+
+      try {
+        const raw = sessionStorage.getItem(WATCH_SESSION_KEY);
+        if (raw) {
+          const saved = JSON.parse(raw);
+
+          const sameMedia =
+            String(saved?.type) === String(type) &&
+            String(saved?.id) === String(id) &&
+            String(saved?.season || '') === String(season || '') &&
+            String(saved?.episode || '') === String(episode || '');
+
+          if (sameMedia) {
+            sessionTime = Math.max(0, Math.floor(safeNumber(saved?.currentTime, 0)));
+            sessionUpdatedAt = safeNumber(saved?.savedAt, 0);
+
+            sessionServer =
+              typeof saved?.server === 'string' && SERVER_OPTIONS.includes(saved.server)
+                ? saved.server
+                : selectedServer;
+
+            sessionSubtitle =
+              typeof saved?.subtitle === 'string'
+                ? saved.subtitle
+                : selectedSubtitle;
+          }
+        }
+      } catch {}
+
+      const shouldUseRemote =
+        remoteTime > urlTime &&
+        (remoteUpdatedAt >= sessionUpdatedAt || remoteTime > sessionTime);
+
+      if (!shouldUseRemote) return;
+
+      const remoteSeason = type === 'tv' ? String(remoteItem.season || '') : '';
+      const remoteEpisode = type === 'tv' ? String(remoteItem.episode || '') : '';
+
+      const sameEpisode =
+        type !== 'tv' ||
+        (
+          String(remoteSeason || '') === String(season || '') &&
+          String(remoteEpisode || '') === String(episode || '')
+        );
+
+      if (!sameEpisode) {
+        const params = new URLSearchParams();
+        params.set('type', String(type));
+        params.set('id', String(id));
+        params.set('t', String(remoteTime));
+        params.set('autoplay', remoteItem.isPlaying ? '1' : '0');
+
+        if (type === 'tv') {
+          if (remoteSeason) params.set('season', remoteSeason);
+          if (remoteEpisode) params.set('episode', remoteEpisode);
+        }
+
+        if (partyFollowEnabled) {
+          params.set('partyFollow', '1');
+        }
+
+        if (returnToParam) {
+          params.set('returnTo', returnToParam);
+        }
+
+        remoteResumeAppliedRef.current = true;
+        router.replace(`/watch?${params.toString()}`);
+        return;
+      }
+
+      setEmbedState({
+        startAt: remoteTime,
+        autoPlay: false,
+        server: sessionServer,
+        subtitle: sessionSubtitle,
+      });
+
+      setPlayerCurrentTime(remoteTime);
+      setPlayerIsPlaying(false);
+      latestPlaybackRef.current = {
+        currentTime: remoteTime,
+        isPlaying: false,
+      };
+
+      pendingInitialSyncRef.current = {
+        currentTime: remoteTime,
+        isPlaying: Boolean(remoteItem.isPlaying),
+      };
+
+      setPlayerReady(false);
+      setShowAutoplayHint(Boolean(remoteItem.isPlaying));
+      setIframeSeed((prev) => prev + 1);
+      remoteResumeAppliedRef.current = true;
+    } catch (error) {
+      console.error('Failed to restore remote continue watching:', error);
+    }
+  };
+
+  loadRemoteProgress();
+
+  return () => {
+    cancelled = true;
+  };
+}, [
+  watchOwnerId,
+  type,
+  id,
+  season,
+  episode,
+  heroData,
+  initialTimeParam,
+  selectedServer,
+  selectedSubtitle,
+  partyFollowEnabled,
+  returnToParam,
+  router,
+]);
+
+  useEffect(() => {
     if (!initialTimeParam && !initialAutoplayParam) return;
 
     const startTime = Number(initialTimeParam || 0);
@@ -1907,7 +2116,7 @@ setEpisodeData(ep);
         };
       }
 
-      if (hasEpisodeTransition && userId && id && heroData) {
+      if (hasEpisodeTransition && watchOwnerId && id && heroData) {
         const transitionSignature = [
           id,
           previousSeason,
@@ -1926,7 +2135,7 @@ setEpisodeData(ep);
             }
 
             await advanceTvProgressAtomically({
-              uid: userId,
+              uid: watchOwnerId,
               showId: id,
               heroData,
               previousSeason,
@@ -1941,14 +2150,14 @@ setEpisodeData(ep);
 
             try {
               await markEpisodeWatched({
-                uid: userId,
+                uid: watchOwnerId,
                 showId: id,
                 season: previousSeason,
                 episode: previousEpisode,
               });
 
               await saveContinueWatchingItem({
-                uid: userId,
+                uid: watchOwnerId,
                 type,
                 id,
                 heroData,
@@ -2079,7 +2288,7 @@ setEpisodeData(ep);
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [isHost, userId, type, id, season, episode, heroData, episodeData, autoplayUnlocked, isMobileLike]);
+  }, [isHost, watchOwnerId, type, id, season, episode, heroData, episodeData, autoplayUnlocked, isMobileLike]);
 
   useEffect(() => {
     if (!playerReady || !pendingInitialSyncRef.current || !autoplayUnlocked) return;
@@ -2287,7 +2496,7 @@ setEpisodeData(ep);
   episode,
   heroData,
   episodeData,
-  userId,
+  watchOwnerId,
   autoplayUnlocked,
   selectedServer,
   selectedSubtitle,
@@ -2355,6 +2564,111 @@ setEpisodeData(ep);
 
     router.push('/');
   };
+
+  useEffect(() => {
+  const isTypingTarget = (target) => {
+    if (!target) return false;
+
+    const tagName = target.tagName?.toLowerCase();
+    return (
+      tagName === 'input' ||
+      tagName === 'textarea' ||
+      tagName === 'select' ||
+      target.isContentEditable
+    );
+  };
+
+  const handleFullscreenHotkeys = (event) => {
+    const fullscreenElement = document.fullscreenElement;
+    const shell = playerShellRef.current;
+
+    if (!fullscreenElement || !shell) return;
+    if (fullscreenElement !== shell) return;
+    if (isTypingTarget(event.target)) return;
+
+    switch (event.key) {
+      case 'ArrowLeft':
+        event.preventDefault();
+        handleSeekRelative(-10);
+        break;
+
+      case 'ArrowRight':
+        event.preventDefault();
+        handleSeekRelative(10);
+        break;
+
+      case 'ArrowUp': {
+        event.preventDefault();
+        ensureUserInteractionUnlock();
+
+        const nextVolume = Math.min(1, (playerMuted ? 0 : playerVolume) + 0.05);
+        latestUserHasAdjustedVolumeRef.current = true;
+        setPlayerVolume(nextVolume);
+        setPlayerMuted(false);
+
+        sendPlayerCommand({
+          command: 'volume',
+          level: nextVolume,
+        });
+
+        sendPlayerCommand({
+          command: 'mute',
+          muted: false,
+        });
+        break;
+      }
+
+      case 'ArrowDown': {
+        event.preventDefault();
+        ensureUserInteractionUnlock();
+
+        const nextVolume = Math.max(0, (playerMuted ? 0 : playerVolume) - 0.05);
+        latestUserHasAdjustedVolumeRef.current = true;
+        setPlayerVolume(nextVolume);
+        setPlayerMuted(nextVolume <= 0);
+
+        sendPlayerCommand({
+          command: 'volume',
+          level: nextVolume,
+        });
+
+        sendPlayerCommand({
+          command: 'mute',
+          muted: nextVolume <= 0,
+        });
+        break;
+      }
+
+      case ' ':
+      case 'k':
+      case 'K':
+        event.preventDefault();
+        handleTogglePlay();
+        break;
+
+      case 'm':
+      case 'M':
+        event.preventDefault();
+        handleToggleMute();
+        break;
+
+      case 'f':
+      case 'F':
+        event.preventDefault();
+        handleFullscreen();
+        break;
+
+      default:
+        break;
+    }
+  };
+
+  document.addEventListener('keydown', handleFullscreenHotkeys);
+
+  return () => {
+    document.removeEventListener('keydown', handleFullscreenHotkeys);
+  };
+}, [playerVolume, playerMuted, playerIsPlaying, autoplayUnlocked, isMobileLike]);
 
   if (loading) {
     return (
@@ -2457,14 +2771,15 @@ setEpisodeData(ep);
 
             <div className="overflow-hidden rounded-3xl border-[1.5px] p-2 sm:p-3" style={glassPanelStyle}>
               <div
-                ref={playerShellRef}
-                className="overflow-hidden rounded-2xl border-[1.5px] p-0"
-                style={{
-                  ...glassSurfaceStyle,
-                  boxShadow:
-                    '0 0 34px color-mix(in srgb, var(--theme-accent-glow) 42%, transparent), 0 16px 32px rgba(0,0,0,0.28)',
-                }}
-              >
+  ref={playerShellRef}
+  tabIndex={-1}
+  className="overflow-hidden rounded-2xl border-[1.5px] p-0 focus:outline-none"
+  style={{
+    ...glassSurfaceStyle,
+    boxShadow:
+      '0 0 34px color-mix(in srgb, var(--theme-accent-glow) 42%, transparent), 0 16px 32px rgba(0,0,0,0.28)',
+  }}
+>
                 <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-black">
                   {embedUrl ? (
                     <>
@@ -2894,14 +3209,7 @@ setEpisodeData(ep);
                   className="mt-3 rounded-xl border px-4 py-3 text-sm text-gray-300"
                   style={glassSurfaceStyle}
                 >
-                • Refresh the page multiple times.
-                </div> 
-                
-                <div
-                  className="mt-3 rounded-xl border px-4 py-3 text-sm text-gray-300"
-                  style={glassSurfaceStyle}
-                >
-                • Switch between the different servers.
+                • Refresh the page multiple times & switch between servers.
                 </div> 
                 
                 <div
@@ -2929,14 +3237,7 @@ setEpisodeData(ep);
                   className="mt-3 rounded-xl border px-4 py-3 text-sm text-gray-300"
                   style={glassSurfaceStyle}
                 >
-                • Use adblockers like uBlock Origin.
-                </div> 
-
-                <div
-                  className="mt-3 rounded-xl border px-4 py-3 text-sm text-gray-300"
-                  style={glassSurfaceStyle}
-                >
-                • Use browsers like Brave.
+                • Use adblockers like uBlock Origin, or browsers like Brave.
                 </div> 
               </div>
 
