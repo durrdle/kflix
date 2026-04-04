@@ -159,6 +159,29 @@ async function fetchEndpoint(endpoint) {
   };
 }
 
+async function fetchRatings(id, type) {
+  try {
+    const res = await fetch(`/api/ratings?id=${id}&type=${type}`);
+    if (!res.ok) {
+      return { imdbRating: null, rtRating: null };
+    }
+
+    return res.json();
+  } catch {
+    return { imdbRating: null, rtRating: null };
+  }
+}
+
+async function addRatingsToItems(items) {
+  return Promise.all(
+    items.map(async (item) => {
+      const mediaType = item.media_type === 'tv' ? 'tv' : 'movie';
+      const ratings = await fetchRatings(item.id, mediaType);
+      return { ...item, ...ratings };
+    })
+  );
+}
+
 async function fetchSearchResults({ query, type, page }) {
   const normalizedType = normalizeType(type);
 
@@ -317,7 +340,7 @@ function BookmarkBadge({ active, onToggle }) {
         e.stopPropagation();
         onToggle?.();
       }}
-      className={`pointer-events-auto inline-flex h-8 w-8 items-center justify-center rounded-xl border transition active:scale-95 ${
+      className={`pointer-events-auto inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl border transition active:scale-95 ${
         active
           ? 'shadow-[0_0_16px_var(--theme-accent-glow)]'
           : ''
@@ -375,11 +398,169 @@ function BookmarkBadge({ active, onToggle }) {
   );
 }
 
-function CardBadges({ isBookmarked, onToggleBookmark }) {
+function RatingsStarBadge({ item }) {
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const updateTouchState = () => {
+      const hasTouch =
+        window.matchMedia('(hover: none)').matches ||
+        window.matchMedia('(pointer: coarse)').matches ||
+        'ontouchstart' in window ||
+        navigator.maxTouchPoints > 0;
+
+      setIsTouchDevice(hasTouch);
+    };
+
+    updateTouchState();
+    window.addEventListener('resize', updateTouchState);
+
+    return () => window.removeEventListener('resize', updateTouchState);
+  }, []);
+
+  useEffect(() => {
+    if (!isTouchDevice || !isOpen) return;
+
+    const handlePointerDown = (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+
+      if (!target.closest('[data-ratings-badge-root]')) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [isTouchDevice, isOpen]);
+
+  const tmdbRating =
+    typeof item.vote_average === 'number' && item.vote_average > 0
+      ? item.vote_average.toFixed(1)
+      : null;
+
+  const hasAnyRating = Boolean(item.imdbRating || item.rtRating || tmdbRating);
+
+  if (!hasAnyRating) return null;
+
   return (
-    <div className="absolute right-2 top-2 z-20 flex flex-col items-end gap-1">
-      <BookmarkBadge active={isBookmarked} onToggle={onToggleBookmark} />
+    <div
+      data-ratings-badge-root
+      className="group/ratings pointer-events-auto relative"
+    >
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+
+          if (isTouchDevice) {
+            setIsOpen((prev) => !prev);
+          }
+        }}
+        className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl border border-white/10 bg-black/35 text-white/90 backdrop-blur-xl transition duration-200 active:scale-95 hover:text-yellow-300"
+        title="Show ratings"
+        aria-label="Show ratings"
+        aria-expanded={isTouchDevice ? isOpen : undefined}
+      >
+        <svg
+          className="h-4 w-4 flex-shrink-0"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            className="transition-opacity duration-150 group-hover/ratings:opacity-0"
+            d="M12 17.3l-5.56 3.1 1.06-6.28L2.94 9.7l6.31-.93L12 3.1l2.75 5.67 6.31.93-4.56 4.42 1.06 6.28L12 17.3z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinejoin="round"
+          />
+          <path
+            className="opacity-0 transition-opacity duration-150 group-hover/ratings:opacity-100"
+            d="M12 17.3l-5.56 3.1 1.06-6.28L2.94 9.7l6.31-.93L12 3.1l2.75 5.67 6.31.93-4.56 4.42 1.06 6.28L12 17.3z"
+            fill="currentColor"
+          />
+        </svg>
+      </button>
+
+      <div
+        className={`absolute left-0 top-10 z-30 min-w-[120px] max-w-[140px] translate-y-1 rounded-2xl border border-white/12 bg-black/65 px-2.5 py-2.5 shadow-[0_20px_50px_rgba(0,0,0,0.42)] backdrop-blur-2xl transition-all duration-200 ${
+          isTouchDevice
+            ? isOpen
+              ? 'pointer-events-auto translate-y-0 opacity-100'
+              : 'pointer-events-none opacity-0'
+            : 'pointer-events-none opacity-0 group-hover/ratings:pointer-events-auto group-hover/ratings:translate-y-0 group-hover/ratings:opacity-100'
+        }`}
+      >
+        <div className="space-y-2">
+          {item.rtRating ? (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-red-400/20 bg-red-500 px-2 py-2">
+              <div className="flex items-center gap-2">
+                <span className="rounded-md bg-red-500 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-white">
+                  RT
+                </span>
+              </div>
+
+              <span className="text-[12px] font-bold text-white">
+                {item.rtRating}
+              </span>
+            </div>
+          ) : null}
+
+          {item.imdbRating ? (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-yellow-400/20 bg-yellow-500 px-3 py-2">
+              <div className="flex items-center gap-2">
+                <span className="rounded-md bg-yellow-400 px-1.5 py-0.5 text-[9px] font-black uppercase text-black">
+                  IMDb
+                </span>
+              </div>
+
+              <span className="text-[12px] font-bold text-white">
+                {item.imdbRating}
+              </span>
+            </div>
+          ) : null}
+
+          {tmdbRating ? (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-cyan-400/20 bg-cyan-500 px-3 py-2">
+              <div className="flex items-center gap-2">
+                <span className="rounded-md bg-cyan-400 px-1.5 py-0.5 text-[9px] font-black uppercase text-slate-900">
+                  TMDB
+                </span>
+              </div>
+
+              <span className="text-[12px] font-bold text-white">
+                {tmdbRating}
+              </span>
+            </div>
+          ) : null}
+        </div>
+      </div>
     </div>
+  );
+}
+
+function CardBadges({ item, isBookmarked, onToggleBookmark }) {
+  return (
+    <>
+      {/* top overlay for contrast */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 bg-gradient-to-b from-black/70 via-black/40 to-transparent" />
+
+      <div className="absolute left-2 top-2 z-20">
+        <RatingsStarBadge item={item} />
+      </div>
+
+      <div className="absolute right-2 top-2 z-20 flex flex-col items-end gap-1">
+        <BookmarkBadge active={isBookmarked} onToggle={onToggleBookmark} />
+      </div>
+    </>
   );
 }
 
@@ -581,13 +762,20 @@ function SearchPageContent() {
         );
       } else {
         const watchlistItem = {
-          id: item.id,
-          type: mediaType,
-          title: item.title || item.name || 'Untitled',
-          poster_path: item.poster_path || null,
-          backdrop_path: item.backdrop_path || null,
-          addedAt: Date.now(),
-        };
+  id: item.id,
+  type: mediaType,
+  media_type: mediaType,
+  title: item.title || item.name || 'Untitled',
+  name: item.name || item.title || 'Untitled',
+  poster_path: item.poster_path || null,
+  backdrop_path: item.backdrop_path || null,
+  release_date: item.release_date || null,
+  first_air_date: item.first_air_date || null,
+  vote_average: item.vote_average ?? null,
+  imdbRating: item.imdbRating ?? null,
+  rtRating: item.rtRating ?? null,
+  addedAt: Date.now(),
+};
 
         updated = [watchlistItem, ...parsed];
       }
@@ -612,61 +800,63 @@ function SearchPageContent() {
   }, []);
 
   useEffect(() => {
-    const loadPagesUntilMinimum = async () => {
-      try {
-        setLoading(true);
-        setCurrentPage(1);
-        setVisibleCount(INITIAL_ITEM_COUNT);
+  const loadPagesUntilMinimum = async () => {
+    try {
+      setLoading(true);
+      setCurrentPage(1);
+      setVisibleCount(INITIAL_ITEM_COUNT);
 
-        const targetType = activeTabConfig.forceType || currentType;
-        let aggregated = [];
-        let highestTotalPages = 1;
-        let page = 1;
+      const targetType = activeTabConfig.forceType || currentType;
+      let aggregated = [];
+      let highestTotalPages = 1;
+      let page = 1;
 
-        while (page <= highestTotalPages && aggregated.length < INITIAL_ITEM_COUNT) {
-          const result = currentQuery.trim()
-            ? await fetchSearchResults({
-                query: currentQuery,
-                type: targetType,
-                page,
-              })
-            : await fetchDiscoverResults({
-                type: targetType,
-                activeTab,
-                page,
-                minRating: currentMinRating,
-                yearFrom: currentYearFrom,
-                yearTo: currentYearTo,
-              });
+      while (page <= highestTotalPages && aggregated.length < INITIAL_ITEM_COUNT) {
+        const result = currentQuery.trim()
+          ? await fetchSearchResults({
+              query: currentQuery,
+              type: targetType,
+              page,
+            })
+          : await fetchDiscoverResults({
+              type: targetType,
+              activeTab,
+              page,
+              minRating: currentMinRating,
+              yearFrom: currentYearFrom,
+              yearTo: currentYearTo,
+            });
 
-          aggregated = dedupeItems([...aggregated, ...result.results]);
-          highestTotalPages = Math.max(highestTotalPages, result.totalPages || 1);
-          page += 1;
-        }
-
-        setRawResults(aggregated);
-        setMaxPages(highestTotalPages);
-        setCurrentPage(Math.max(1, page - 1));
-      } catch (error) {
-        console.error('Failed to fetch search results:', error);
-        setRawResults([]);
-        setMaxPages(1);
-        setCurrentPage(1);
-      } finally {
-        setLoading(false);
+        aggregated = dedupeItems([...aggregated, ...result.results]);
+        highestTotalPages = Math.max(highestTotalPages, result.totalPages || 1);
+        page += 1;
       }
-    };
 
-    loadPagesUntilMinimum();
-  }, [
-    currentQuery,
-    currentType,
-    activeTab,
-    activeTabConfig.forceType,
-    currentMinRating,
-    currentYearFrom,
-    currentYearTo,
-  ]);
+      const enrichedResults = await addRatingsToItems(aggregated);
+
+      setRawResults(enrichedResults);
+      setMaxPages(highestTotalPages);
+      setCurrentPage(Math.max(1, page - 1));
+    } catch (error) {
+      console.error('Failed to fetch search results:', error);
+      setRawResults([]);
+      setMaxPages(1);
+      setCurrentPage(1);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadPagesUntilMinimum();
+}, [
+  currentQuery,
+  currentType,
+  activeTab,
+  activeTabConfig.forceType,
+  currentMinRating,
+  currentYearFrom,
+  currentYearTo,
+]);
 
   useEffect(() => {
     const sync = () => {
@@ -717,31 +907,43 @@ function SearchPageContent() {
       let nextRaw = [...rawResults];
 
       while (
-        nextPage <= maxPages &&
-        applyLocalFilters(nextRaw, filterConfig).length < neededVisibleCount
-      ) {
-        const result = currentQuery.trim()
-          ? await fetchSearchResults({
-              query: currentQuery,
-              type: targetType,
-              page: nextPage,
-            })
-          : await fetchDiscoverResults({
-              type: targetType,
-              activeTab,
-              page: nextPage,
-              minRating: currentMinRating,
-              yearFrom: currentYearFrom,
-              yearTo: currentYearTo,
-            });
+  nextPage <= maxPages &&
+  applyLocalFilters(nextRaw, filterConfig).length < neededVisibleCount
+) {
+  const result = currentQuery.trim()
+    ? await fetchSearchResults({
+        query: currentQuery,
+        type: targetType,
+        page: nextPage,
+      })
+    : await fetchDiscoverResults({
+        type: targetType,
+        activeTab,
+        page: nextPage,
+        minRating: currentMinRating,
+        yearFrom: currentYearFrom,
+        yearTo: currentYearTo,
+      });
 
-        nextRaw = dedupeItems([...nextRaw, ...result.results]);
-        nextPage += 1;
-      }
+  nextRaw = dedupeItems([...nextRaw, ...result.results]);
+  nextPage += 1;
+}
 
-      setRawResults(nextRaw);
-      setCurrentPage(Math.max(currentPage, nextPage - 1));
-      setVisibleCount((prev) => prev + LOAD_MORE_COUNT);
+const existingKeys = new Set(
+  rawResults.map((item) => `${item.media_type === 'tv' ? 'tv' : 'movie'}-${item.id}`)
+);
+
+const newOnly = nextRaw.filter((item) => {
+  const key = `${item.media_type === 'tv' ? 'tv' : 'movie'}-${item.id}`;
+  return !existingKeys.has(key);
+});
+
+const newOnlyWithRatings = await addRatingsToItems(newOnly);
+const merged = dedupeItems([...rawResults, ...newOnlyWithRatings]);
+
+setRawResults(merged);
+setCurrentPage(Math.max(currentPage, nextPage - 1));
+setVisibleCount((prev) => prev + LOAD_MORE_COUNT);
     } catch (error) {
       console.error('Failed to load more results:', error);
     } finally {
@@ -824,7 +1026,7 @@ function SearchPageContent() {
                   }}
                   disabled={!canScrollTabsLeft}
                   aria-label="Scroll tabs left"
-                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border transition active:scale-95 disabled:opacity-60"
+                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border transition active:scale-95 disabled:opacity-60 cursor-pointer disabled:cursor-default"
                   style={glassGhostButtonStyle}
                 >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -845,7 +1047,7 @@ function SearchPageContent() {
                           key={tab.key}
                           type="button"
                           onClick={() => handleTabChange(tab.key)}
-                          className="whitespace-nowrap rounded-xl border px-3 py-2 text-xs font-semibold transition active:scale-95 sm:px-4 sm:text-sm"
+                          className="cursor-pointer whitespace-nowrap rounded-xl border px-3 py-2 text-xs font-semibold transition active:scale-95 sm:px-4 sm:text-sm"
                           style={active ? glassActiveTabStyle : glassTabStyle}
                           onMouseEnter={(e) => {
                             if (!active) {
@@ -874,7 +1076,7 @@ function SearchPageContent() {
                   }}
                   disabled={!canScrollTabsRight}
                   aria-label="Scroll tabs right"
-                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border transition active:scale-95 disabled:opacity-60"
+                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border transition active:scale-95 disabled:opacity-60 cursor-pointer disabled:cursor-default"
                   style={glassGhostButtonStyle}
                 >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -903,12 +1105,12 @@ function SearchPageContent() {
 
                     return (
                       <Link
-                        key={`${itemType}-${item.id}`}
-                        href={href}
-                        className="group block min-w-0"
-                      >
+  key={`${itemType}-${item.id}`}
+  href={href}
+  className="group block min-w-0 cursor-pointer"
+>
                         <div
-                          className="relative overflow-hidden rounded-2xl border-[1.5px] p-0 transition duration-300"
+                          className="relative cursor-pointer overflow-hidden rounded-2xl border-[1.5px] p-0 transition duration-300"
                           style={glassCardStyle}
                           onMouseEnter={(e) => {
                             e.currentTarget.style.borderColor = 'var(--theme-accent-border)';
@@ -920,9 +1122,10 @@ function SearchPageContent() {
                           }}
                         >
                           <CardBadges
-                            isBookmarked={isBookmarked}
-                            onToggleBookmark={() => toggleBookmark(item, itemType)}
-                          />
+  item={item}
+  isBookmarked={isBookmarked}
+  onToggleBookmark={() => toggleBookmark(item, itemType)}
+/>
 
                           <div
                             className="absolute inset-0 opacity-0 blur-xl transition duration-300 group-hover:opacity-100"
@@ -953,9 +1156,7 @@ function SearchPageContent() {
                             <span>{itemType === 'movie' ? 'Movie' : 'Show'}</span>
                           </div>
 
-                          <div className="mt-1 text-[11px] text-gray-400 sm:text-xs">
-                            TMDB {Number(item.vote_average || 0).toFixed(1)}
-                          </div>
+                          
                         </div>
                       </Link>
                     );
@@ -972,7 +1173,7 @@ function SearchPageContent() {
                         type="button"
                         onClick={handleLoadMore}
                         disabled={loadingMore}
-                        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition active:scale-95 disabled:opacity-80 sm:w-auto"
+                        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border px-4 text-sm font-semibold transition active:scale-95 disabled:opacity-80 sm:w-auto cursor-pointer disabled:cursor-default"
                         style={glassAccentButtonStyle}
                       >
                         <svg
@@ -991,7 +1192,7 @@ function SearchPageContent() {
                     <button
                       type="button"
                       onClick={handleBackToTop}
-                      className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border px-5 text-sm font-semibold transition active:scale-95 sm:w-auto"
+                      className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border px-5 text-sm font-semibold transition active:scale-95 sm:w-auto cursor-pointer"
                       style={glassGhostButtonStyle}
                     >
                       <svg

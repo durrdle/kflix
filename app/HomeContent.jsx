@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { get, onValue, ref, remove, set, update } from 'firebase/database';
@@ -19,6 +20,19 @@ const fetchTMDB = async (endpoint) => {
   );
   const data = await res.json();
   return data.results || [];
+};
+
+const fetchRatings = async (id, type) => {
+  try {
+    const res = await fetch(`/api/ratings?id=${id}&type=${type}`);
+    if (!res.ok) {
+      return { imdbRating: null, rtRating: null };
+    }
+
+    return res.json();
+  } catch {
+    return { imdbRating: null, rtRating: null };
+  }
 };
 
 async function fetchTvDetail(id) {
@@ -125,6 +139,11 @@ function buildContinueWatchingHref(item) {
   }
 
   return `/watch?${params.toString()}`;
+}
+
+function buildDetailHref(item, mediaType) {
+  const resolvedType = mediaType || item?.media_type || item?.type || 'movie';
+  return `/${resolvedType}/${item.id}`;
 }
 
 function buildNextUpHref(item) {
@@ -381,6 +400,47 @@ function ActionBadge({
 }
 
 function RatingsStarBadge({ item }) {
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const updateTouchState = () => {
+      const hasTouch =
+        window.matchMedia('(hover: none)').matches ||
+        window.matchMedia('(pointer: coarse)').matches ||
+        'ontouchstart' in window ||
+        navigator.maxTouchPoints > 0;
+
+      setIsTouchDevice(hasTouch);
+    };
+
+    updateTouchState();
+    window.addEventListener('resize', updateTouchState);
+
+    return () => window.removeEventListener('resize', updateTouchState);
+  }, []);
+
+  useEffect(() => {
+    if (!isTouchDevice || !isOpen) return;
+
+    const handlePointerDown = (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+
+      if (!target.closest('[data-ratings-badge-root]')) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [isTouchDevice, isOpen]);
+
   const tmdbRating =
     typeof item.vote_average === 'number' && item.vote_average > 0
       ? item.vote_average.toFixed(1)
@@ -391,16 +451,24 @@ function RatingsStarBadge({ item }) {
   if (!hasAnyRating) return null;
 
   return (
-    <div className="group/ratings pointer-events-auto relative">
+    <div
+      data-ratings-badge-root
+      className="group/ratings pointer-events-auto relative"
+    >
       <button
         type="button"
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
+
+          if (isTouchDevice) {
+            setIsOpen((prev) => !prev);
+          }
         }}
-        className="kflix-glass-button inline-flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 text-white/90 backdrop-blur-xl transition duration-200 active:scale-95 hover:text-yellow-300 hover:shadow-[0_10px_28px_rgba(255,255,255,0.08)]"
+        className="kflix-glass-button inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl border border-white/10 text-white/90 backdrop-blur-xl transition duration-200 active:scale-95 hover:text-yellow-300 hover:shadow-[0_10px_28px_rgba(255,255,255,0.08)]"
         title="Show ratings"
         aria-label="Show ratings"
+        aria-expanded={isTouchDevice ? isOpen : undefined}
       >
         <svg
           className="h-4 w-4 flex-shrink-0"
@@ -423,35 +491,58 @@ function RatingsStarBadge({ item }) {
         </svg>
       </button>
 
-      <div className="pointer-events-none absolute left-0 top-10 z-30 min-w-[96px] max-w-[120px] translate-y-1 rounded-2xl border border-white/12 bg-white/10 px-3 py-2.5 opacity-0 shadow-[0_20px_50px_rgba(0,0,0,0.42)] backdrop-blur-2xl transition-all duration-200 group-hover/ratings:pointer-events-auto group-hover/ratings:translate-y-0 group-hover/ratings:opacity-100">
-        <div className="space-y-1.5">
-          {item.imdbRating ? (
-            <div className="flex items-center gap-2 text-[11px] leading-none">
-              <span className="shrink-0 font-semibold uppercase tracking-[0.1em] text-yellow-300">
-                IMDb
-              </span>
-              <span className="truncate text-white">{item.imdbRating}</span>
-            </div>
-          ) : null}
+      <div
+        className={`absolute left-0 top-10 z-30 min-w-[96px] max-w-[120px] translate-y-1 rounded-2xl border border-white/12 bg-white/10 px-3 py-2.5 shadow-[0_20px_50px_rgba(0,0,0,0.42)] backdrop-blur-2xl transition-all duration-200 ${
+          isTouchDevice
+            ? isOpen
+              ? 'pointer-events-auto translate-y-0 opacity-100'
+              : 'pointer-events-none opacity-0'
+            : 'pointer-events-none opacity-0 group-hover/ratings:pointer-events-auto group-hover/ratings:translate-y-0 group-hover/ratings:opacity-100'
+        }`}
+      >
+        <div className="space-y-2">
+  {item.rtRating ? (
+  <div className="flex items-center justify-between gap-3 rounded-xl border border-red-400/20 bg-red-500 px-2 py-2">
+    <div className="flex items-center gap-2">
+      <span className="rounded-md bg-red-500 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-white">
+        RT
+      </span>
+    </div>
 
-          {item.rtRating ? (
-            <div className="flex items-center gap-2 text-[11px] leading-none">
-              <span className="shrink-0 font-semibold uppercase tracking-[0.1em] text-yellow-300">
-                RT
-              </span>
-              <span className="truncate text-white">{item.rtRating}</span>
-            </div>
-          ) : null}
+    <span className="text-[12px] font-bold text-white">
+      {item.rtRating}
+    </span>
+  </div>
+) : null}
 
-          {tmdbRating ? (
-            <div className="flex items-center gap-2 text-[11px] leading-none">
-              <span className="shrink-0 font-semibold uppercase tracking-[0.1em] text-yellow-300">
-                TMDB
-              </span>
-              <span className="truncate text-white">{tmdbRating}</span>
-            </div>
-          ) : null}
-        </div>
+  {item.imdbRating ? (
+  <div className="flex items-center justify-between gap-3 rounded-xl border border-yellow-400/20 bg-yellow-500 px-3 py-2">
+    <div className="flex items-center gap-2">
+      <span className="rounded-md bg-yellow-400 px-1.5 py-0.5 text-[9px] font-black uppercase text-black">
+        IMDb
+      </span>
+    </div>
+
+    <span className="text-[12px] font-bold text-white">
+      {item.imdbRating}
+    </span>
+  </div>
+) : null}
+
+  {tmdbRating ? (
+  <div className="flex items-center justify-between gap-3 rounded-xl border border-cyan-400/20 bg-cyan-500 px-3 py-2">
+    <div className="flex items-center gap-2">
+      <span className="rounded-md bg-cyan-400 px-1.5 py-0.5 text-[9px] font-black uppercase text-slate-900">
+        TMDB
+      </span>
+    </div>
+
+    <span className="text-[12px] font-bold text-white">
+      {tmdbRating}
+    </span>
+  </div>
+) : null}
+</div>
       </div>
     </div>
   );
@@ -469,6 +560,8 @@ function CardBadges({
 }) {
   return (
     <>
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 bg-gradient-to-b from-black/70 via-black/40 to-transparent" />
+
       {showWatchedToggle ? (
         <div className="absolute right-2.5 top-2.5 z-20">
           <ActionBadge
@@ -504,6 +597,8 @@ function MobileCarouselCard({
   onRemoveNextUp,
   resolveHref,
 }) {
+  const router = useRouter();
+
   const isContinueWatchingSection = sectionKey === 'continue-watching';
   const isNextUpSection = sectionKey === 'next-up';
   const isAiringSoonSection = sectionKey === 'airing-soon';
@@ -522,10 +617,17 @@ function MobileCarouselCard({
     ? 'w-[58vw] min-w-[58vw] max-w-[220px]'
     : 'w-[42vw] min-w-[42vw] max-w-[180px]';
 
+  const detailHref = buildDetailHref(item, mediaType);
+
   return (
     <Link
       href={resolveHref(item, mediaType)}
-      className={`group block shrink-0 snap-start ${mobileWidthClass}`}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        router.push(detailHref);
+      }}
+      className={`group block shrink-0 snap-start cursor-pointer ${mobileWidthClass}`}
     >
       <div className="relative overflow-hidden rounded-[1.2rem] border border-white/10 bg-white/[0.04] p-0 shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl transition duration-300">
         <CardBadges
@@ -647,6 +749,8 @@ function DesktopCarouselCard({
   onRemoveNextUp,
   resolveHref,
 }) {
+  const router = useRouter();
+
   const isContinueWatchingSection = sectionKey === 'continue-watching';
   const isNextUpSection = sectionKey === 'next-up';
   const isAiringSoonSection = sectionKey === 'airing-soon';
@@ -657,11 +761,17 @@ function DesktopCarouselCard({
       : '';
 
   const isWatched = episodeKey ? Boolean(watchedEpisodes?.[episodeKey]) : false;
+  const detailHref = buildDetailHref(item, mediaType);
 
   return (
     <Link
       href={resolveHref(item, mediaType)}
-      className="group block min-w-0"
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        router.push(detailHref);
+      }}
+      className="group block min-w-0 cursor-pointer"
     >
       <div className="relative overflow-hidden rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-0 shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl transition duration-300 group-hover:-translate-y-1 group-hover:shadow-[0_16px_40px_rgba(0,0,0,0.26),0_0_0_1px_rgba(255,255,255,0.08)]">
         <CardBadges
@@ -1412,22 +1522,45 @@ export default function HomeContent() {
   }, [heroMovies]);
 
   useEffect(() => {
-    const fetchCarousels = async () => {
-      const [dayMovies, dayShows, weekMovies, weekShows] = await Promise.all([
-        fetchTMDB('trending/movie/day'),
-        fetchTMDB('trending/tv/day'),
-        fetchTMDB('trending/movie/week'),
-        fetchTMDB('trending/tv/week'),
-      ]);
+  const addRatingsToItems = async (items, mediaType, limit) => {
+    const filtered = items.filter((item) => item.poster_path).slice(0, limit);
 
-      setTopDayMovies(dayMovies.filter((m) => m.poster_path).slice(0, 10));
-      setTopDayShows(dayShows.filter((s) => s.poster_path).slice(0, 10));
-      setTrendingWeekMovies(weekMovies.filter((m) => m.poster_path).slice(0, 18));
-      setTrendingWeekShows(weekShows.filter((s) => s.poster_path).slice(0, 18));
-    };
+    return Promise.all(
+      filtered.map(async (item) => {
+        const ratings = await fetchRatings(item.id, mediaType);
+        return { ...item, ...ratings };
+      })
+    );
+  };
 
-    fetchCarousels();
-  }, []);
+  const fetchCarousels = async () => {
+    const [dayMovies, dayShows, weekMovies, weekShows] = await Promise.all([
+      fetchTMDB('trending/movie/day'),
+      fetchTMDB('trending/tv/day'),
+      fetchTMDB('trending/movie/week'),
+      fetchTMDB('trending/tv/week'),
+    ]);
+
+    const [
+      dayMoviesWithRatings,
+      dayShowsWithRatings,
+      weekMoviesWithRatings,
+      weekShowsWithRatings,
+    ] = await Promise.all([
+      addRatingsToItems(dayMovies, 'movie', 10),
+      addRatingsToItems(dayShows, 'tv', 10),
+      addRatingsToItems(weekMovies, 'movie', 18),
+      addRatingsToItems(weekShows, 'tv', 18),
+    ]);
+
+    setTopDayMovies(dayMoviesWithRatings);
+    setTopDayShows(dayShowsWithRatings);
+    setTrendingWeekMovies(weekMoviesWithRatings);
+    setTrendingWeekShows(weekShowsWithRatings);
+  };
+
+  fetchCarousels();
+}, []);
 
   const goHeroLeft = () => {
     if (!heroMovies.length) return;
@@ -1736,7 +1869,7 @@ export default function HomeContent() {
             href={`${process.env.NEXT_PUBLIC_GITHUB_REPO}/commit/${process.env.NEXT_PUBLIC_COMMIT_HASH}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-1.5 font-mono tracking-wider backdrop-blur-xl transition hover:bg-white/[0.05]"
+            className="cursor-pointer rounded-xl border border-white/8 bg-white/[0.03] px-3 py-1.5 font-mono tracking-wider backdrop-blur-xl transition hover:bg-white/[0.05]"
             title="View this version on GitHub"
           >
             <span className="text-gray-500">Latest Update </span>

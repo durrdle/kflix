@@ -476,7 +476,7 @@ function LiveSportsPageContent() {
                     type="button"
                     onClick={() => scrollSports('left')}
                     disabled={mounted ? !canScrollLeft : false}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border transition active:scale-95 disabled:opacity-60"
+                    className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border transition active:scale-95 disabled:cursor-default disabled:opacity-60"
                     style={glassGhostButtonStyle}
                     aria-label="Scroll categories left"
                   >
@@ -489,7 +489,7 @@ function LiveSportsPageContent() {
                     type="button"
                     onClick={() => scrollSports('right')}
                     disabled={mounted ? !canScrollRight : false}
-                    className="flex h-10 w-10 items-center justify-center rounded-full border transition active:scale-95 disabled:opacity-60"
+                    className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border transition active:scale-95 disabled:cursor-default disabled:opacity-60"
                     style={glassGhostButtonStyle}
                     aria-label="Scroll categories right"
                   >
@@ -507,7 +507,7 @@ function LiveSportsPageContent() {
                 <button
                   type="button"
                   onClick={() => setActiveSport('live')}
-                  className="shrink-0 rounded-xl border px-3 py-2 text-sm font-semibold transition active:scale-95 sm:px-4"
+                  className="shrink-0 cursor-pointer rounded-xl border px-3 py-2 text-sm font-semibold transition active:scale-95 sm:px-4"
                   style={activeSport === 'live' ? glassActiveButtonStyle : glassGhostButtonStyle}
                 >
                   Live Now
@@ -521,7 +521,7 @@ function LiveSportsPageContent() {
                       key={sport.id}
                       type="button"
                       onClick={() => setActiveSport(sport.slug)}
-                      className="shrink-0 rounded-xl border px-3 py-2 text-sm font-semibold transition active:scale-95 sm:px-4"
+                      className="shrink-0 cursor-pointer rounded-xl border px-3 py-2 text-sm font-semibold transition active:scale-95 sm:px-4"
                       style={active ? glassActiveButtonStyle : glassGhostButtonStyle}
                     >
                       {sport.label}
@@ -602,7 +602,7 @@ function LiveSportsPageContent() {
                   return (
                     <div
                       key={`${title}-${match.date || index}-${index}`}
-                      className="flex h-full flex-col overflow-hidden rounded-3xl border transition"
+                      className="flex h-full cursor-pointer flex-col overflow-hidden rounded-3xl border transition"
                       style={glassCardStyle}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.borderColor = 'var(--theme-accent-border)';
@@ -743,7 +743,7 @@ function LiveSportsPageContent() {
 
                         <div className="mt-auto pt-5">
                           {hasPlayableSource ? (
-                            <Link href={watchHref}>
+                            <Link href={watchHref} className="block cursor-pointer">
                               <span
                                 className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border px-5 text-sm font-semibold transition active:scale-95"
                                 style={glassAccentButtonStyle}
